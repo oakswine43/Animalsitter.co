@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PetCare Portal</title>
+  <title>AnimalSitter</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -12,14 +12,14 @@
     <header class="app-header">
       <div class="app-header-inner">
         <!-- Brand -->
-<div class="brand" data-page-jump="homePage" style="cursor:pointer;">
-  <img
-    src="img/petcare-logo.png"
-    alt="PetCare Portal logo"
-    class="brand-logo"
-  />
-  <span>PetCare Portal</span>
-</div>
+        <div class="brand" data-page-jump="homePage" style="cursor:pointer;">
+          <img
+            src="img/petcare-logo.png"
+            alt="AnimalSitter logo"
+            class="brand-logo"
+          />
+          <span>AnimalSitter</span>
+        </div>
 
         <!-- MAIN NAV -->
         <nav class="main-nav">
@@ -61,7 +61,7 @@
 
           <!-- HOME PAGE -->
           <section id="homePage" class="page active">
-            <h1>Find trusted sitters near you</h1>
+            <h1>AnimalSitter – find trusted local sitters</h1>
             <p class="page-subtitle">
               Browse nearby sitters, swipe to match, and see real reviews from other pet parents.
             </p>
@@ -138,7 +138,7 @@
                 <!-- Existing Swipe card -->
                 <div class="swipe-card">
                   <h2>Swipe Sitter</h2>
-                  <p>Match with sitters like a Tinder-style experience – built for dog sitting.</p>
+                  <p>Match with sitters like a Tinder-style experience – built for pet sitting.</p>
                   <div class="swipe-meta-row">
                     <span class="swipe-meta-pill">Verified profiles</span>
                     <span class="swipe-meta-pill">Background checks</span>
@@ -151,15 +151,15 @@
 
                 <!-- NEW: Become a sitter / client entry card -->
                 <div class="swipe-card">
-                  <h2>Become a sitter</h2>
+                  <h2>Become a sitter on AnimalSitter</h2>
                   <p>
-                    Earn money, set your schedule, and work with dogs you love.
+                    Earn money, set your schedule, and work with pets you love.
                     Create a sitter profile in a few minutes.
                   </p>
                   <div class="swipe-meta-row">
                     <span class="swipe-meta-pill">Flexible schedule</span>
                     <span class="swipe-meta-pill">Set your own rates</span>
-                    <span class="swipe-meta-pill">Work with dogs only</span>
+                    <span class="swipe-meta-pill">Trusted by pet parents</span>
                   </div>
                   <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
                     <button
@@ -406,21 +406,20 @@
 
   <!-- SCRIPTS -->
   <!-- Using defer keeps order + ensures DOM exists for binders -->
-<script src="js/state.js" defer></script>
-<script src="js/app.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/app.js" defer></script>
 
-<script src="js/pages/home.js" defer></script>
-<script src="js/pages/dashboard.js" defer></script>
-<script src="js/pages/swipe.js" defer></script>
-<script src="js/pages/dogs.js" defer></script>
-<script src="js/pages/messages.js" defer></script>
-<script src="js/pages/settings.js" defer></script>
+  <script src="js/pages/home.js" defer></script>
+  <script src="js/pages/dashboard.js" defer></script>
+  <script src="js/pages/swipe.js" defer></script>
+  <script src="js/pages/dogs.js" defer></script>
+  <script src="js/pages/messages.js" defer></script>
+  <script src="js/pages/settings.js" defer></script>
 
+  <script src="js/pages/sitterProfile.js" defer></script>
+  <script src="js/pages/authPage.js" defer></script>
+  <script src="js/pages/profile.js" defer></script>
 
-<script src="js/pages/sitterProfile.js" defer></script>
-<script src="js/pages/authPage.js" defer></script>
-<script src="js/pages/profile.js" defer></script>
-
-
+  
 </body>
 </html>
