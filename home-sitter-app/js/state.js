@@ -2,6 +2,24 @@
 // Central in-memory state + role definitions for PetCare Portal
 // Now includes localStorage persistence + real signup/login support.
 
+// ---- API BASE (frontend -> backend) ----
+// This does NOT replace any existing code. It only sets window.API_BASE
+// so other scripts (auth, bookings, etc.) know where your backend lives.
+(function () {
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  // When you're on the same machine (localhost), talk to 127.0.0.1:4000
+  // When you're on your phone hitting animalsitter.co, talk to your Mac's LAN IP.
+  const backendBase = isLocal
+    ? "http://127.0.0.1:4000"
+    : "http://192.168.156.180:4000"; // <- update this IP if your Mac's IP changes
+
+  window.API_BASE = backendBase;
+  console.log("[Animalsitter] API_BASE =", window.API_BASE);
+})();
+
 window.PetCareState = (function () {
   // --- Role definitions / permissions metadata ---
 

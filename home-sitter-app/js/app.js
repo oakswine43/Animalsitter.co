@@ -4,10 +4,36 @@
 // ============================
 
 // -----------------------------
-// API base – force to root of backend (no /api)
+// API base – works on Mac + phone over Wi-Fi
+// and can still be overridden by window.PETCARE_API_BASE
 // -----------------------------
-let base = window.PETCARE_API_BASE || "http://localhost:4000";
+let base;
 
+(function () {
+  // If something (like a script tag) explicitly set PETCARE_API_BASE, trust that first
+  if (window.PETCARE_API_BASE) {
+    base = window.PETCARE_API_BASE;
+    return;
+  }
+
+  const host = window.location.hostname || "";
+
+  const isLocalEnv =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.startsWith("192.168.");
+
+  if (isLocalEnv) {
+    // Local dev: your backend is on your Mac at port 4000
+    // 👇 if your Mac IP ever changes, just update this line
+    base = "http://192.168.156.180:4000";
+  } else {
+    // Default / fallback (for now). Later this can be your real production API.
+    base = "http://localhost:4000";
+  }
+})();
+
+// Normalize base (no trailing slash, no /api)
 if (base.endsWith("/")) {
   base = base.slice(0, -1);
 }
