@@ -1,0 +1,3143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Home Sitter App - Single File Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+  --primary:#ff8c00;
+  --primary-dark:#e07b00;
+  --bg:#f5f5f7;
+  --card-bg:#ffffff;
+  --text:#333;
+  --accent:#4caf50;
+  --danger:#dc3545;
+  --info:#007bff;
+  --radius:14px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* Header / Nav */
+header{
+  background:var(--primary);
+  color:#fff;
+  padding:12px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  position:sticky;
+  top:0;
+  z-index:50;
+}
+header h1{font-size:20px;}
+nav a{
+  color:#fff;
+  margin:0 8px;
+  text-decoration:none;
+  font-weight:bold;
+  cursor:pointer;
+  padding:6px 10px;
+  border-radius:999px;
+  transition:background 0.2s, transform 0.1s;
+  font-size:14px;
+}
+nav a:hover{
+  background:rgba(0,0,0,0.12);
+  transform:translateY(-1px);
+}
+nav a.active{
+  background:#fff;
+  color:var(--primary);
+}
+
+/* Sections */
+.section{
+  max-width:1100px;
+  margin:18px auto;
+  padding:18px;
+  background:var(--card-bg);
+  border-radius:var(--radius);
+  box-shadow:0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* Generic */
+h2{margin-bottom:10px;font-size:20px;}
+h3{margin:12px 0 6px;font-size:17px;}
+p{margin:6px 0;}
+hr{margin:14px 0;border:none;border-top:1px solid #eee;}
+
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  background:#eee;
+}
+.badge.admin{background:#222;color:#fff;}
+.badge.employee{background:#6c63ff;color:#fff;}
+.badge.sitter{background:#4caf50;color:#fff;}
+.badge.client{background:#03a9f4;color:#fff;}
+
+/* Buttons */
+.btn{
+  border:none;
+  border-radius:999px;
+  padding:8px 16px;
+  font-size:13px;
+  cursor:pointer;
+  background:var(--primary);
+  color:#fff;
+  margin:4px 4px 4px 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  transition:background 0.2s, transform 0.1s, box-shadow 0.1s;
+}
+.btn:hover{
+  background:var(--primary-dark);
+  transform:translateY(-1px);
+  box-shadow:0 2px 4px rgba(0,0,0,0.15);
+}
+.btn.secondary{background:#e0e0e0;color:#333;}
+.btn.secondary:hover{background:#d0d0d0;}
+.btn.danger{background:var(--danger);}
+.btn.danger:hover{background:#b52a37;}
+.btn.accent{background:var(--accent);}
+.btn.accent:hover{background:#3e8e41;}
+.btn.info{background:var(--info);}
+.btn.info:hover{background:#0062cc;}
+.btn-pill{border-radius:999px!important;}
+
+/* Forms */
+form label{display:block;margin-top:8px;font-size:13px;font-weight:bold;}
+form input,form select,form textarea{
+  width:100%;
+  padding:7px 9px;
+  margin-top:4px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:13px;
+}
+form textarea{resize:vertical;min-height:60px;}
+
+/* Grid / Cards */
+.grid-2{
+  display:grid;
+  grid-template-columns:2fr 1.4fr;
+  gap:18px;
+}
+.grid-3{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+}
+.card{
+  background:#fff;
+  border-radius:var(--radius);
+  padding:12px 14px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.05);
+}
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:6px;
+  font-weight:bold;
+}
+
+/* Map placeholder */
+.map{
+  width:100%;
+  height:260px;
+  background:linear-gradient(135deg,#eceff1,#cfd8dc);
+  border-radius:var(--radius);
+  position:relative;
+  overflow:hidden;
+}
+.map-pin-card{
+  position:absolute;
+  transform:translate(-50%,-100%);
+  background:#fff;
+  border-radius:14px;
+  padding:6px;
+  width:150px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.15s,transform 0.15s;
+}
+.map-pin-card img{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  object-fit:cover;
+}
+.map-pin-card .name{font-size:12px;font-weight:bold;}
+.map-pin-card .meta{font-size:11px;color:#666;}
+.map-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:var(--primary);
+  border:2px solid #fff;
+  box-shadow:0 0 0 2px rgba(0,0,0,0.15);
+  position:absolute;
+  transform:translate(-50%,-50%);
+  cursor:pointer;
+}
+.map-dot:hover + .map-pin-card,
+.map-pin-card:hover{
+  opacity:1;
+  transform:translate(-50%,-110%);
+}
+
+/* Home sitter cards */
+.sitter-icon-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.sitter-icon{
+  width:110px;
+  height:130px;
+  border-radius:18px;
+  background:#fafafa;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:transform 0.2s, box-shadow 0.2s;
+  text-align:center;
+  padding:6px;
+}
+.sitter-icon img{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  object-fit:cover;
+  margin-bottom:4px;
+}
+.sitter-icon:hover{
+  transform:translateY(-3px) scale(1.03);
+  box-shadow:0 3px 10px rgba(0,0,0,0.12);
+}
+
+/* Swipe sitters */
+.swipe-layout{
+  display:grid;
+  grid-template-columns:180px minmax(260px,1.3fr) 220px;
+  gap:18px;
+}
+.swipe-card{
+  position:relative;
+  width:100%;
+  height:340px;
+  border-radius:26px;
+  overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,0,0,0.18);
+  user-select:none;
+  cursor:grab;
+  background-size:cover;
+  background-position:center;
+}
+.swipe-card-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to top,rgba(0,0,0,0.7),rgba(0,0,0,0.1));
+}
+.swipe-card-info{
+  position:absolute;
+  left:16px;
+  right:16px;
+  bottom:14px;
+  color:#fff;
+}
+.swipe-card-info h3{margin:0 0 4px;}
+.swipe-card-info .meta{font-size:13px;opacity:0.9;}
+.swipe-controls{
+  margin-top:10px;
+  display:flex;
+  justify-content:center;
+  gap:16px;
+}
+.swipe-btn{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  border:none;
+  cursor:pointer;
+  font-size:22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 3px 10px rgba(0,0,0,0.2);
+  transition:transform 0.1s, box-shadow 0.1s;
+}
+.swipe-btn.dislike{background:#fff;color:#ff1744;}
+.swipe-btn.like{background:var(--primary);color:#fff;}
+.swipe-btn:hover{transform:translateY(-2px);box-shadow:0 5px 14px rgba(0,0,0,0.28);}
+
+/* Matches list */
+.matches-list{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.match-item{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:6px;
+  padding:10px 8px;
+  border-radius:16px;
+  cursor:pointer;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  transition:background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.match-item img{
+  width:72px;
+  height:72px;
+  border-radius:18px;
+  object-fit:cover;
+}
+.match-item:hover{
+  background:#f2f2f7;
+  transform:translateY(-2px);
+  box-shadow:0 3px 10px rgba(0,0,0,0.15);
+}
+.match-name{font-size:13px;font-weight:bold;}
+.match-meta{font-size:11px;color:#666;}
+.match-divider{
+  height:1px;
+  background:#e0e0e0;
+  margin:4px 0 6px;
+}
+
+/* Messages */
+.messages-layout{
+  display:grid;
+  grid-template-columns:240px minmax(260px,1.6fr);
+  gap:16px;
+}
+.convo-list{
+  border-right:1px solid #eee;
+  padding-right:10px;
+}
+.convo-item{
+  padding:8px;
+  border-radius:12px;
+  cursor:pointer;
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:background 0.15s;
+}
+.convo-item img{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  object-fit:cover;
+}
+.convo-item:hover{background:#f2f2f7;}
+.convo-item.active{background:#e3f2fd;}
+.message-thread{
+  display:flex;
+  flex-direction:column;
+  height:320px;
+}
+.message-header{
+  font-weight:bold;
+  margin-bottom:6px;
+}
+.message-list{
+  flex:1;
+  overflow-y:auto;
+  padding:6px;
+  border-radius:10px;
+  background:#fafafa;
+  margin-bottom:6px;
+}
+.message-bubble{
+  max-width:70%;
+  padding:6px 9px;
+  border-radius:14px;
+  margin:4px 0;
+  font-size:13px;
+}
+.message-out{
+  margin-left:auto;
+  background:var(--primary);
+  color:#fff;
+  border-bottom-right-radius:2px;
+}
+.message-in{
+  margin-right:auto;
+  background:#fff;
+  border-bottom-left-radius:2px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Tables */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:8px;
+  font-size:13px;
+}
+th,td{
+  border:1px solid #eee;
+  padding:6px 8px;
+  text-align:left;
+}
+th{
+  background:#fafafa;
+  font-weight:bold;
+}
+
+/* Dog card */
+.dog-card{
+  display:inline-block;
+  margin-bottom:10px;
+  margin-right:10px;
+  padding:8px;
+  border-radius:16px;
+  background:#fafafa;
+  box-shadow:0 1px 4px rgba(0,0,0,0.05);
+  cursor:pointer;
+  transition:transform 0.15s, box-shadow 0.15s;
+}
+.dog-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 3px 10px rgba(0,0,0,0.12);
+}
+
+/* Modal */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+}
+.modal-content{
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  width:90%;
+  max-width:430px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.25);
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+.modal-close{
+  border:none;
+  background:transparent;
+  font-size:18px;
+  cursor:pointer;
+}
+
+/* Sitter stats chart + client history chart */
+.sitter-chart{
+  margin-top:10px;
+}
+.sitter-chart-row{
+  display:flex;
+  align-items:center;
+  margin-bottom:6px;
+  font-size:12px;
+}
+.sitter-chart-label{
+  width:90px;
+}
+.sitter-chart-bar-wrap{
+  flex:1;
+  background:#eee;
+  border-radius:999px;
+  overflow:hidden;
+  margin:0 6px;
+}
+.sitter-chart-bar{
+  height:10px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--primary),var(--accent));
+}
+.sitter-chart-value{
+  width:70px;
+  text-align:right;
+  font-size:11px;
+  color:#555;
+}
+
+/* Sitter reviews */
+.sitter-review{
+  margin-bottom:8px;
+  padding:8px;
+  border-radius:10px;
+  background:#fafafa;
+  box-shadow:0 1px 3px rgba(0,0,0,0.05);
+  font-size:12px;
+}
+.sitter-review-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:2px;
+}
+.sitter-review-rating{
+  color:#ffb300;
+  font-size:12px;
+}
+
+/* New Requests (sitter) */
+.request-item{
+  border-radius:12px;
+  padding:8px 10px;
+  background:#fafafa;
+  box-shadow:0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom:8px;
+  font-size:12px;
+}
+.request-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:2px;
+}
+.request-meta{
+  color:#555;
+}
+
+/* Responsive */
+@media(max-width:900px){
+  .grid-2,.swipe-layout,.messages-layout{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:600px){
+  header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+  }
+  nav a{margin:2px 4px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Home Sitter</h1>
+  <nav id="navbar">
+    <a data-page="home" class="active">Home</a>
+    <a data-page="dashboard">Dashboard</a>
+    <a data-page="swipe">Swipe Sitters</a>
+    <a data-page="messages">Messages</a>
+    <a data-page="about">About</a>
+    <a data-page="settings">Settings</a>
+    <a data-page="auth">Sign In / Sign Up</a>
+    <a id="logoutLink" style="display:none;">Logout</a>
+  </nav>
+</header>
+
+<!-- HOME -->
+<section id="home" class="section">
+  <div class="grid-2">
+    <div>
+      <h2>Welcome to Home Sitter 🐶</h2>
+      <p>Find trusted dog sitters nearby, track live updates, and keep all your pups’ info in one simple dashboard.</p>
+      <p>Home Sitter connects <strong>pet parents</strong> with <strong>verified sitters</strong> in their city — kind of like Uber, but for your dog’s day.</p>
+
+      <h3 style="margin-top:12px;">Explore Sitters Near You</h3>
+      <div id="homeMap" class="map"></div>
+
+      <p style="margin-top:10px;font-size:13px;color:#666;">
+        💡 Hover a hotspot dot to see sitter details. Click the sitter card overlay to open their full listing page.
+      </p>
+    </div>
+
+    <div>
+      <h3>Featured Sitters</h3>
+      <div id="homeSittersIcons" class="sitter-icon-grid"></div>
+
+      <h3 style="margin-top:18px;">Swipe to Find Your Perfect Sitter</h3>
+      <p style="font-size:13px;color:#555;">
+        Want a fun way to choose? Try our swipe experience to quickly shortlist sitters you vibe with.
+      </p>
+      <button class="btn info btn-pill" onclick="showPage('swipe')">
+        👉 Open Swipe Sitters
+      </button>
+
+      <h3 style="margin-top:18px;">Future Updates</h3>
+      <ul style="font-size:13px;margin-left:18px;line-height:1.5;">
+        <li>Verified vet & training badges</li>
+        <li>Automated payout tracking for sitters</li>
+        <li>Smart matching based on your dog’s personality</li>
+        <li>In-app video check-ins during sits</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboard" class="section" style="display:none;">
+  <h2 id="dashboardTitle">Dashboard</h2>
+  <div id="dashboardContent"></div>
+</section>
+
+<!-- SWIPE SITTERS -->
+<section id="swipe" class="section" style="display:none;">
+  <h2>Swipe Sitters</h2>
+  <p style="font-size:13px;color:#555;margin-bottom:10px;">
+    Swipe right ❤️ to like a sitter, left ❌ to skip. Use your mouse (drag) or the buttons below.
+  </p>
+  <div class="swipe-layout">
+    <div>
+      <h3>Your Matches</h3>
+      <div id="matchesList" class="matches-list"></div>
+    </div>
+
+    <div>
+      <div id="swipeCard" class="swipe-card">
+        <div class="swipe-card-overlay"></div>
+        <div class="swipe-card-info">
+          <h3 id="swipeName"></h3>
+          <div id="swipeMeta" class="meta"></div>
+        </div>
+      </div>
+      <div class="swipe-controls">
+        <button class="swipe-btn dislike" onclick="handleSwipe(false)">✖</button>
+        <button class="swipe-btn like" onclick="handleSwipe(true)">❤</button>
+      </div>
+    </div>
+
+    <div>
+      <h3>Why the Right Sitter Matters</h3>
+      <ul style="font-size:13px;line-height:1.6;margin-left:18px;">
+        <li>Gives you peace of mind while you’re away.</li>
+        <li>Consistent routines keep your dog calm & happy.</li>
+        <li>Trusted sitters send live updates, photos, and notes.</li>
+        <li>Local sitters know your area’s parks & vet clinics.</li>
+      </ul>
+      <p style="font-size:12px;color:#777;margin-top:10px;">
+        Tip: Tap into each match to open their full profile, chat, and send a booking request.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- MESSAGES -->
+<section id="messages" class="section" style="display:none;">
+  <h2>Messages</h2>
+  <p style="font-size:13px;color:#555;margin-bottom:10px;">
+   Chat between clients and sitters about upcoming sits, live updates, and questions. Admins and employees can view all chats for support.
+  </p>
+
+  <div id="messagesContent" class="messages-layout">
+    <!-- filled by JS -->
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about" class="section" style="display:none;">
+  <h2>About Home Sitter</h2>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-header">
+        <span>For Pet Parents</span>
+      </div>
+      <p style="font-size:13px;">
+        Browse sitters, swipe to match, and book in a few taps. Watch your pup’s walk in real time with live map tracking and status updates like <em>“bathroom break”</em>, <em>“playtime”</em>, and more.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span>For Sitters</span>
+      </div>
+      <p style="font-size:13px;">
+        Become a dog sitter in minutes. Create a profile, set your rates, and start receiving local requests. Track your earnings over 1, 7, or 30 days and build your own client list.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span>Safe & Secure</span>
+      </div>
+      <p style="font-size:13px;">
+        Admins manage approvals and employees support clients and sitters. Reviews, flags, and history help keep every dog and human safe and happy.
+      </p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:16px;">What This App Is For</h3>
+  <ul style="font-size:13px;line-height:1.6;margin-left:18px;">
+    <li>Finding nearby dog sitters quickly and easily</li>
+    <li>Tracking live sits with map, notes, and icons</li>
+    <li>Helping sitters manage their work day and earnings</li>
+    <li>Giving everyone a friendly, modern, mobile-style experience</li>
+  </ul>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="section" style="display:none;">
+  <h2>Your Settings</h2>
+  <div id="settingsContent"></div>
+</section>
+
+<!-- AUTH -->
+<section id="auth" class="section" style="display:none;">
+  <h2>Sign In</h2>
+  <form id="loginForm">
+    <label>Email</label>
+    <input id="loginEmail" type="email" required>
+    <label>Password</label>
+    <input id="loginPassword" type="password" required>
+    <button class="btn btn-pill" type="submit">Sign In</button>
+  </form>
+
+  <hr>
+
+  <h2>Sign Up as Client (Step 1)</h2>
+  <form id="signupClientForm">
+    <label>Name</label>
+    <input id="clientName" required>
+    <label>Email</label>
+    <input id="clientEmail" type="email" required>
+    <label>Password</label>
+    <input id="clientPassword" type="password" required>
+    <button class="btn btn-pill" type="submit">Create Client Account</button>
+  </form>
+
+  <hr>
+
+  <h2>Sign Up as Sitter (Step 1)</h2>
+  <form id="signupSitterForm">
+    <label>Name</label>
+    <input id="sitterName" required>
+    <label>Email</label>
+    <input id="sitterEmail" type="email" required>
+    <label>Password</label>
+    <input id="sitterPassword" type="password" required>
+    <button class="btn btn-pill" type="submit">Create Sitter Account</button>
+  </form>
+</section>
+
+<!-- COMPLETE PROFILE (Step 2) -->
+<section id="signupFlow" class="section" style="display:none;">
+  <h2>Complete Your Profile</h2>
+  <div id="signupFlowContent"></div>
+</section>
+
+<!-- DOG PROFILE PAGE -->
+<section id="dogProfile" class="section" style="display:none;">
+  <h2>Dog Profile</h2>
+  <div id="dogProfileContent"></div>
+</section>
+
+<!-- EMPLOYEE DETAIL PAGE -->
+<section id="employeeDetail" class="section" style="display:none;">
+  <h2>Employee Record</h2>
+  <div id="employeeDetailContent"></div>
+</section>
+
+<!-- USER DETAIL PAGE -->
+<section id="userDetail" class="section" style="display:none;">
+  <h2>User Record</h2>
+  <div id="userDetailContent"></div>
+</section>
+
+<!-- SITTER DETAIL / LISTING PAGE -->
+<section id="sitterDetail" class="section" style="display:none;">
+  <h2>Sitter Listing</h2>
+  <div id="sitterDetailContent"></div>
+</section>
+
+<!-- DOG ADD MODAL -->
+<div id="dogModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Add Dog Profile</h3>
+      <button class="modal-close" onclick="closeDogModal()">✕</button>
+    </div>
+    <form id="dogForm">
+      <label>Dog Name</label>
+      <input id="dogName" required>
+      <label>Breed</label>
+      <input id="dogBreed" placeholder="e.g., Golden Retriever" required>
+      <label>Color</label>
+      <input id="dogColor" placeholder="e.g., Yellow / Black" required>
+      <label>Weight (lbs)</label>
+      <input id="dogWeight" type="number" min="1" placeholder="e.g., 60">
+      <label>Aggressive?</label>
+      <select id="dogAggressive">
+        <option value="no">No</option>
+        <option value="yes">Yes</option>
+        <option value="depends">Depends on situation</option>
+      </select>
+      <label>Allergies</label>
+      <textarea id="dogAllergies" placeholder="Food / environmental allergies"></textarea>
+      <label>Special Needs</label>
+      <textarea id="dogNeeds" placeholder="Medications, mobility issues, etc."></textarea>
+      <label>Notes for Sitters</label>
+      <textarea id="dogNotes" placeholder="Anything else your sitter should know."></textarea>
+
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;">
+        <button type="button" class="btn secondary btn-pill" onclick="closeDogModal()">Cancel</button>
+        <button type="submit" class="btn btn-pill">Save Dog</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ====================== DATA SETUP ======================
+const DEMO_RESET = true;
+if (DEMO_RESET) {
+  localStorage.removeItem("hs_users");
+  localStorage.removeItem("hs_dogs");
+  localStorage.removeItem("hs_messages");
+  localStorage.removeItem("hs_matches");
+  localStorage.removeItem("hs_jobs");
+  localStorage.removeItem("hs_requests");
+}
+
+let users = JSON.parse(localStorage.getItem("hs_users")) || [];
+let dogs = JSON.parse(localStorage.getItem("hs_dogs")) || [];
+let messages = JSON.parse(localStorage.getItem("hs_messages")) || [];
+let matches = JSON.parse(localStorage.getItem("hs_matches")) || [];
+let jobs = JSON.parse(localStorage.getItem("hs_jobs")) || [];
+let requests = JSON.parse(localStorage.getItem("hs_requests")) || [];
+
+// demo reviews for sitters
+const sitterReviews = [
+  {sitterId:"STR1", clientName:"Client 1", rating:5, date:"2025-11-03", comment:"Buddy came home so happy! Great communication and lots of photo updates."},
+  {sitterId:"STR1", clientName:"Client 2", rating:4.5, date:"2025-11-10", comment:"Very friendly and on time. Will book again for sure."},
+  {sitterId:"STR2", clientName:"Client 1", rating:4, date:"2025-11-08", comment:"Took our pup for a long walk and followed all directions."}
+];
+
+let currentUser = null;
+let swipeIndex = 0;
+let swipeSitters = [];
+let currentDogId = null;
+let currentEmployeeId = null;
+let currentManagedUserId = null;
+let signupFlowUserId = null;
+let currentSitterId = null;
+let preselectMessagePartnerId = null; // for jumping into a specific conversation
+
+function seedDataIfNeeded(){
+  if(users.length>0) return;
+
+  // Admin
+  users.push({
+    id:"USRADMIN001",
+    name:"Admin User",
+    email:"admin@admin.com",
+    password:"admin123",
+    role:"admin",
+    avatar:"https://images.pexels.com/photos/772891/pexels-photo-772891.jpeg",
+    address1:"100 Admin Plaza",
+    address2:"",
+    city:"Nashville, TN",
+    zip:"37201",
+    billingAddress1:"100 Admin Plaza",
+    billingCity:"Nashville, TN",
+    billingZip:"37201",
+    paymentMeta:{last4:"4242",exp:"12/28"}
+  });
+
+  // Employees
+  users.push({
+    id:"EMP1",
+    name:"Employee One",
+    email:"employee1@mail.com",
+    password:"employee1",
+    role:"employee",
+    avatar:"https://images.pexels.com/photos/1181519/pexels-photo-1181519.jpeg",
+    address1:"200 Support Way",
+    city:"Nashville, TN",
+    zip:"37202",
+    employeeMeta:{hourlyRate:20,totalHours:42,todayHours:4,callLogs:10}
+  });
+  users.push({
+    id:"EMP2",
+    name:"Employee Two",
+    email:"employee2@mail.com",
+    password:"employee2",
+    role:"employee",
+    avatar:"https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg",
+    address1:"201 Support Way",
+    city:"Nashville, TN",
+    zip:"37203",
+    employeeMeta:{hourlyRate:22,totalHours:30,todayHours:6,callLogs:7}
+  });
+
+  // Clients
+  for(let i=1;i<=3;i++){
+    users.push({
+      id:"CLT"+i,
+      name:"Client "+i,
+      email:"client"+i+"@mail.com",
+      password:"client"+i,
+      role:"client",
+      city:"Nashville, TN",
+      address1:`10${i} Client St`,
+      zip:"3720"+i,
+      avatar:"https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg"
+    });
+  }
+
+  // Sitters
+  const sitterImgs = [
+    "https://images.pexels.com/photos/4587660/pexels-photo-4587660.jpeg",
+    "https://images.pexels.com/photos/4587990/pexels-photo-4587990.jpeg",
+    "https://images.pexels.com/photos/4588064/pexels-photo-4588064.jpeg",
+    "https://images.pexels.com/photos/4588051/pexels-photo-4588051.jpeg"
+  ];
+  for(let i=1;i<=4;i++){
+    users.push({
+      id:"STR"+i,
+      name:"Sitter "+i,
+      email:"sitter"+i+"@mail.com",
+      password:"sitter"+i,
+      role:"sitter",
+      city: i%2===0 ? "Knoxville, TN" : "Nashville, TN",
+      experienceYears: 1+i,
+      rating: 4 + (i%2===0 ? 0 : 0.5),
+      avatar:sitterImgs[i-1],
+      lat: 36.16 + i*0.02,
+      lng:-86.78 + i*0.02,
+      address1:`30${i} Dog Lane`,
+      zip:"3790"+i
+    });
+  }
+
+  // Dogs
+  users.filter(u=>u.role==="client").forEach((c,i)=>{
+    dogs.push({
+      id:"DOG"+(i+1),
+      ownerId:c.id,
+      name:"Buddy "+(i+1),
+      breed:"Labrador Retriever",
+      color:"Yellow",
+      weightLbs:60,
+      aggressive:"no",
+      allergies:"",
+      specialNeeds:"",
+      notes:"",
+      avatar:"https://images.pexels.com/photos/2253275/pexels-photo-2253275.jpeg"
+    });
+  });
+
+  // Jobs (history)
+  jobs.push({
+    id:"JOB1",
+    sitterId:"STR1",
+    clientId:"CLT1",
+    dogId:"DOG1",
+    date:"2025-11-01",
+    hours:2.5,
+    total:45,
+    note:"Evening walk and park time."
+  });
+  jobs.push({
+    id:"JOB2",
+    sitterId:"STR1",
+    clientId:"CLT2",
+    dogId:"DOG2",
+    date:"2025-11-05",
+    hours:4,
+    total:80,
+    note:"Half-day sitting at client home."
+  });
+  jobs.push({
+    id:"JOB3",
+    sitterId:"STR2",
+    clientId:"CLT1",
+    dogId:"DOG1",
+    date:"2025-11-10",
+    hours:1.5,
+    total:30,
+    note:"Quick walk and feeding."
+  });
+
+  // New client requests (for sitter dashboard demo)
+  requests.push({
+    id:"REQ1",
+    sitterId:"STR1",
+    clientId:"CLT1",
+    dogId:"DOG1",
+    date:"2025-11-20",
+    timeWindow:"5:00 PM – 8:00 PM",
+    hours:3,
+    estTotal:60,
+    status:"pending",
+    note:"Evening walk, dinner, and some fetch in the yard."
+  });
+  requests.push({
+    id:"REQ2",
+    sitterId:"STR1",
+    clientId:"CLT2",
+    dogId:"DOG2",
+    date:"2025-11-22",
+    timeWindow:"10:00 AM – 2:00 PM",
+    hours:4,
+    estTotal:80,
+    status:"pending",
+    note:"Half-day sit while we run errands."
+  });
+  requests.push({
+    id:"REQ3",
+    sitterId:"STR2",
+    clientId:"CLT3",
+    dogId:"DOG3",
+    date:"2025-11-23",
+    timeWindow:"12:00 PM – 3:00 PM",
+    hours:3,
+    estTotal:70,
+    status:"pending",
+    note:"Walk + playtime, dog is shy at first."
+  });
+
+  // Messages
+  messages.push({
+    id:"MSG1",
+    fromId:"CLT1",
+    toId:"STR1",
+    text:"Hi! Are you available this weekend?",
+    ts:Date.now()-1000*60*60
+  });
+  messages.push({
+    id:"MSG2",
+    fromId:"STR1",
+    toId:"CLT1",
+    text:"Yes I am! I’d love to watch Buddy.",
+    ts:Date.now()-1000*60*55
+  });
+
+  saveAll();
+}
+function saveAll(){
+  localStorage.setItem("hs_users",JSON.stringify(users));
+  localStorage.setItem("hs_dogs",JSON.stringify(dogs));
+  localStorage.setItem("hs_messages",JSON.stringify(messages));
+  localStorage.setItem("hs_matches",JSON.stringify(matches));
+  localStorage.setItem("hs_jobs",JSON.stringify(jobs));
+  localStorage.setItem("hs_requests",JSON.stringify(requests));
+}
+
+// ====================== NAVIGATION ======================
+const sections = [
+  "home","dashboard","swipe","messages","about","settings",
+  "auth","signupFlow","dogProfile","employeeDetail","userDetail","sitterDetail"
+];
+const navLinks = document.querySelectorAll("#navbar a[data-page]");
+
+navLinks.forEach(a=>{
+  a.addEventListener("click",()=>{
+    const page=a.dataset.page;
+    showPage(page);
+  });
+});
+
+document.getElementById("logoutLink").addEventListener("click",()=>{
+  currentUser=null;
+  document.getElementById("logoutLink").style.display="none";
+  signupFlowUserId=null;
+  showPage("home");
+  renderHome();
+});
+
+function showPage(page){
+  sections.forEach(id=>{
+    const sec=document.getElementById(id);
+    if(sec){sec.style.display = (id===page) ? "block" : "none";}
+  });
+  navLinks.forEach(a=>{
+    a.classList.toggle("active",a.dataset.page===page);
+  });
+
+  if(page==="home") renderHome();
+  if(page==="dashboard") renderDashboard();
+  if(page==="swipe") initSwipe();
+  if(page==="messages") renderMessagesPage();
+  if(page==="settings") renderSettingsPage();
+  if(page==="dogProfile") renderDogProfilePage();
+  if(page==="employeeDetail") renderEmployeeRecordPage();
+  if(page==="userDetail") renderUserRecordPage();
+  if(page==="signupFlow") renderSignupFlowPage();
+  if(page==="sitterDetail") renderSitterDetailPage();
+}
+
+// ====================== AUTH ======================
+document.getElementById("loginForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+  const user = users.find(u=>u.email===email && u.password===password);
+  if(!user){
+    alert("Invalid email or password");
+    return;
+  }
+  currentUser=user;
+  document.getElementById("logoutLink").style.display="inline";
+  showPage("dashboard");
+});
+
+document.getElementById("signupClientForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.getElementById("clientName").value.trim();
+  const email=document.getElementById("clientEmail").value.trim();
+  const pass=document.getElementById("clientPassword").value.trim();
+  if(users.some(u=>u.email===email)){alert("Email already used");return;}
+  const id="CLT"+(users.filter(u=>u.role==="client").length+10);
+  const newUser = {
+    id,name,email,password:pass,role:"client",
+    city:"",
+    address1:"",
+    address2:"",
+    zip:"",
+    country:"",
+    avatar:"https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg"
+  };
+  users.push(newUser);
+  saveAll();
+  signupFlowUserId = newUser.id;
+  currentUser = newUser;
+  document.getElementById("logoutLink").style.display="inline";
+  document.getElementById("signupClientForm").reset();
+  renderSignupFlowPage();
+  showPage("signupFlow");
+});
+
+document.getElementById("signupSitterForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=document.getElementById("sitterName").value.trim();
+  const email=document.getElementById("sitterEmail").value.trim();
+  const pass=document.getElementById("sitterPassword").value.trim();
+  if(users.some(u=>u.email===email)){alert("Email already used");return;}
+  const id="STR"+(users.filter(u=>u.role==="sitter").length+10);
+  const newUser = {
+    id,name,email,password:pass,role:"sitter",
+    city:"",
+    address1:"",
+    address2:"",
+    zip:"",
+    country:"",
+    experienceYears:1,
+    rating:4.5,
+    avatar:"https://images.pexels.com/photos/4588064/pexels-photo-4588064.jpeg"
+  };
+  users.push(newUser);
+  saveAll();
+  signupFlowUserId = newUser.id;
+  currentUser = newUser;
+  document.getElementById("logoutLink").style.display="inline";
+  document.getElementById("signupSitterForm").reset();
+  renderSignupFlowPage();
+  showPage("signupFlow");
+});
+
+// ====================== SIGNUP FLOW (STEP 2) ======================
+function renderSignupFlowPage(){
+  const container = document.getElementById("signupFlowContent");
+  if(!signupFlowUserId){
+    container.innerHTML = "<p>No profile in progress. Use Sign Up to create an account.</p>";
+    return;
+  }
+  const u = users.find(x=>x.id===signupFlowUserId);
+  if(!u){
+    container.innerHTML = "<p>User not found.</p>";
+    return;
+  }
+
+  const isSitter = u.role === "sitter";
+  const roleLabel = isSitter ? "Sitter" : "Client";
+
+  let extraFields="";
+  if(isSitter){
+    extraFields=`
+      <label>Short Bio (what makes you a great sitter?)</label>
+      <textarea id="sfBio">${u.bio||""}</textarea>
+      <label>Years of Experience</label>
+      <input id="sfExpYears" type="number" min="0" value="${u.experienceYears||1}">
+    `;
+  }else{
+    extraFields=`
+      <label>Household Notes (optional)</label>
+      <textarea id="sfHouseNotes">${u.houseNotes||""}</textarea>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span>Complete Your ${roleLabel} Profile</span>
+        <span class="badge ${u.role}">${roleLabel}</span>
+      </div>
+      <p style="font-size:13px;color:#555;">
+        Just a few more details so sitters and clients know who they’re working with.
+      </p>
+      <form id="signupFlowForm">
+        <label>Street Address</label>
+        <input id="sfAddress1" value="${u.address1||''}">
+        <label>Address Line 2</label>
+        <input id="sfAddress2" value="${u.address2||''}">
+        <label>City</label>
+        <input id="sfCity" value="${u.city||''}">
+        <label>ZIP / Postal Code</label>
+        <input id="sfZip" value="${u.zip||''}">
+        <label>Country</label>
+        <input id="sfCountry" value="${u.country||''}">
+        <label>Profile Picture URL (required)</label>
+        <input id="sfAvatar" value="${u.avatar||''}" required>
+        ${extraFields}
+        <div style="margin-top:12px;display:flex;justify-content:space-between;gap:8px;">
+          <button type="button" class="btn secondary btn-pill" onclick="showPage('auth')">Back to Sign In</button>
+          <button type="submit" class="btn btn-pill">Save & Continue</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const form = document.getElementById("signupFlowForm");
+  form.addEventListener("submit", e=>{
+    e.preventDefault();
+    u.address1 = document.getElementById("sfAddress1").value.trim();
+    u.address2 = document.getElementById("sfAddress2").value.trim();
+    u.city     = document.getElementById("sfCity").value.trim();
+    u.zip      = document.getElementById("sfZip").value.trim();
+    u.country  = document.getElementById("sfCountry").value.trim();
+    const avatar = document.getElementById("sfAvatar").value.trim();
+    if(avatar) u.avatar = avatar;
+
+    if(isSitter){
+      u.bio = document.getElementById("sfBio").value.trim();
+      u.experienceYears = parseInt(document.getElementById("sfExpYears").value) || u.experienceYears || 1;
+    }else{
+      u.houseNotes = document.getElementById("sfHouseNotes").value.trim();
+    }
+
+    saveAll();
+    alert("Profile completed! You can now use your dashboard.");
+    signupFlowUserId = null;
+    showPage("dashboard");
+    renderDashboard();
+  });
+}
+
+// ====================== HOME RENDER ======================
+function renderHome(){
+  renderHomeMap();
+  renderHomeSittersIcons();
+}
+
+function renderHomeMap(){
+  const mapEl=document.getElementById("homeMap");
+  mapEl.innerHTML="";
+
+  const activeSitters = users.filter(u=>u.role==="sitter");
+
+  activeSitters.forEach((s,idx)=>{
+    const x = 15 + (idx%4)*20 + Math.random()*8;
+    const y = 20 + Math.floor(idx/4)*25 + Math.random()*8;
+
+    const dot=document.createElement("div");
+    dot.className="map-dot";
+    dot.style.left=x+"%";
+    dot.style.top=y+"%";
+
+    const card=document.createElement("div");
+    card.className="map-pin-card";
+    card.style.left=x+"%";
+    card.style.top=y+"%";
+    card.innerHTML=`
+      <img src="${s.avatar}" alt="">
+      <div>
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.city||"Location"} · ⭐ ${s.rating||4.5}</div>
+      </div>
+    `;
+    card.addEventListener("click",()=>{
+      openSitterProfile(s.id);
+    });
+
+    mapEl.appendChild(dot);
+    mapEl.appendChild(card);
+  });
+}
+
+function renderHomeSittersIcons(){
+  const container=document.getElementById("homeSittersIcons");
+  container.innerHTML="";
+  const approvedSitters=users.filter(u=>u.role==="sitter").slice(0,8);
+  approvedSitters.forEach(s=>{
+    const div=document.createElement("div");
+    div.className="sitter-icon";
+    div.innerHTML=`
+      <img src="${s.avatar}" alt="">
+      <div style="font-size:12px;font-weight:bold;">${s.name}</div>
+      <div style="font-size:11px;color:#777;">${s.city||"Nearby"}</div>
+    `;
+    div.addEventListener("click",()=>openSitterProfile(s.id));
+    container.appendChild(div);
+  });
+
+  const swipeDiv=document.createElement("div");
+  swipeDiv.className="sitter-icon";
+  swipeDiv.innerHTML=`
+    <div style="font-size:24px;">💘</div>
+    <div style="font-size:12px;font-weight:bold;">Swipe to match</div>
+    <div style="font-size:11px;color:#777;">Find your perfect sitter</div>
+  `;
+  swipeDiv.addEventListener("click",()=>showPage("swipe"));
+  container.appendChild(swipeDiv);
+}
+
+// ====================== DASHBOARD ======================
+function renderDashboard(){
+  const content=document.getElementById("dashboardContent");
+  const title=document.getElementById("dashboardTitle");
+
+  if(!currentUser){
+    title.textContent="Dashboard";
+    content.innerHTML="<p>Please sign in to view your dashboard.</p>";
+    return;
+  }
+
+  if(currentUser.role==="admin"){
+    title.textContent="Admin Dashboard";
+    renderAdminDashboard(content);
+  }else if(currentUser.role==="employee"){
+    title.textContent="Employee Dashboard";
+    renderEmployeeDashboard(content);
+  }else if(currentUser.role==="client"){
+    title.textContent="Client Dashboard";
+    renderClientDashboard(content);
+  }else if(currentUser.role==="sitter"){
+    title.textContent="Sitter Dashboard";
+    renderSitterDashboard(content);
+  }
+}
+
+/* ---------- Admin ---------- */
+function renderAdminDashboard(container){
+  const totalUsers=users.length;
+  const totalClients=users.filter(u=>u.role==="client").length;
+  const totalSitters=users.filter(u=>u.role==="sitter").length;
+  const totalEmployees=users.filter(u=>u.role==="employee").length;
+  const totalDogs=dogs.length;
+
+  container.innerHTML=`
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Overview</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            ${overviewBadge("Total Users",totalUsers,"users")}
+            ${overviewBadge("Clients",totalClients,"clients")}
+            ${overviewBadge("Sitters",totalSitters,"sitters")}
+            ${overviewBadge("Employees",totalEmployees,"employees")}
+            ${overviewBadge("Dog Profiles",totalDogs,"dogs")}
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Active Sitters Map</span>
+          </div>
+          <div id="adminMap" class="map"></div>
+          <p style="font-size:12px;color:#777;margin-top:6px;">
+            Hover a dot to preview sitter info, then click the card to open their listing.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Quick Filters</span>
+          </div>
+          <button class="btn secondary btn-pill" onclick="adminShowList('clients')">View Clients</button>
+          <button class="btn secondary btn-pill" onclick="adminShowList('sitters')">View Sitters</button>
+          <button class="btn secondary btn-pill" onclick="adminShowList('employees')">View Employees</button>
+          <button class="btn secondary btn-pill" onclick="adminShowList('dogs')">View Dog Profiles</button>
+        </div>
+
+        <div id="adminListPanel" class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Details</span>
+          </div>
+          <p style="font-size:13px;color:#777;">Use the buttons above to load details.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderAdminMap();
+}
+function overviewBadge(label,value,type){
+  return `
+    <div class="card" style="padding:8px 10px;flex:1 1 120px;cursor:pointer;"
+         onclick="adminShowList('${type}')">
+      <div style="font-size:11px;color:#888;">${label}</div>
+      <div style="font-size:18px;font-weight:bold;">${value}</div>
+    </div>
+  `;
+}
+function renderAdminMap(){
+  const mapEl=document.getElementById("adminMap");
+  mapEl.innerHTML="";
+  const activeSitters = users.filter(u=>u.role==="sitter");
+
+  activeSitters.forEach((s,idx)=>{
+    const x=15+(idx%4)*20+Math.random()*8;
+    const y=20+Math.floor(idx/4)*25+Math.random()*8;
+    const dot=document.createElement("div");
+    dot.className="map-dot";
+    dot.style.left=x+"%"; dot.style.top=y+"%";
+    const card=document.createElement("div");
+    card.className="map-pin-card";
+    card.style.left=x+"%"; card.style.top=y+"%";
+    card.innerHTML=`
+      <img src="${s.avatar}" alt="">
+      <div>
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.city||"Location"} · ⭐ ${s.rating||4.5}</div>
+      </div>
+    `;
+    card.addEventListener("click",()=>openSitterProfile(s.id,"admin"));
+    mapEl.appendChild(dot);
+    mapEl.appendChild(card);
+  });
+}
+
+function adminShowList(type){
+  const panel=document.getElementById("adminListPanel");
+  if(type==="clients"||type==="users"){
+    const clients=users.filter(u=>u.role==="client");
+    let html="<h3>Clients</h3><table><tr><th>Name</th><th>Email</th><th>Pets</th><th>Actions</th></tr>";
+    clients.forEach(c=>{
+      const petCount=dogs.filter(d=>d.ownerId===c.id).length;
+      html+=`<tr>
+        <td>${c.name}</td>
+        <td>${c.email}</td>
+        <td>${petCount}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openUserRecord('${c.id}')">View / Edit</button>
+          <button class="btn accent btn-pill" onclick="toggleEmployeeStatus('${c.id}')">
+            Make Employee
+          </button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }else if(type==="sitters"){
+    const sitters=users.filter(u=>u.role==="sitter");
+    let html="<h3>Sitters</h3><table><tr><th>Name</th><th>Email</th><th>City</th><th>Rating</th><th>Actions</th></tr>";
+    sitters.forEach(s=>{
+      html+=`<tr>
+        <td>${s.name}</td>
+        <td>${s.email}</td>
+        <td>${s.city||''}</td>
+        <td>${s.rating||'-'}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openUserRecord('${s.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }else if(type==="employees"){
+    const emps=users.filter(u=>u.role==="employee");
+    let html="<h3>Employees</h3><table><tr><th>Name</th><th>Email</th><th>Rate</th><th>Total Hours</th><th>Today</th><th>Calls</th><th>Actions</th></tr>";
+    emps.forEach(e=>{
+      const m=e.employeeMeta||{};
+      html+=`<tr>
+        <td>${e.name}</td>
+        <td>${e.email}</td>
+        <td>$${m.hourlyRate||0}/hr</td>
+        <td>${m.totalHours||0}</td>
+        <td>${m.todayHours||0}</td>
+        <td>${m.callLogs||0}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openEmployeeRecord('${e.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }else if(type==="dogs"){
+    let html="<h3>Dog Profiles</h3><table><tr><th>Name</th><th>Owner</th><th>Breed</th><th>Color</th><th>Actions</th></tr>";
+    dogs.forEach(d=>{
+      const owner=users.find(u=>u.id===d.ownerId);
+      html+=`<tr>
+        <td>${d.name}</td>
+        <td>${owner?owner.name:"Unknown"}</td>
+        <td>${d.breed}</td>
+        <td>${d.color}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openDogProfile('${d.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }
+}
+
+// Admin promote client -> employee
+function toggleEmployeeStatus(userId){
+  const u=users.find(x=>x.id===userId);
+  if(!u){alert("User not found");return;}
+  if(u.role==="client"){
+    if(!confirm("Promote this client to Employee? Their dashboard will become an employee dashboard."))return;
+    u.role="employee";
+    u.employeeMeta={hourlyRate:20,totalHours:0,todayHours:0,callLogs:0};
+    alert("Client promoted to employee.");
+  }else{
+    alert("This toggle here is only intended for clients in this list.");
+  }
+  saveAll();
+  renderDashboard();
+}
+
+/* ---------- Employee Dashboard (support console) ---------- */
+function renderEmployeeDashboard(container){
+  const m=currentUser.employeeMeta||{hourlyRate:0,totalHours:0,todayHours:0,callLogs:0};
+  container.innerHTML=`
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Support Overview</span>
+            <span class="badge employee">Employee</span>
+          </div>
+          <p style="font-size:13px;">
+            You’re logged in as a support employee. You can help clients and sitters with their accounts, dog profiles, and messages.
+          </p>
+          <table style="margin-top:8px;">
+            <tr><th>Hourly Rate</th><th>Total Hours</th><th>Today's Hours</th><th>Call Logs</th></tr>
+            <tr>
+              <td>$${m.hourlyRate||0}/hr</td>
+              <td>${m.totalHours||0}</td>
+              <td>${m.todayHours||0}</td>
+              <td>${m.callLogs||0}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Active Sitters Map</span>
+          </div>
+          <div id="employeeMap" class="map"></div>
+          <p style="font-size:12px;color:#777;margin-top:6px;">
+            Hover a dot to preview sitter info. Click the sitter card to open their listing and assist with bookings, reviews, or flags.
+          </p>
+          <button class="btn secondary btn-pill" onclick="renderEmployeeMap()">Refresh Map</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Client Support Tools</span>
+          </div>
+          <p style="font-size:13px;color:#555;">
+            Use these tools to look up clients, sitters, and dogs when someone calls or chats in for help. You can view and edit their profiles, but you cannot manage other employees.
+          </p>
+          <button class="btn secondary btn-pill" onclick="employeeShowList('clients')">View Clients</button>
+          <button class="btn secondary btn-pill" onclick="employeeShowList('sitters')">View Sitters</button>
+          <button class="btn secondary btn-pill" onclick="employeeShowList('dogs')">View Dog Profiles</button>
+          <button class="btn info btn-pill" onclick="showPage('messages')" style="margin-top:4px;">Open Message Center</button>
+        </div>
+
+        <div id="employeeListPanel" class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Details</span>
+          </div>
+          <p style="font-size:13px;color:#777;">
+            Choose Clients, Sitters, or Dog Profiles above to load a list you can support.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+  renderEmployeeMap();
+}
+
+// Employee map of active sitters
+function renderEmployeeMap(){
+  const mapEl=document.getElementById("employeeMap");
+  if(!mapEl) return;
+  mapEl.innerHTML="";
+  const activeSitters = users.filter(u=>u.role==="sitter");
+
+  activeSitters.forEach((s,idx)=>{
+    const x=18+(idx%4)*20+Math.random()*6;
+    const y=22+Math.floor(idx/4)*25+Math.random()*6;
+    const dot=document.createElement("div");
+    dot.className="map-dot";
+    dot.style.left=x+"%"; dot.style.top=y+"%";
+    const card=document.createElement("div");
+    card.className="map-pin-card";
+    card.style.left=x+"%"; card.style.top=y+"%";
+    card.innerHTML=`
+      <img src="${s.avatar}" alt="">
+      <div>
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.city||"Location"} · ⭐ ${s.rating||4.5}</div>
+      </div>
+    `;
+    card.addEventListener("click",()=>openSitterProfile(s.id,"employee"));
+    mapEl.appendChild(dot);
+    mapEl.appendChild(card);
+  });
+
+  if(activeSitters.length===0){
+    mapEl.innerHTML="<div style='padding:10px;font-size:13px;color:#555;'>No active sitters in this demo map.</div>";
+  }
+}
+
+// Employee list views (clients / sitters / dogs only)
+function employeeShowList(type){
+  const panel=document.getElementById("employeeListPanel");
+  if(!panel) return;
+
+  if(type==="clients"){
+    const clients=users.filter(u=>u.role==="client");
+    let html="<h3>Clients</h3><table><tr><th>Name</th><th>Email</th><th>Pets</th><th>Actions</th></tr>";
+    clients.forEach(c=>{
+      const petCount=dogs.filter(d=>d.ownerId===c.id).length;
+      html+=`<tr>
+        <td>${c.name}</td>
+        <td>${c.email}</td>
+        <td>${petCount}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openUserRecord('${c.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }else if(type==="sitters"){
+    const sitters=users.filter(u=>u.role==="sitter");
+    let html="<h3>Sitters</h3><table><tr><th>Name</th><th>Email</th><th>City</th><th>Rating</th><th>Actions</th></tr>";
+    sitters.forEach(s=>{
+      html+=`<tr>
+        <td>${s.name}</td>
+        <td>${s.email}</td>
+        <td>${s.city||''}</td>
+        <td>${s.rating||'-'}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openUserRecord('${s.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }else if(type==="dogs"){
+    let html="<h3>Dog Profiles</h3><table><tr><th>Name</th><th>Owner</th><th>Breed</th><th>Color</th><th>Actions</th></tr>";
+    dogs.forEach(d=>{
+      const owner=users.find(u=>u.id===d.ownerId);
+      html+=`<tr>
+        <td>${d.name}</td>
+        <td>${owner?owner.name:"Unknown"}</td>
+        <td>${d.breed}</td>
+        <td>${d.color}</td>
+        <td>
+          <button class="btn info btn-pill" onclick="openDogProfile('${d.id}')">View / Edit</button>
+        </td>
+      </tr>`;
+    });
+    html+="</table>";
+    panel.innerHTML=html;
+  }
+}
+
+/* ---------- Employee Record Page (Admin) ---------- */
+function openEmployeeRecord(empId){
+  const emp = users.find(u=>u.id===empId && u.role==="employee");
+  if(!emp){
+    alert("Employee not found");
+    return;
+  }
+  currentEmployeeId = empId;
+  renderEmployeeRecordPage();
+  showPage("employeeDetail");
+}
+
+function renderEmployeeRecordPage(){
+  const container = document.getElementById("employeeDetailContent");
+  if(!container) return;
+  if(!currentEmployeeId){
+    container.innerHTML = "<p>No employee selected.</p>";
+    return;
+  }
+  const emp = users.find(u=>u.id===currentEmployeeId && u.role==="employee");
+  if(!emp){
+    container.innerHTML = "<p>Employee not found.</p>";
+    return;
+  }
+  const m = emp.employeeMeta || {hourlyRate:0,totalHours:0,todayHours:0,callLogs:0};
+
+  container.innerHTML = `
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>${emp.name}</span>
+            <span class="badge employee">Employee Record</span>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <img src="${emp.avatar||'https://images.pexels.com/photos/1181519/pexels-photo-1181519.jpeg'}"
+                 style="width:110px;height:110px;border-radius:24px;object-fit:cover;">
+            <div style="font-size:13px;">
+              <p><strong>Email:</strong> ${emp.email}</p>
+              <p><strong>Role:</strong> ${emp.role}</p>
+              <p><strong>Address:</strong> ${emp.address1||''} ${emp.city||''} ${emp.zip||''}</p>
+              <p><strong>Hourly Rate:</strong> $${m.hourlyRate||0}/hr</p>
+              <p><strong>Total Hours:</strong> ${m.totalHours||0}</p>
+              <p><strong>Today's Hours:</strong> ${m.todayHours||0}</p>
+              <p><strong>Call Logs:</strong> ${m.callLogs||0}</p>
+            </div>
+          </div>
+          <p style="font-size:12px;color:#777;margin-top:8px;">
+            This view is only visible to Admin users. Use the form on the right to update this employee’s records.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Edit Employee</span>
+          </div>
+          <form id="employeeRecordForm">
+            <label>Display Name</label>
+            <input id="empName" value="${emp.name}">
+            <label>Email</label>
+            <input id="empEmail" type="email" value="${emp.email}">
+            <label>Password</label>
+            <input id="empPassword" type="password" value="${emp.password}">
+            <label>Avatar URL</label>
+            <input id="empAvatar" value="${emp.avatar||''}">
+
+            <h3 style="font-size:15px;margin-top:10px;">Address</h3>
+            <label>Address Line 1</label>
+            <input id="empAddress1" value="${emp.address1||''}">
+            <label>City</label>
+            <input id="empCity" value="${emp.city||''}">
+            <label>ZIP</label>
+            <input id="empZip" value="${emp.zip||''}">
+
+            <h3 style="font-size:15px;margin-top:10px;">Work Records</h3>
+            <label>Hourly Rate ($/hr)</label>
+            <input id="empRate" type="number" min="0" value="${m.hourlyRate||0}">
+            <label>Total Hours</label>
+            <input id="empTotalHours" type="number" min="0" value="${m.totalHours||0}">
+            <label>Today's Hours</label>
+            <input id="empTodayHours" type="number" min="0" value="${m.todayHours||0}">
+            <label>Call Logs</label>
+            <input id="empCallLogs" type="number" min="0" value="${m.callLogs||0}">
+
+            <div style="margin-top:12px;display:flex;justify-content:space-between;gap:8px;">
+              <button type="button" class="btn secondary btn-pill" onclick="showPage('dashboard');renderDashboard();">
+                ← Back to Admin Dashboard
+              </button>
+              <div>
+                <button type="submit" class="btn btn-pill">Save Changes</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const form = document.getElementById("employeeRecordForm");
+  form.addEventListener("submit", e=>{
+    e.preventDefault();
+    emp.name = document.getElementById("empName").value.trim();
+    emp.email = document.getElementById("empEmail").value.trim();
+    emp.password = document.getElementById("empPassword").value.trim();
+    emp.avatar = document.getElementById("empAvatar").value.trim() || emp.avatar;
+
+    emp.address1 = document.getElementById("empAddress1").value.trim();
+    emp.city = document.getElementById("empCity").value.trim();
+    emp.zip = document.getElementById("empZip").value.trim();
+
+    emp.employeeMeta = emp.employeeMeta || {};
+    emp.employeeMeta.hourlyRate = parseFloat(document.getElementById("empRate").value)||0;
+    emp.employeeMeta.totalHours = parseFloat(document.getElementById("empTotalHours").value)||0;
+    emp.employeeMeta.todayHours = parseFloat(document.getElementById("empTodayHours").value)||0;
+    emp.employeeMeta.callLogs = parseInt(document.getElementById("empCallLogs").value)||0;
+
+    saveAll();
+    alert("Employee record updated.");
+    renderEmployeeRecordPage();
+  });
+}
+
+/* ---------- USER RECORD PAGE (Clients + Sitters) ---------- */
+function openUserRecord(userId){
+  const u = users.find(x=>x.id===userId);
+  if(!u){
+    alert("User not found");
+    return;
+  }
+  currentManagedUserId = userId;
+  renderUserRecordPage();
+  showPage("userDetail");
+}
+
+function renderUserRecordPage(){
+  const container = document.getElementById("userDetailContent");
+  if(!container) return;
+  if(!currentManagedUserId){
+    container.innerHTML = "<p>No user selected.</p>";
+    return;
+  }
+  const u = users.find(x=>x.id===currentManagedUserId);
+  if(!u){
+    container.innerHTML = "<p>User not found.</p>";
+    return;
+  }
+
+  const petCount = dogs.filter(d=>d.ownerId===u.id).length;
+  const roleLabel = u.role.charAt(0).toUpperCase()+u.role.slice(1);
+  const badgeClass = u.role;
+
+  let extraSummary = "";
+  if(u.role==="client"){
+    extraSummary += `<p><strong>Pets on file:</strong> ${petCount}</p>`;
+  } else if(u.role==="sitter"){
+    extraSummary += `
+      <p><strong>City:</strong> ${u.city||""}</p>
+      <p><strong>Experience:</strong> ${u.experienceYears||1} years</p>
+      <p><strong>Rating:</strong> ⭐ ${u.rating||4.5}</p>
+    `;
+  }
+
+  let extraFormFields = "";
+  if(u.role==="sitter"){
+    extraFormFields = `
+      <h3 style="font-size:15px;margin-top:10px;">Sitter Details</h3>
+      <label>Years of Experience</label>
+      <input id="userExpYears" type="number" min="0" value="${u.experienceYears||1}">
+      <label>Rating (1–5)</label>
+      <input id="userRating" type="number" step="0.1" min="1" max="5" value="${u.rating||4.5}">
+      <label>Bio</label>
+      <textarea id="userBio">${u.bio||""}</textarea>
+    `;
+  }else if(u.role==="client"){
+    extraFormFields = `
+      <h3 style="font-size:15px;margin-top:10px;">Client Info</h3>
+      <p style="font-size:12px;color:#777;">Pets linked to this client: ${petCount}</p>
+      <label>Household Notes</label>
+      <textarea id="userHouseNotes">${u.houseNotes||""}</textarea>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>${u.name}</span>
+            <span class="badge ${badgeClass}">${roleLabel} Record</span>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <img src="${u.avatar||'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg'}"
+                 style="width:110px;height:110px;border-radius:24px;object-fit:cover;">
+            <div style="font-size:13px;">
+              <p><strong>Email:</strong> ${u.email}</p>
+              <p><strong>Role:</strong> ${u.role}</p>
+              <p><strong>Address:</strong> ${u.address1||''} ${u.city||''} ${u.zip||''}</p>
+              ${extraSummary}
+            </div>
+          </div>
+          <p style="font-size:12px;color:#777;margin-top:8px;">
+            Admins and employees can edit this user's account details here. Changes are saved only in this demo (front-end only).
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Edit User</span>
+          </div>
+          <form id="userRecordForm">
+            <label>Display Name</label>
+            <input id="userName" value="${u.name}">
+            <label>Email</label>
+            <input id="userEmail" type="email" value="${u.email}">
+            <label>Password</label>
+            <input id="userPassword" type="password" value="${u.password}">
+            <label>Avatar URL</label>
+            <input id="userAvatar" value="${u.avatar||''}">
+
+            <h3 style="font-size:15px;margin-top:10px;">Address</h3>
+            <label>Address Line 1</label>
+            <input id="userAddress1" value="${u.address1||''}">
+            <label>Address Line 2</label>
+            <input id="userAddress2" value="${u.address2||''}">
+            <label>City</label>
+            <input id="userCity" value="${u.city||''}">
+            <label>ZIP</label>
+            <input id="userZip" value="${u.zip||''}">
+            <label>Country</label>
+            <input id="userCountry" value="${u.country||''}">
+
+            ${extraFormFields}
+
+            <div style="margin-top:12px;display:flex;justify-content:space-between;gap:8px;">
+              <button type="button" class="btn secondary btn-pill" onclick="showPage('dashboard');renderDashboard();">
+                ← Back to Dashboard
+              </button>
+              <div>
+                <button type="submit" class="btn btn-pill">Save Changes</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const form=document.getElementById("userRecordForm");
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+    u.name=document.getElementById("userName").value.trim();
+    u.email=document.getElementById("userEmail").value.trim();
+    u.password=document.getElementById("userPassword").value.trim();
+    u.avatar=document.getElementById("userAvatar").value.trim() || u.avatar;
+
+    u.address1=document.getElementById("userAddress1").value.trim();
+    u.address2=document.getElementById("userAddress2").value.trim();
+    u.city=document.getElementById("userCity").value.trim();
+    u.zip=document.getElementById("userZip").value.trim();
+    u.country=document.getElementById("userCountry").value.trim();
+
+    if(u.role==="sitter"){
+      u.experienceYears=parseInt(document.getElementById("userExpYears").value)||u.experienceYears||1;
+      u.rating=parseFloat(document.getElementById("userRating").value)||u.rating||4.5;
+      u.bio=document.getElementById("userBio").value.trim();
+    }else if(u.role==="client"){
+      u.houseNotes=document.getElementById("userHouseNotes").value.trim();
+    }
+
+    saveAll();
+    alert("User record updated.");
+    renderUserRecordPage();
+  });
+}
+
+/* ---------- Client Dashboard (with sitters + tips) ---------- */
+function renderClientDashboard(container){
+  const myDogs=dogs.filter(d=>d.ownerId===currentUser.id);
+  container.innerHTML=`
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Your Dogs</span>
+            <button class="btn secondary btn-pill" onclick="clientOpenDogModal()">+ Add Dog</button>
+          </div>
+          <div id="clientDogList"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Live Sitter Map (demo)</span>
+          </div>
+          <div class="map" id="clientLiveMap"></div>
+          <p style="font-size:12px;color:#777;margin-top:6px;">
+            When a sitter is actively watching your dog, their path and status icons would appear here (demo view).
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Quick Actions</span>
+          </div>
+          <button class="btn info btn-pill" onclick="showPage('swipe')">Swipe for Sitters</button>
+          <button class="btn secondary btn-pill" onclick="showPage('messages')">Open Messages</button>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Your Sitters</span>
+          </div>
+          <div id="clientSittersList"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Walk History & Tips</span>
+          </div>
+          <div id="clientHistoryList"></div>
+          <div id="clientHistoryChart" class="sitter-chart" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  const list = document.getElementById("clientDogList");
+  if(myDogs.length===0){
+    list.innerHTML="<p>No dogs yet. Add one to get started.</p>";
+  }else{
+    myDogs.forEach(d=>{
+      const div=document.createElement("div");
+      div.className="dog-card";
+      div.innerHTML=`
+        <div style="display:flex;flex-direction:column;align-items:flex-start;">
+          <img src="${d.avatar}" style="width:80px;height:80px;border-radius:18px;object-fit:cover;align-self:center;margin-bottom:6px;">
+          <div style="font-weight:bold;">${d.name}</div>
+          <div style="font-size:12px;color:#777;">${d.breed} · ${d.color}</div>
+          <div style="font-size:12px;color:#555;">Weight: ${d.weightLbs||"? "} lbs</div>
+          <div style="font-size:12px;color:#555;">Aggressive: ${d.aggressive||"no"}</div>
+          ${d.allergies ? `<div style="font-size:11px;color:#b71c1c;">Allergies: ${d.allergies}</div>` : ""}
+          ${d.specialNeeds ? `<div style="font-size:11px;color:#555;">Needs: ${d.specialNeeds}</div>` : ""}
+        </div>
+      `;
+      div.addEventListener("click",()=>openDogProfile(d.id));
+      list.appendChild(div);
+    });
+  }
+  document.getElementById("clientLiveMap").innerHTML="<div style='padding:10px;font-size:13px;color:#555;'>Live route tracking will display here when a booking is in progress.</div>";
+
+  renderClientSittersAndHistory();
+}
+
+// "Your Sitters" + "Walk History & Tips"
+function renderClientSittersAndHistory(){
+  if(!currentUser || currentUser.role!=="client") return;
+
+  const myJobs = jobs.filter(j=>j.clientId===currentUser.id);
+  const sitterListEl = document.getElementById("clientSittersList");
+  const historyEl = document.getElementById("clientHistoryList");
+  const chartEl = document.getElementById("clientHistoryChart");
+
+  const sitterIds = [...new Set(myJobs.map(j=>j.sitterId))];
+  const mySitters = sitterIds
+    .map(id=>users.find(u=>u.id===id && u.role==="sitter"))
+    .filter(Boolean);
+
+  if(sitterListEl){
+    if(mySitters.length===0){
+      sitterListEl.innerHTML = "<p style='font-size:13px;color:#777;'>Once you complete a walk, your sitters will show up here so you can quickly message and rebook them.</p>";
+    }else{
+      sitterListEl.innerHTML = "";
+      mySitters.forEach(s=>{
+        const theirJobs = myJobs.filter(j=>j.sitterId===s.id).sort((a,b)=>b.date.localeCompare(a.date));
+        const lastJob = theirJobs[0];
+        const wrapper = document.createElement("div");
+        wrapper.style.marginBottom = "8px";
+        wrapper.style.padding = "8px";
+        wrapper.style.borderRadius = "14px";
+        wrapper.style.background = "#fafafa";
+        wrapper.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
+
+        wrapper.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="${s.avatar}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:bold;">${s.name}</div>
+              <div style="font-size:12px;color:#777;">⭐ ${s.rating||4.5} · ${s.city||"Nearby"}</div>
+              <div style="font-size:12px;color:#777;">
+                Last walk: ${lastJob.date} · ${lastJob.hours} hrs · $${lastJob.total}
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;">
+            <button class="btn secondary btn-pill" onclick="openClientMessageTo('${s.id}')">Message</button>
+            <button class="btn accent btn-pill" onclick="openSitterProfile('${s.id}','clientDashboard')">Book Again</button>
+          </div>
+        `;
+        sitterListEl.appendChild(wrapper);
+      });
+    }
+  }
+
+  // Walk history + tips
+  if(historyEl){
+    if(myJobs.length===0){
+      historyEl.innerHTML = "<p style='font-size:13px;color:#777;'>No completed walks yet. Once you finish a walk, you’ll see your history and can leave tips here.</p>";
+      if(chartEl) chartEl.innerHTML = "";
+    }else{
+      historyEl.innerHTML = "";
+      const sortedJobs = [...myJobs].sort((a,b)=>b.date.localeCompare(a.date));
+      sortedJobs.forEach(j=>{
+        const sitter = users.find(u=>u.id===j.sitterId);
+        const dog = dogs.find(d=>d.id===j.dogId);
+        const tip = j.tip ? `$${j.tip.toFixed(2)}` : "No tip yet";
+        const div = document.createElement("div");
+        div.style.marginBottom = "8px";
+        div.style.padding = "8px";
+        div.style.borderRadius = "12px";
+        div.style.background = "#fafafa";
+        div.style.boxShadow = "0 1px 4px rgba(0,0,0,0.04)";
+        div.innerHTML = `
+          <div style="font-size:13px;font-weight:bold;">
+            ${j.date} · ${sitter ? sitter.name : "Sitter"} with ${dog ? dog.name : "Dog"}
+          </div>
+          <div style="font-size:12px;color:#555;">
+            Hours: ${j.hours} · Total: $${j.total}
+          </div>
+          <div style="font-size:12px;color:#777;">${j.note || ""}</div>
+          <div style="margin-top:4px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;color:#555;">Tip: ${tip}</span>
+            <button class="btn secondary btn-pill" style="padding:4px 10px;font-size:12px;"
+                    onclick="clientAddTip('${j.id}')">
+              Add / Edit Tip
+            </button>
+          </div>
+        `;
+        historyEl.appendChild(div);
+      });
+
+      if(chartEl){
+        const totalsBySitter = {};
+        myJobs.forEach(j=>{
+          const totalWithTip = j.total + (j.tip || 0);
+          totalsBySitter[j.sitterId] = (totalsBySitter[j.sitterId] || 0) + totalWithTip;
+        });
+
+        const entries = Object.entries(totalsBySitter);
+        if(entries.length===0){
+          chartEl.innerHTML = "<p style='font-size:12px;color:#777;'>No spending yet.</p>";
+        }else{
+          const maxVal = Math.max(...entries.map(([_,v])=>v)) || 1;
+          chartEl.innerHTML = entries.map(([sitterId,amount])=>{
+            const sitter = users.find(u=>u.id===sitterId);
+            const label = sitter ? sitter.name : sitterId;
+            const pct = Math.round((amount / maxVal) * 100);
+            return `
+              <div class="sitter-chart-row">
+                <div class="sitter-chart-label">${label}</div>
+                <div class="sitter-chart-bar-wrap">
+                  <div class="sitter-chart-bar" style="width:${pct}%;"></div>
+                </div>
+                <div class="sitter-chart-value">$${amount.toFixed(2)}</div>
+              </div>
+            `;
+          }).join("");
+        }
+      }
+    }
+  }
+}
+
+// open Messages and preselect sitter
+function openClientMessageTo(partnerId){
+  preselectMessagePartnerId = partnerId;
+  showPage("messages");
+}
+
+// add / edit tip on a job
+function clientAddTip(jobId){
+  if(!currentUser || currentUser.role!=="client") return;
+  const job = jobs.find(j=>j.id===jobId && j.clientId===currentUser.id);
+  if(!job){
+    alert("Job not found.");
+    return;
+  }
+  const currentTip = job.tip ? job.tip.toFixed(2) : "0.00";
+  const entered = prompt("Enter tip amount in dollars for this walk (e.g., 5 or 10.50):", currentTip);
+  if(entered===null) return;
+  const num = parseFloat(entered);
+  if(isNaN(num) || num<0){
+    alert("Please enter a valid non-negative number.");
+    return;
+  }
+  job.tip = Math.round(num*100)/100;
+  saveAll();
+  renderDashboard();
+}
+
+/* ---------- Dog profile page ---------- */
+function openDogProfile(dogId){
+  const dog = dogs.find(d=>d.id===dogId);
+  if(!dog){
+    alert("Dog not found");
+    return;
+  }
+  if(!currentUser || (currentUser.role==="client" && dog.ownerId!==currentUser.id)){
+    if(!currentUser || (currentUser.role!=="admin" && currentUser.role!=="employee")){
+      alert("You don't have access to this dog profile.");
+      return;
+    }
+  }
+  currentDogId = dogId;
+  renderDogProfilePage();
+  showPage("dogProfile");
+}
+
+function renderDogProfilePage(){
+  const container=document.getElementById("dogProfileContent");
+  if(!container) return;
+  if(!currentDogId){
+    container.innerHTML="<p>No dog selected.</p>";
+    return;
+  }
+  const dog=dogs.find(d=>d.id===currentDogId);
+  if(!dog){
+    container.innerHTML="<p>Dog not found.</p>";
+    return;
+  }
+  const owner=users.find(u=>u.id===dog.ownerId);
+  container.innerHTML=`
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>${dog.name}</span>
+            <span class="badge client">Dog Profile</span>
+          </div>
+          <div style="display:flex;gap:14px;">
+            <img src="${dog.avatar}" style="width:120px;height:120px;border-radius:24px;object-fit:cover;">
+            <div style="font-size:13px;">
+              <p><strong>Owner:</strong> ${owner?owner.name:"Unknown"}</p>
+              <p><strong>Breed:</strong> ${dog.breed}</p>
+              <p><strong>Color:</strong> ${dog.color}</p>
+              <p><strong>Weight:</strong> ${dog.weightLbs||"? "} lbs</p>
+              <p><strong>Aggressive:</strong> ${dog.aggressive||"no"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Edit Dog Details</span>
+          </div>
+          <form id="dogProfileForm">
+            <label>Dog Name</label>
+            <input id="dogProfileName" value="${dog.name}">
+            <label>Breed</label>
+            <input id="dogProfileBreed" value="${dog.breed}">
+            <label>Color</label>
+            <input id="dogProfileColor" value="${dog.color}">
+            <label>Weight (lbs)</label>
+            <input id="dogProfileWeight" type="number" min="1" value="${dog.weightLbs||''}">
+            <label>Aggressive?</label>
+            <select id="dogProfileAggressive">
+              <option value="no"${dog.aggressive==="no"?" selected":""}>No</option>
+              <option value="yes"${dog.aggressive==="yes"?" selected":""}>Yes</option>
+              <option value="depends"${dog.aggressive==="depends"?" selected":""}>Depends on situation</option>
+            </select>
+            <label>Allergies</label>
+            <textarea id="dogProfileAllergies">${dog.allergies||""}</textarea>
+            <label>Special Needs</label>
+            <textarea id="dogProfileNeeds">${dog.specialNeeds||""}</textarea>
+            <label>Notes for Sitters</label>
+            <textarea id="dogProfileNotes">${dog.notes||""}</textarea>
+
+            <div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;">
+              <button type="button" class="btn secondary btn-pill" onclick="showPage('dashboard')">Back to Dashboard</button>
+              <div>
+                <button type="button" class="btn danger btn-pill" onclick="deleteCurrentDog()">Delete Dog</button>
+                <button type="submit" class="btn btn-pill">Save Changes</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+  const form=document.getElementById("dogProfileForm");
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+    saveDogProfileEdits();
+  });
+}
+function saveDogProfileEdits(){
+  const dog=dogs.find(d=>d.id===currentDogId);
+  if(!dog){alert("Dog not found");return;}
+  dog.name=document.getElementById("dogProfileName").value.trim();
+  dog.breed=document.getElementById("dogProfileBreed").value.trim();
+  dog.color=document.getElementById("dogProfileColor").value.trim();
+  dog.weightLbs=parseFloat(document.getElementById("dogProfileWeight").value)||null;
+  dog.aggressive=document.getElementById("dogProfileAggressive").value;
+  dog.allergies=document.getElementById("dogProfileAllergies").value.trim();
+  dog.specialNeeds=document.getElementById("dogProfileNeeds").value.trim();
+  dog.notes=document.getElementById("dogProfileNotes").value.trim();
+  saveAll();
+  alert("Dog profile updated.");
+  renderDogProfilePage();
+}
+function deleteCurrentDog(){
+  if(!currentDogId)return;
+  if(!confirm("Remove this dog profile?"))return;
+  dogs = dogs.filter(d=>d.id!==currentDogId);
+  currentDogId=null;
+  saveAll();
+  alert("Dog profile removed.");
+  showPage("dashboard");
+  renderDashboard();
+}
+
+/* ---------- Sitter Dashboard ---------- */
+function renderSitterDashboard(container){
+  const todayEarnings=80;
+  const weekEarnings=420;
+  const monthEarnings=1800;
+
+  const myJobs = jobs.filter(j=>j.sitterId===currentUser.id);
+
+  container.innerHTML=`
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Live Shift Map (demo)</span>
+          </div>
+          <div class="map" id="sitterMap"></div>
+          <p style="font-size:12px;color:#777;margin-top:6px;">
+            Start & end shift is controlled when a booking begins. This demo shows the map that would track your walk route.
+          </p>
+          <div style="margin-top:8px;">
+            <button class="btn accent btn-pill">Start Shift</button>
+            <button class="btn danger btn-pill">End Shift</button>
+            <button class="btn secondary btn-pill">Refresh Map</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>New Client Requests</span>
+          </div>
+          <div id="sitterRequestsList"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Your Stats</span>
+          </div>
+          <p><strong>Today:</strong> $${todayEarnings}</p>
+          <p><strong>Last 7 days:</strong> $${weekEarnings}</p>
+          <p><strong>Last 30 days:</strong> $${monthEarnings}</p>
+
+          <div id="sitterStatsChart" class="sitter-chart"></div>
+
+          <button class="btn secondary btn-pill" onclick="showPage('messages')" style="margin-top:10px;">Open Messages</button>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Job History</span>
+          </div>
+          <div id="sitterHistoryList"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Reviews</span>
+          </div>
+          <div id="sitterReviewsList"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("sitterMap").innerHTML="<div style='padding:10px;font-size:13px;color:#555;'>Shift path and dog status icons would appear here during an active job.</div>";
+
+  const histContainer=document.getElementById("sitterHistoryList");
+  if(myJobs.length===0){
+    histContainer.innerHTML="<p style='font-size:13px;color:#777;'>No completed jobs yet.</p>";
+  }else{
+    myJobs.forEach(j=>{
+      const client=users.find(u=>u.id===j.clientId);
+      const dog=dogs.find(d=>d.id===j.dogId);
+      const div=document.createElement("div");
+      div.style.marginBottom="8px";
+      div.innerHTML=`
+        <div style="font-weight:bold;">Client: ${client?client.name:"Unknown Client"}</div>
+        <div style="font-size:13px;color:#444;">Dog: ${dog?dog.name:"Unknown Dog"} ${dog?("· "+dog.breed):""}</div>
+        <div style="font-size:12px;color:#777;">Date: ${j.date} · Hours: ${j.hours} · Total: $${j.total}</div>
+        <div style="font-size:12px;color:#555;">${j.note||""}</div>
+      `;
+      histContainer.appendChild(div);
+    });
+  }
+
+  renderSitterStatsChart(todayEarnings, weekEarnings, monthEarnings);
+  renderSitterReviews(currentUser.id);
+  renderSitterRequests(currentUser.id);
+}
+
+function renderSitterStatsChart(today, week, month){
+  const chart=document.getElementById("sitterStatsChart");
+  if(!chart) return;
+  const maxVal=Math.max(today,week,month) || 1;
+  function row(label,value){
+    const pct=Math.round((value/maxVal)*100);
+    return `
+      <div class="sitter-chart-row">
+        <div class="sitter-chart-label">${label}</div>
+        <div class="sitter-chart-bar-wrap">
+          <div class="sitter-chart-bar" style="width:${pct}%;"></div>
+        </div>
+        <div class="sitter-chart-value">$${value}</div>
+      </div>
+    `;
+  }
+  chart.innerHTML = row("Today",today)+row("7 days",week)+row("30 days",month);
+}
+
+function renderSitterReviews(sitterId){
+  const container=document.getElementById("sitterReviewsList");
+  if(!container) return;
+  const myReviews=sitterReviews.filter(r=>r.sitterId===sitterId);
+  if(myReviews.length===0){
+    container.innerHTML="<p style='font-size:13px;color:#777;'>No reviews yet. Complete a few sits to start receiving feedback.</p>";
+    return;
+  }
+  container.innerHTML="";
+  myReviews.forEach(r=>{
+    const div=document.createElement("div");
+    div.className="sitter-review";
+    const stars="⭐".repeat(Math.round(r.rating));
+    div.innerHTML=`
+      <div class="sitter-review-header">
+        <span><strong>${r.clientName}</strong> · <span class="sitter-review-rating">${stars}</span></span>
+        <span style="font-size:11px;color:#777;">${r.date}</span>
+      </div>
+      <div>${r.comment}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// New client requests list for sitter dashboard
+function renderSitterRequests(sitterId){
+  const container = document.getElementById("sitterRequestsList");
+  if(!container) return;
+
+  const myReqs = requests.filter(r=>r.sitterId===sitterId && r.status==="pending");
+  if(myReqs.length===0){
+    container.innerHTML = "<p style='font-size:13px;color:#777;'>No new client requests right now.</p>";
+    return;
+  }
+
+  container.innerHTML = "";
+  myReqs.forEach(r=>{
+    const client = users.find(u=>u.id===r.clientId);
+    const dog = dogs.find(d=>d.id===r.dogId);
+    const div = document.createElement("div");
+    div.className = "request-item";
+    div.innerHTML = `
+      <div class="request-header">
+        <span><strong>${client ? client.name : "Client"} · ${dog ? dog.name : "Dog"}</strong></span>
+        <span class="badge">Pending</span>
+      </div>
+      <div class="request-meta">
+        ${r.date} · ${r.timeWindow} · ${r.hours} hrs · Est: $${r.estTotal}
+      </div>
+      <div style="margin-top:4px;">${r.note || ""}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;">
+        <button class="btn secondary btn-pill" onclick="updateRequestStatus('${r.id}','declined')">Decline</button>
+        <button class="btn accent btn-pill" onclick="updateRequestStatus('${r.id}','approved')">Approve</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function updateRequestStatus(reqId, status){
+  const r = requests.find(x=>x.id===reqId);
+  if(!r) return;
+  r.status = status;
+  saveAll();
+  if(currentUser && currentUser.role==="sitter"){
+    renderSitterRequests(currentUser.id);
+  }
+  alert(`Request ${status === "approved" ? "approved" : "declined"} (demo only).`);
+}
+
+// ====================== SETTINGS PAGE ======================
+function renderSettingsPage(){
+  const container=document.getElementById("settingsContent");
+  if(!container) return;
+  if(!currentUser){
+    container.innerHTML="<p>Please sign in to edit your profile.</p>";
+    return;
+  }
+
+  let roleLabel=currentUser.role.charAt(0).toUpperCase()+currentUser.role.slice(1);
+  let badgeClass=currentUser.role;
+
+  let extraFieldsRole="";
+  if(currentUser.role==="sitter"){
+    extraFieldsRole=`
+      <label>Years of Experience</label>
+      <input id="settingsExp" type="number" min="0" value="${currentUser.experienceYears||1}">
+      <label>Bio</label>
+      <textarea id="settingsBio">${currentUser.bio||""}</textarea>
+    `;
+  }else if(currentUser.role==="employee"){
+    const m=currentUser.employeeMeta||{hourlyRate:0};
+    extraFieldsRole=`
+      <label>Hourly Rate ($/hr)</label>
+      <input id="settingsRate" type="number" min="0" value="${m.hourlyRate||0}">
+    `;
+  }else if(currentUser.role==="client"){
+    extraFieldsRole=`
+      <label>Household Notes</label>
+      <textarea id="settingsHouseNotes">${currentUser.houseNotes||""}</textarea>
+    `;
+  }else if(currentUser.role==="admin"){
+    extraFieldsRole=`
+      <p style="font-size:12px;color:#777;margin-top:6px;">
+        As admin, you can manage all users from the Dashboard. These settings are just for your own profile.
+      </p>
+    `;
+  }
+
+  const pm=currentUser.paymentMeta||{};
+  const paymentDisplay = pm.last4
+    ? `Saved card: **** **** **** ${pm.last4}${pm.exp ? " (exp "+pm.exp+")":""}`
+    : "No card saved yet (demo only – please don't use real card details).";
+
+  container.innerHTML=`
+    <div class="card">
+      <div class="card-header">
+        <span>${roleLabel} Profile</span>
+        <span class="badge ${badgeClass}">${roleLabel}</span>
+      </div>
+      <form id="settingsForm">
+        <h3 style="font-size:15px;margin-top:0;">Basic Info</h3>
+        <label>Display Name</label>
+        <input id="settingsName" value="${currentUser.name}">
+        <label>Email</label>
+        <input id="settingsEmail" type="email" value="${currentUser.email}">
+        <label>Password</label>
+        <input id="settingsPassword" type="password" value="${currentUser.password}">
+        <label>Profile Picture URL (Avatar)</label>
+        <input id="settingsAvatar" value="${currentUser.avatar||''}">
+
+        <h3 style="font-size:15px;margin-top:14px;">Address</h3>
+        <label>Address Line 1</label>
+        <input id="settingsAddress1" value="${currentUser.address1||''}">
+        <label>Address Line 2</label>
+        <input id="settingsAddress2" value="${currentUser.address2||''}">
+        <label>City</label>
+        <input id="settingsCity" value="${currentUser.city||''}">
+        <label>ZIP / Postal Code</label>
+        <input id="settingsZip" value="${currentUser.zip||''}">
+        <label>Country</label>
+        <input id="settingsCountry" value="${currentUser.country||''}">
+
+        <h3 style="font-size:15px;margin-top:14px;">Billing & Payment (Demo)</h3>
+        <p style="font-size:11px;color:#777;margin-bottom:4px;">
+          This is a front-end demo only. Do <strong>not</strong> enter real payment card information.
+        </p>
+        <label>Billing Address Line 1</label>
+        <input id="settingsBillingAddress1" value="${currentUser.billingAddress1||''}">
+        <label>Billing Address Line 2</label>
+        <input id="settingsBillingAddress2" value="${currentUser.billingAddress2||''}">
+        <label>Billing City</label>
+        <input id="settingsBillingCity" value="${currentUser.billingCity||''}">
+        <label>Billing ZIP / Postal Code</label>
+        <input id="settingsBillingZip" value="${currentUser.billingZip||''}">
+        <label>Card Number</label>
+        <input id="settingsCardNumber" type="text" inputmode="numeric" placeholder="Demo: 4242 4242 4242 4242">
+        <label>Expiration (MM/YY)</label>
+        <input id="settingsCardExp" type="text" placeholder="MM/YY" value="">
+        <label>CVV</label>
+        <input id="settingsCardCvv" type="password" inputmode="numeric" placeholder="3-digit code">
+
+        <p style="font-size:11px;color:#555;margin-top:6px;">
+          ${paymentDisplay}
+        </p>
+
+        ${extraFieldsRole}
+
+        <button class="btn btn-pill" type="submit" style="margin-top:12px;">Save Changes</button>
+      </form>
+    </div>
+  `;
+
+  const form=document.getElementById("settingsForm");
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+    currentUser.name=document.getElementById("settingsName").value.trim();
+    currentUser.email=document.getElementById("settingsEmail").value.trim();
+    currentUser.password=document.getElementById("settingsPassword").value.trim();
+    currentUser.avatar=document.getElementById("settingsAvatar").value.trim() || currentUser.avatar;
+
+    currentUser.address1=document.getElementById("settingsAddress1").value.trim();
+    currentUser.address2=document.getElementById("settingsAddress2").value.trim();
+    currentUser.city=document.getElementById("settingsCity").value.trim();
+    currentUser.zip=document.getElementById("settingsZip").value.trim();
+    currentUser.country=document.getElementById("settingsCountry").value.trim();
+
+    currentUser.billingAddress1=document.getElementById("settingsBillingAddress1").value.trim();
+    currentUser.billingAddress2=document.getElementById("settingsBillingAddress2").value.trim();
+    currentUser.billingCity=document.getElementById("settingsBillingCity").value.trim();
+    currentUser.billingZip=document.getElementById("settingsBillingZip").value.trim();
+
+    const cardNumber=document.getElementById("settingsCardNumber").value.replace(/\s+/g,"");
+    const cardExp=document.getElementById("settingsCardExp").value.trim();
+    const cardCvv=document.getElementById("settingsCardCvv").value.trim();
+
+    if(cardNumber){
+      const last4=cardNumber.slice(-4);
+      currentUser.paymentMeta={last4,exp:cardExp||""};
+    }
+
+    if(currentUser.role==="sitter"){
+      currentUser.experienceYears=parseInt(document.getElementById("settingsExp").value)||1;
+      currentUser.bio=document.getElementById("settingsBio").value.trim();
+    }else if(currentUser.role==="employee"){
+      currentUser.employeeMeta=currentUser.employeeMeta||{};
+      currentUser.employeeMeta.hourlyRate=parseFloat(document.getElementById("settingsRate").value)||0;
+    }else if(currentUser.role==="client"){
+      currentUser.houseNotes=document.getElementById("settingsHouseNotes").value.trim();
+    }
+
+    saveAll();
+
+    document.getElementById("settingsCardNumber").value="";
+    document.getElementById("settingsCardExp").value="";
+    document.getElementById("settingsCardCvv").value="";
+
+    alert("Profile updated successfully (card stored as masked demo only).");
+    renderSettingsPage();
+  });
+}
+
+// ====================== SWIPE SITTERS ======================
+function initSwipe(){
+  swipeSitters = users.filter(u=>u.role==="sitter");
+  swipeIndex = 0;
+  renderSwipeCard();
+  renderMatchesList();
+}
+
+function renderSwipeCard(){
+  const card=document.getElementById("swipeCard");
+  if(!card) return;
+  if(swipeSitters.length===0){
+    card.style.backgroundImage="none";
+    card.innerHTML="<div style='padding:20px;'>No sitters available.</div>";
+    return;
+  }
+  const s=swipeSitters[swipeIndex % swipeSitters.length];
+  card.style.backgroundImage=`url('${s.avatar}')`;
+  card.innerHTML='<div class="swipe-card-overlay"></div><div class="swipe-card-info"><h3 id="swipeName"></h3><div id="swipeMeta" class="meta"></div></div>';
+  document.getElementById("swipeName").textContent=`${s.name}, ${s.city||"Nearby"}`;
+  document.getElementById("swipeMeta").textContent=`${s.experienceYears||1}+ yrs · ⭐ ${s.rating||4.5}`;
+
+  let startX=null;
+  card.onmousedown = e=>{
+    startX=e.clientX;
+    card.style.cursor="grabbing";
+  };
+  window.onmouseup = ()=>{
+    card.style.transform="";
+    card.style.cursor="grab";
+    startX=null;
+  };
+  window.onmousemove = e=>{
+    if(startX===null) return;
+    const dx=e.clientX-startX;
+    card.style.transform=`translateX(${dx}px) rotate(${dx/20}deg)`;
+    if(Math.abs(dx)>120){
+      handleSwipe(dx>0);
+      startX=null;
+      card.style.transform="";
+    }
+  };
+}
+function handleSwipe(like){
+  const s=swipeSitters[swipeIndex % swipeSitters.length];
+  if(like && currentUser){
+    if(!matches.find(m=>m.clientId===currentUser.id && m.sitterId===s.id)){
+      matches.push({clientId:currentUser.id,sitterId:s.id});
+      saveAll();
+    }
+  }
+  swipeIndex++;
+  renderSwipeCard();
+  renderMatchesList();
+}
+function renderMatchesList(){
+  const list=document.getElementById("matchesList");
+  if(!list) return;
+  list.innerHTML="";
+  if(!currentUser){
+    list.innerHTML="<p style='font-size:13px;'>Sign in as a client to save matches.</p>";
+    return;
+  }
+  const myMatches=matches.filter(m=>m.clientId===currentUser.id);
+  if(myMatches.length===0){
+    list.innerHTML="<p style='font-size:13px;'>No matches yet. Start swiping!</p>";
+    return;
+  }
+  myMatches.forEach((m,idx)=>{
+    const s=users.find(u=>u.id===m.sitterId);
+    if(!s)return;
+    const div=document.createElement("div");
+    div.className="match-item";
+    div.innerHTML=`
+      <img src="${s.avatar}" alt="">
+      <div class="match-name">${s.name}</div>
+      <div class="match-meta">${s.city||"Nearby"} · ⭐ ${s.rating||4.5}</div>
+    `;
+    div.addEventListener("click",()=>openSitterProfile(s.id,"match"));
+    list.appendChild(div);
+
+    if(idx < myMatches.length-1){
+      const line=document.createElement("div");
+      line.className="match-divider";
+      list.appendChild(line);
+    }
+  });
+}
+
+// ====================== SITTER LISTING PAGE ======================
+function openSitterProfile(sitterId,from){
+  const s=users.find(u=>u.id===sitterId && u.role==="sitter");
+  if(!s){
+    alert("Sitter not found");
+    return;
+  }
+  currentSitterId = sitterId;
+  renderSitterDetailPage();
+  showPage("sitterDetail");
+}
+
+function renderSitterDetailPage(){
+  const container=document.getElementById("sitterDetailContent");
+  if(!container) return;
+  if(!currentSitterId){
+    container.innerHTML="<p>No sitter selected.</p>";
+    return;
+  }
+  const s=users.find(u=>u.id===currentSitterId && u.role==="sitter");
+  if(!s){
+    container.innerHTML="<p>Sitter not found.</p>";
+    return;
+  }
+
+  const isClient = currentUser && currentUser.role==="client";
+  const myDogs = isClient ? dogs.filter(d=>d.ownerId===currentUser.id) : [];
+  const sitterRate = 25 + ((s.experienceYears||1)-1)*3;
+
+  let convoHtml = "";
+  if(currentUser){
+    const convo = messages
+      .filter(m =>
+        (m.fromId===currentUser.id && m.toId===s.id) ||
+        (m.fromId===s.id && m.toId===currentUser.id)
+      )
+      .sort((a,b)=>a.ts-b.ts);
+
+    if(convo.length===0){
+      convoHtml = "<p style='font-size:12px;color:#777;'>No messages yet. Say hi to start the conversation.</p>";
+    }else{
+      convoHtml = "<div class='message-list' id='sitterDetailThread'>";
+      convo.forEach(m=>{
+        const cls = m.fromId===currentUser.id ? "message-out" : "message-in";
+        convoHtml += `<div class="message-bubble ${cls}">${m.text}</div>`;
+      });
+      convoHtml += "</div>";
+    }
+  }else{
+    convoHtml = "<p style='font-size:12px;color:#777;'>Sign in as a client or sitter to chat.</p>";
+  }
+
+  let dogOptions="";
+  if(isClient){
+    if(myDogs.length===0){
+      dogOptions = `<option value="">No dogs yet – add one in your dashboard</option>`;
+    }else{
+      dogOptions = myDogs.map(d=>`<option value="${d.id}">${d.name} (${d.breed})</option>`).join("");
+    }
+  }
+
+  container.innerHTML = `
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>${s.name}</span>
+            <span class="badge sitter">Sitter Listing</span>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <img src="${s.avatar}"
+                 style="width:130px;height:130px;border-radius:26px;object-fit:cover;">
+            <div style="font-size:13px;">
+              <p><strong>City:</strong> ${s.city||"Nearby"}</p>
+              <p><strong>Experience:</strong> ${s.experienceYears||1}+ years</p>
+              <p><strong>Rating:</strong> ⭐ ${s.rating||4.5}</p>
+              <p><strong>Typical Rate:</strong> $${sitterRate}/hr</p>
+              <p style="margin-top:6px;"><strong>Bio:</strong><br>${s.bio || "This sitter hasn’t added a bio yet, but they’re ready to care for your pup in this demo."}</p>
+              <p style="margin-top:6px;"><strong>Services (demo):</strong><br>Dog walking · Drop-in visits · Overnight stays</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <span>Chat with ${s.name}</span>
+          </div>
+          ${
+            currentUser
+              ? (convoHtml.includes("message-list") ? convoHtml : `<div class="message-list" id="sitterDetailThread">${convoHtml}</div>`)
+              : convoHtml
+          }
+          ${
+            currentUser
+              ? `
+              <form id="sitterDetailMessageForm" style="margin-top:6px;display:flex;gap:6px;">
+                <input id="sitterDetailMessageInput" placeholder="Type a message..." required>
+                <button class="btn btn-pill" type="submit">Send</button>
+              </form>
+            `
+              : `<p style="font-size:12px;color:#777;margin-top:4px;">Sign in to send a message.</p>`
+          }
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header">
+            <span>Book a Sit</span>
+          </div>
+          ${
+            isClient
+              ? `
+                <form id="sitterBookingForm">
+                  <label>Date</label>
+                  <input id="sitBookDate" type="date" required>
+                  <label>Start Time</label>
+                  <input id="sitBookTime" type="time" required>
+                  <label>Duration (hours)</label>
+                  <input id="sitBookHours" type="number" min="0.5" step="0.5" value="2" required>
+                  <label>Select Dog</label>
+                  <select id="sitBookDog" ${myDogs.length===0 ? "disabled" : ""}>
+                    ${dogOptions}
+                  </select>
+                  <label>Notes for Sitter</label>
+                  <textarea id="sitBookNotes" placeholder="Pickup instructions, house notes, your dog’s routine..."></textarea>
+                  <p style="font-size:12px;color:#777;margin-top:6px;">
+                    This will send a booking request to ${s.name}. They’ll see it in their dashboard under “New Client Requests.”
+                  </p>
+                  <button type="submit" class="btn btn-pill" style="margin-top:8px;" ${myDogs.length===0 ? "disabled" : ""}>
+                    Send Booking Request
+                  </button>
+                </form>
+              `
+              : `<p style="font-size:12px;color:#777;">Sign in as a client to send booking requests.</p>`
+          }
+        </div>
+      </div>
+    </div>
+  `;
+
+  const msgForm=document.getElementById("sitterDetailMessageForm");
+  if(msgForm && currentUser){
+    msgForm.addEventListener("submit", e=>{
+      e.preventDefault();
+      sendSitterDetailMessage();
+    });
+  }
+
+  const bookForm=document.getElementById("sitterBookingForm");
+  if(bookForm && isClient){
+    bookForm.addEventListener("submit", e=>{
+      e.preventDefault();
+      createBookingFromDetail();
+    });
+  }
+
+  if(currentUser){
+    const thread=document.getElementById("sitterDetailThread");
+    if(thread){
+      thread.scrollTop=thread.scrollHeight;
+    }
+  }
+}
+
+function sendSitterDetailMessage(){
+  if(!currentUser || !currentSitterId) return;
+  const input=document.getElementById("sitterDetailMessageInput");
+  if(!input) return;
+  const text=input.value.trim();
+  if(!text) return;
+  messages.push({
+    id:"MSG"+(messages.length+1),
+    fromId:currentUser.id,
+    toId:currentSitterId,
+    text,
+    ts:Date.now()
+  });
+  saveAll();
+  input.value="";
+  renderSitterDetailPage();
+}
+
+function createBookingFromDetail(){
+  if(!currentUser || currentUser.role!=="client"){
+    alert("Only clients can send booking requests.");
+    return;
+  }
+  if(!currentSitterId){
+    alert("No sitter selected.");
+    return;
+  }
+  const sitter = users.find(u=>u.id===currentSitterId && u.role==="sitter");
+  if(!sitter){
+    alert("Sitter not found.");
+    return;
+  }
+  const date = document.getElementById("sitBookDate").value;
+  const time = document.getElementById("sitBookTime").value;
+  const hours = parseFloat(document.getElementById("sitBookHours").value);
+  const dogId = document.getElementById("sitBookDog").value || null;
+  const notes = document.getElementById("sitBookNotes").value.trim();
+
+  if(!date || !time || !hours || hours<=0){
+    alert("Please fill out date, time, and a positive duration.");
+    return;
+  }
+  if(!dogId){
+    alert("Select a dog first (add one from your dashboard if needed).");
+    return;
+  }
+
+  const rate = 25 + ((sitter.experienceYears||1)-1)*3;
+  const estTotal = Math.round(rate*hours);
+
+  const id="REQ"+(requests.length+10);
+  requests.push({
+    id,
+    sitterId: sitter.id,
+    clientId: currentUser.id,
+    dogId,
+    date,
+    timeWindow: `${time} for ~${hours} hrs`,
+    hours,
+    estTotal,
+    status:"pending",
+    note: notes || "Request sent from sitter listing page."
+  });
+  saveAll();
+  alert("Booking request sent (demo). The sitter will see it under 'New Client Requests' in their dashboard.");
+  renderSitterDetailPage();
+}
+
+// ====================== DOG MODAL ======================
+function clientOpenDogModal(){
+  if(!currentUser || currentUser.role!=="client"){
+    alert("Sign in as a client to add a dog.");
+    return;
+  }
+  document.getElementById("dogForm").reset();
+  document.getElementById("dogModal").style.display="flex";
+}
+function closeDogModal(){
+  document.getElementById("dogModal").style.display="none";
+}
+document.getElementById("dogForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  if(!currentUser || currentUser.role!=="client"){
+    alert("Only clients can add dogs.");
+    return;
+  }
+  const name=document.getElementById("dogName").value.trim();
+  const breed=document.getElementById("dogBreed").value.trim();
+  const color=document.getElementById("dogColor").value.trim();
+  const weight=parseFloat(document.getElementById("dogWeight").value)||null;
+  const aggressive=document.getElementById("dogAggressive").value;
+  const allergies=document.getElementById("dogAllergies").value.trim();
+  const needs=document.getElementById("dogNeeds").value.trim();
+  const notes=document.getElementById("dogNotes").value.trim();
+
+  dogs.push({
+    id:"DOG"+(dogs.length+1),
+    ownerId:currentUser.id,
+    name,breed,color,
+    weightLbs:weight,
+    aggressive,
+    allergies,
+    specialNeeds:needs,
+    notes,
+    avatar:"https://images.pexels.com/photos/2253275/pexels-photo-2253275.jpeg"
+  });
+  saveAll();
+  closeDogModal();
+  renderDashboard();
+});
+
+// ====================== MESSAGES ======================
+function renderMessagesPage(){
+  const container=document.getElementById("messagesContent");
+  if(!container) return;
+  if(!currentUser){
+    container.innerHTML="<p>Please sign in to view and send messages.</p>";
+    return;
+  }
+
+  const partnerMap={};
+  messages.forEach(m=>{
+    if(m.fromId===currentUser.id){
+      partnerMap[m.toId]=true;
+    }else if(m.toId===currentUser.id){
+      partnerMap[m.fromId]=true;
+    }
+  });
+
+  let partnerIds=Object.keys(partnerMap);
+
+  if(partnerIds.length===0){
+    if(currentUser.role==="client"){
+      partnerIds = users.filter(u=>u.role==="sitter").map(u=>u.id);
+    }else if(currentUser.role==="sitter"){
+      partnerIds = users.filter(u=>u.role==="client").map(u=>u.id);
+    }else if(currentUser.role==="admin"||currentUser.role==="employee"){
+      partnerIds = users.filter(u=>u.id!==currentUser.id).map(u=>u.id);
+    }
+  }
+
+  const partnerUsers=partnerIds.map(id=>users.find(u=>u.id===id)).filter(Boolean);
+
+  let initialPartner = null;
+  if(preselectMessagePartnerId){
+    initialPartner = partnerUsers.find(u=>u.id===preselectMessagePartnerId) || partnerUsers[0] || null;
+  }else{
+    initialPartner = partnerUsers[0] || null;
+  }
+  // once used, clear it
+  preselectMessagePartnerId = null;
+
+  container.innerHTML=`
+    <div class="convo-list" id="convoList"></div>
+    <div class="message-thread">
+      <div class="message-header" id="threadHeader">${initialPartner? 'Chat with '+initialPartner.name : 'No conversations yet'}</div>
+      <div class="message-list" id="threadMessages"></div>
+      <form id="messageForm">
+        <input id="messageInput" placeholder="Type a message..." ${initialPartner?'required':''}>
+        <button class="btn btn-pill" type="submit">Send</button>
+      </form>
+    </div>
+  `;
+
+  const convoList=document.getElementById("convoList");
+  let currentPartnerId = initialPartner ? initialPartner.id : null;
+
+  function loadThread(partnerId){
+    const partner=users.find(u=>u.id===partnerId);
+    const header=document.getElementById("threadHeader");
+    const list=document.getElementById("threadMessages");
+    if(!header || !list) return;
+
+    currentPartnerId = partnerId;
+    document.getElementById("messageForm").dataset.partnerId = partnerId;
+
+    header.textContent = partner ? `Chat with ${partner.name}` : "Messages";
+    list.innerHTML="";
+    const convo=messages.filter(m=>
+      (m.fromId===currentUser.id && m.toId===partnerId) ||
+      (m.fromId===partnerId && m.toId===currentUser.id)
+    ).sort((a,b)=>a.ts-b.ts);
+    convo.forEach(m=>{
+      const div=document.createElement("div");
+      div.className="message-bubble "+(m.fromId===currentUser.id?"message-out":"message-in");
+      div.textContent=m.text;
+      list.appendChild(div);
+    });
+    list.scrollTop=list.scrollHeight;
+  }
+
+  partnerUsers.forEach(u=>{
+    const div=document.createElement("div");
+    div.className="convo-item"+(initialPartner && u.id===initialPartner.id?" active":"");
+    div.dataset.partnerId=u.id;
+    div.innerHTML=`
+      <img src="${u.avatar||'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg'}" alt="">
+      <div>
+        <div style="font-size:13px;font-weight:bold;">${u.name}</div>
+        <div style="font-size:11px;color:#777;">${u.role}</div>
+      </div>
+    `;
+    div.addEventListener("click",()=>{
+      document.querySelectorAll(".convo-item").forEach(c=>c.classList.remove("active"));
+      div.classList.add("active");
+      loadThread(u.id);
+    });
+    convoList.appendChild(div);
+  });
+
+  const msgForm = document.getElementById("messageForm");
+  if(msgForm){
+    if(initialPartner){
+      msgForm.dataset.partnerId = initialPartner.id;
+      loadThread(initialPartner.id);
+    }
+    msgForm.addEventListener("submit", e=>{
+      e.preventDefault();
+      const partnerId = msgForm.dataset.partnerId;
+      if(!partnerId){
+        alert("Select a conversation first.");
+        return;
+      }
+      const input = document.getElementById("messageInput");
+      if(!input) return;
+      const text = input.value.trim();
+      if(!text) return;
+
+      messages.push({
+        id:"MSG"+(messages.length+1),
+        fromId:currentUser.id,
+        toId:partnerId,
+        text,
+        ts:Date.now()
+      });
+      saveAll();
+      input.value="";
+      loadThread(partnerId);
+    });
+  }else if(initialPartner){
+    loadThread(initialPartner.id);
+  }
+}
+
+// ====================== INIT ======================
+seedDataIfNeeded();
+renderHome();
+</script>
+
+</body>
+</html>

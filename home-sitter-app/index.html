@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PetCare Portal</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-root">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="app-header-inner">
+        <!-- Brand -->
+<div class="brand" data-page-jump="homePage" style="cursor:pointer;">
+  <img
+    src="img/petcare-logo.png"
+    alt="PetCare Portal logo"
+    class="brand-logo"
+  />
+  <span>PetCare Portal</span>
+</div>
+
+        <!-- MAIN NAV -->
+        <nav class="main-nav">
+          <button class="nav-link" data-page="homePage">Home</button>
+          <button class="nav-link" data-page="dashboardPage">Dashboard</button>
+          <button class="nav-link" data-page="swipePage">Swipe</button>
+          <button class="nav-link" data-page="dogsPage">Dogs</button>
+          <button class="nav-link" data-page="messagesPage">Messages</button>
+          <button class="nav-link" data-page="settingsPage">Settings</button>
+          <button class="nav-link" data-page="profilePage">Profile</button>
+        </nav>
+
+        <!-- RIGHT SIDE -->
+        <div class="header-right">
+          <!-- Simple user pill -->
+          <button class="user-pill" id="userPill" type="button">
+            Guest
+          </button>
+
+          <button
+            type="button"
+            id="openAuthBtn"
+            data-page-jump="authPage"
+          >
+            Login / Sign up
+          </button>
+
+          <button id="logoutBtn" type="button">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="app-main">
+      <div class="app-main-inner">
+        <section id="appSection" style="display:block;">
+
+          <!-- HOME PAGE -->
+          <section id="homePage" class="page active">
+            <h1>Find trusted sitters near you</h1>
+            <p class="page-subtitle">
+              Browse nearby sitters, swipe to match, and see real reviews from other pet parents.
+            </p>
+
+            <div class="home-layout">
+              <div class="home-left">
+                <!-- Map + sitters -->
+                <div class="map-card">
+                  <div class="map-header">
+                    <h2>Nearby sitters</h2>
+                    <span>Live locations (map preview)</span>
+                  </div>
+
+                  <!-- Added an extra class + id to support "longer map" styling -->
+                  <div class="map-placeholder map-placeholder--tall" id="homeMapPreview">
+                    <div class="map-pin-labels">
+                      <div class="map-pin">Downtown hotspot</div>
+                      <div class="map-pin">Park meetups</div>
+                    </div>
+                  </div>
+
+                  <div class="sitter-list" id="homeSittersList"></div>
+                </div>
+
+                <!-- Gallery -->
+                <div class="gallery-card">
+                  <div class="gallery-header">
+                    <div class="gallery-header-main">
+                      <h2>Pup gallery</h2>
+                      <p>See what other dogs are up to with their favorite sitters.</p>
+                    </div>
+                  </div>
+
+                  <div class="gallery-grid" id="homeGalleryGrid">
+                    <div class="gallery-item">
+                      <div
+                        class="gallery-item-img"
+                        style="background-image:url('https://images.pexels.com/photos/5731865/pexels-photo-5731865.jpeg?auto=compress&cs=tinysrgb&w=800');"
+                      ></div>
+                      <div class="gallery-item-body">
+                        <div class="gallery-item-meta">Posted by Chris &amp; Milo</div>
+                        <div class="gallery-item-caption">
+                          Park day with Ella – came home tired and happy.
+                        </div>
+                        <div class="gallery-item-footer">
+                          <span>❤️ 24 • 💬 5</span>
+                          <span class="text-muted">Ella Sitter</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="gallery-item">
+                      <div
+                        class="gallery-item-img"
+                        style="background-image:url('https://images.pexels.com/photos/4588012/pexels-photo-4588012.jpeg?auto=compress&cs=tinysrgb&w=800');"
+                      ></div>
+                      <div class="gallery-item-body">
+                        <div class="gallery-item-meta">Posted by Taylor &amp; Luna</div>
+                        <div class="gallery-item-caption">
+                          Daily check-ins and pics during my weekend trip.
+                        </div>
+                        <div class="gallery-item-footer">
+                          <span>❤️ 18 • 💬 3</span>
+                          <span class="text-muted">Sam Sitter</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right column -->
+              <div class="home-right">
+                <!-- Existing Swipe card -->
+                <div class="swipe-card">
+                  <h2>Swipe Sitter</h2>
+                  <p>Match with sitters like a Tinder-style experience – built for dog sitting.</p>
+                  <div class="swipe-meta-row">
+                    <span class="swipe-meta-pill">Verified profiles</span>
+                    <span class="swipe-meta-pill">Background checks</span>
+                    <span class="swipe-meta-pill">Instant booking</span>
+                  </div>
+                  <button type="button" class="btn-primary" data-page-jump="swipePage">
+                    Try Swipe Sitter
+                  </button>
+                </div>
+
+                <!-- NEW: Become a sitter / client entry card -->
+                <div class="swipe-card">
+                  <h2>Become a sitter</h2>
+                  <p>
+                    Earn money, set your schedule, and work with dogs you love.
+                    Create a sitter profile in a few minutes.
+                  </p>
+                  <div class="swipe-meta-row">
+                    <span class="swipe-meta-pill">Flexible schedule</span>
+                    <span class="swipe-meta-pill">Set your own rates</span>
+                    <span class="swipe-meta-pill">Work with dogs only</span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
+                    <button
+                      type="button"
+                      class="btn-primary"
+                      onclick="window.openSignupForRole && window.openSignupForRole('sitter')"
+                    >
+                      I want to be a sitter
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-outline"
+                      onclick="window.openSignupForRole && window.openSignupForRole('client')"
+                    >
+                      I’m a pet parent
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Reviews -->
+                <div class="reviews-card">
+                  <h2>Recent reviews</h2>
+                  <div class="review-item">
+                    <div class="review-header">
+                      <span><strong>Ella</strong></span>
+                      <span class="star">★★★★★</span>
+                    </div>
+                    <div class="review-body">
+                      “Sent tons of photo updates and kept Milo on his schedule.”
+                    </div>
+                  </div>
+                  <div class="review-item">
+                    <div class="review-header">
+                      <span><strong>Sam</strong></span>
+                      <span class="star">★★★★☆</span>
+                    </div>
+                    <div class="review-body">
+                      “Great with high-energy dogs, very responsive in chat.”
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- DASHBOARD PAGE -->
+          <section id="dashboardPage" class="page">
+            <div class="page-header">
+              <h1>Dashboard</h1>
+              <p class="page-subtitle">
+                Personalized tools based on your role (Client, Sitter, Employee, Admin).
+              </p>
+            </div>
+            <div id="dashboardRoot"></div>
+          </section>
+
+          <!-- DOGS PAGE -->
+          <section id="dogsPage" class="page">
+            <h1>Your dogs</h1>
+            <p class="page-subtitle">
+              Future: detailed profiles, care instructions, vet info, and more.
+            </p>
+            <div class="section-card">
+              <p class="text-muted">
+                We’ll wire this up after the dashboard pieces are solid.
+              </p>
+            </div>
+          </section>
+
+          <!-- SWIPE PAGE -->
+          <section id="swipePage" class="page">
+            <h1>Swipe Sitter</h1>
+            <p class="page-subtitle">
+              Match with sitters in a card-swipe interface.
+            </p>
+            <div class="section-card">
+              <div id="swipeRoot"></div>
+            </div>
+          </section>
+
+          <!-- MESSAGES PAGE -->
+          <section id="messagesPage" class="page">
+            <h1>Messages</h1>
+            <p class="page-subtitle">All your sitter conversations in one place.</p>
+            <div class="section-card">
+              <p class="text-muted">
+                For now, use the chat section on your dashboard to message sitters.
+              </p>
+            </div>
+          </section>
+
+          <!-- SETTINGS PAGE -->
+          <section id="settingsPage" class="page">
+            <h1>Settings</h1>
+            <p class="page-subtitle">Manage your account and see what your role can do.</p>
+            <div class="settings-grid">
+              <div id="settingsMainCard" class="section-card">
+                <h2 id="settingsMainTitle">Account</h2>
+                <div id="settingsMainBody">
+                  <p class="text-muted">
+                    Select an item on the right to edit those settings here.
+                  </p>
+                </div>
+              </div>
+              <div id="settingsRoleCard" class="section-card"></div>
+            </div>
+          </section>
+
+          <!-- SITTER PROFILE PAGE -->
+          <section id="sitterProfilePage" class="page">
+            <div id="sitterProfileRoot"></div>
+          </section>
+
+          <!-- BOOKING PAGE -->
+          <section id="bookingPage" class="page">
+            <div class="page-header">
+              <button class="btn-small" data-page-jump="sitterProfilePage">← Back to profile</button>
+              <h1 style="margin-top:8px;">Book this sitter</h1>
+              <p class="page-subtitle">
+                Send a detailed request so your sitter knows what you need.
+              </p>
+            </div>
+            <div class="dashboard-layout">
+              <div class="dashboard-card">
+                <div class="booking-sitter-summary section-card">
+                  <div class="booking-sitter-main" style="display:flex; gap:12px; align-items:center;">
+                    <div id="bookingSitterAvatar" class="avatar-circle"
+                      style="width:48px;height:48px;border-radius:999px;background-size:cover;background-position:center;background-color:#e5e7eb;">
+                    </div>
+                    <div>
+                      <div id="bookingSitterName" class="card-title" style="font-size:16px;">Sitter name</div>
+                      <div class="card-subtitle" style="font-size:12px;">
+                        <span id="bookingSitterRating">★ New</span>
+                        <span> · </span>
+                        <span id="bookingSitterDistance">Nearby</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
+                  <div class="section-card">
+                    <p class="text-muted">Booking form is initialized by JS.</p>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </section>
+
+          <!-- BOOKING CONFIRM PAGE -->
+          <section id="bookingConfirmPage" class="page">
+            <div id="bookingConfirmRoot"></div>
+          </section>
+
+          <!-- AUTH PAGE -->
+          <section id="authPage" class="page">
+            <div class="section-card" style="max-width:520px; margin:0 auto;">
+              <h1>Login / Sign Up</h1>
+              <p class="page-subtitle">
+                Access your account or create a new one to start booking.
+              </p>
+
+              <div class="auth-tabs">
+                <button type="button" class="auth-tab active" data-auth-tab="loginPagePanel">
+                  Log in
+                </button>
+                <button type="button" class="auth-tab" data-auth-tab="signupPagePanel">
+                  Sign up
+                </button>
+              </div>
+
+              <!-- LOGIN PANEL -->
+              <div id="loginPagePanel" class="auth-panel">
+                <form id="loginPageForm" class="auth-form">
+                  <label>
+                    <span>Email</span>
+                    <input type="email" id="loginPageEmail" class="input" required />
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <input type="password" id="loginPagePassword" class="input" required />
+                  </label>
+                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
+                    Log in
+                  </button>
+                </form>
+              </div>
+
+              <!-- SIGNUP PANEL -->
+              <div id="signupPagePanel" class="auth-panel" style="display:none;">
+                <form id="signupRealForm" class="auth-form">
+                  <label>
+                    <span>Full name</span>
+                    <input type="text" id="realSignupName" class="input" required />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input type="email" id="realSignupEmail" class="input" required />
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <input type="password" id="realSignupPassword" class="input" required />
+                  </label>
+                  <label>
+                    <span>Account type</span>
+                    <select id="realSignupRole" class="input" required>
+                      <option value="client" selected>Client / Pet Owner</option>
+                      <option value="sitter">Sitter</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
+                    Create account
+                  </button>
+                </form>
+              </div>
+
+              <div id="authPageError" class="auth-error" style="display:none;"></div>
+            </div>
+          </section>
+
+          <!-- PROFILE PAGE -->
+          <section id="profilePage" class="page">
+            <div class="section-card" style="max-width:700px; margin:0 auto;">
+              <h1>Your Profile</h1>
+              <p class="page-subtitle">Your account details and status.</p>
+
+              <div id="profileRoot"></div>
+
+              <div style="margin-top:12px; display:flex; gap:8px;">
+                <button type="button" class="btn-secondary" data-page-jump="settingsPage">
+                  Manage settings
+                </button>
+                <button type="button" class="btn-secondary" id="profileLogoutBtn">
+                  Logout
+                </button>
+              </div>
+            </div>
+          </section>
+
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- SCRIPTS -->
+  <!-- Using defer keeps order + ensures DOM exists for binders -->
+<script src="js/state.js" defer></script>
+<script src="js/app.js" defer></script>
+
+<script src="js/pages/home.js" defer></script>
+<script src="js/pages/dashboard.js" defer></script>
+<script src="js/pages/swipe.js" defer></script>
+<script src="js/pages/dogs.js" defer></script>
+<script src="js/pages/messages.js" defer></script>
+<script src="js/pages/settings.js" defer></script>
+
+
+<script src="js/pages/sitterProfile.js" defer></script>
+<script src="js/pages/authPage.js" defer></script>
+<script src="js/pages/profile.js" defer></script>
+
+
+</body>
+</html>
