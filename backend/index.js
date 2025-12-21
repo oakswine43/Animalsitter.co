@@ -121,7 +121,11 @@ app.get("/", (req, res) => {
   res.json({
     ok: true,
     message: "PetCare backend is running.",
-    db: process.env.DB_NAME || null,
+    db:
+      process.env.DB_NAME ||
+      process.env.MYSQLDATABASE ||
+      process.env.MYSQL_DATABASE ||
+      null,
     commission_rate: COMMISSION_RATE,
     sample_routes: [
       "/health",
@@ -155,24 +159,28 @@ app.get("/health", async (req, res) => {
   }
 });
 
-// NEW: DB debug route so you can hit
-// https://<your-backend>.up.railway.app/debug/db
+// DB DEBUG – for https://<your-backend>.up.railway.app/debug/db
 app.get("/debug/db", async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT 1 AS ok, DATABASE() AS dbName, NOW() AS serverTime"
-    );
+    const [[dbRow]] = await pool.query("SELECT DATABASE() AS dbName, NOW() AS serverTime");
+    const [[userRow]] = await pool.query("SELECT COUNT(*) AS user_count FROM users");
+
     return res.json({
       ok: true,
-      db: rows[0]?.dbName || null,
+      db: dbRow?.dbName || null,
       dbPing: true,
-      serverTime: rows[0]?.serverTime || null
+      serverTime: dbRow?.serverTime || null,
+      user_count: userRow?.user_count ?? null
     });
   } catch (err) {
-    console.error("debug/db error:", err);
+    console.error("DEBUG_DB_ERROR:", err);
     return res.status(500).json({
       ok: false,
-      db: process.env.DB_NAME || null,
+      db:
+        process.env.DB_NAME ||
+        process.env.MYSQLDATABASE ||
+        process.env.MYSQL_DATABASE ||
+        null,
       dbPing: false,
       error: err.message
     });
@@ -537,7 +545,8 @@ app.post("/bookings", async (req, res) => {
     if (!client_id || !sitter_id || !service_type || !start_time || !end_time) {
       return res.status(400).json({
         ok: false,
-        error: "Missing required fields (client_id, sitter_id, service_type, start_time, end_time)."
+        error:
+          "Missing required fields (client_id, sitter_id, service_type, start_time, end_time)."
       });
     }
 
@@ -580,10 +589,10 @@ app.post("/bookings", async (req, res) => {
 
     // 2) Lookup emails
     const [[clientRow] = [[]]] = await Promise.all([
-      pool.query(`SELECT email FROM users WHERE id = ?`, [client_id]),
-      // second dummy to keep structure consistent; we’ll re-query sitter separately
+      pool.query(`SELECT email FROM users WHERE id = ?`, [client_id])
+      // second dummy removed – only one query actually needed
     ]).catch(() => [[[]]]);
-    let clientEmail = clientRow?.email || null;
+    const clientEmail = clientRow?.email || null;
 
     const [sitterRows] = await pool.query(
       `SELECT email FROM users WHERE id = ?`,
@@ -636,7 +645,7 @@ app.post("/bookings", async (req, res) => {
         transactionId,
         receiptNumber,
         "CHARGE",
-        platformFee,          // platform's cut
+        platformFee, // platform's cut
         currency,
         "paid",
         payment_method,
