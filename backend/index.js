@@ -125,6 +125,7 @@ app.get("/", (req, res) => {
     commission_rate: COMMISSION_RATE,
     sample_routes: [
       "/health",
+      "/debug/db",
       "/_debug/routes",
       "/auth/*",
       "/profile",
@@ -150,6 +151,30 @@ app.get("/health", async (req, res) => {
       ok: false,
       db: process.env.DB_NAME || null,
       error: "DB connection failed"
+    });
+  }
+});
+
+// NEW: DB debug route so you can hit
+// https://<your-backend>.up.railway.app/debug/db
+app.get("/debug/db", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT 1 AS ok, DATABASE() AS dbName, NOW() AS serverTime"
+    );
+    return res.json({
+      ok: true,
+      db: rows[0]?.dbName || null,
+      dbPing: true,
+      serverTime: rows[0]?.serverTime || null
+    });
+  } catch (err) {
+    console.error("debug/db error:", err);
+    return res.status(500).json({
+      ok: false,
+      db: process.env.DB_NAME || null,
+      dbPing: false,
+      error: err.message
     });
   }
 });
