@@ -13,7 +13,7 @@
   const loginEmailInput = document.getElementById("loginEmail");
   const loginPasswordInput = document.getElementById("loginPassword");
 
-  // Old direct refs (fallbacks)
+  
   const signupNameInput = document.getElementById("overlaySignupName");
   const signupEmailInput = document.getElementById("overlaySignupEmail");
   const signupPasswordInput = document.getElementById("overlaySignupPassword");
@@ -21,6 +21,9 @@
 
   const TOKEN_KEY = "petcare_token";
 
+  // -------------------------
+  // Helpers
+  // -------------------------
   function showError(msg) {
     if (!authError) return;
     authError.textContent = msg || "";
@@ -50,11 +53,12 @@
     const token = data.token || data.jwt || null;
 
     if (!apiUser || !token) {
+      console.error("handleAuthSuccess got bad data:", data);
       showError("Bad response from server.");
       return;
     }
 
-    // Save JWT
+    // Save JWT for future /auth/me calls
     try {
       localStorage.setItem(TOKEN_KEY, token);
     } catch (_) {}
@@ -80,6 +84,9 @@
     if (overlay) overlay.style.display = "none";
   }
 
+  // -------------------------
+  // API calls
+  // -------------------------
   async function doLogin(email, password) {
     if (!window.API_BASE) {
       throw new Error("API base URL is not configured.");
@@ -109,6 +116,7 @@
       method: "POST",
       headers: {
         "Content-Type": "application/json"
+        // "Accept": "application/json" // add if your backend needs it
       },
       body: JSON.stringify({ full_name, email, password, role })
     });
@@ -120,35 +128,9 @@
     return data;
   }
 
-  // Helper: get value for signup fields in a very robust way
-  function getSignupField(selectorList, fallbackEl, typeSelector) {
-    let el = null;
-
-    if (signupForm && selectorList && selectorList.length) {
-      for (const sel of selectorList) {
-        const found = signupForm.querySelector(sel) || document.querySelector(sel);
-        if (found) {
-          el = found;
-          break;
-        }
-      }
-    }
-
-    // Fallback: by input type (for email/password)
-    if (!el && signupForm && typeSelector) {
-      el = signupForm.querySelector(typeSelector);
-    }
-
-    // Fallback: old direct element
-    if (!el && fallbackEl) {
-      el = fallbackEl;
-    }
-
-    const value = el && typeof el.value !== "undefined" ? el.value : "";
-    return value.trim();
-  }
-
-  // ----- PUBLIC API (for openAuthBtn inline onclick) -----
+  // -------------------------
+  // Public overlay API
+  // -------------------------
   const PetCareAuth = {
     show(whichTab) {
       if (!overlay) return;
@@ -162,7 +144,9 @@
   };
   window.PetCareAuth = PetCareAuth;
 
-  // ----- EVENT HOOKS -----
+  // -------------------------
+  // Event hooks
+  // -------------------------
 
   // Close button
   if (closeBtn) {
@@ -186,8 +170,8 @@
       e.preventDefault();
       showError("");
 
-      const email = (loginEmailInput?.value || "").trim();
-      const password = loginPasswordInput?.value || "";
+      const email = (loginEmailInput.value || "").trim();
+      const password = loginPasswordInput.value || "";
 
       if (!email || !password) {
         showError("Email and password are required.");
@@ -210,32 +194,43 @@
       e.preventDefault();
       showError("");
 
-      const full_name = getSignupField(
-        ["#overlaySignupName", "#signupName", 'input[name="full_name"]', 'input[name="name"]'],
-        signupNameInput,
-        "input[type='text']"
-      );
-      const email = getSignupField(
-        ["#overlaySignupEmail", "#signupEmail", 'input[name="email"]'],
-        signupEmailInput,
-        "input[type='email']"
-      );
-      const password = getSignupField(
-        ["#overlaySignupPassword", "#signupPassword", 'input[name="password"]'],
-        signupPasswordInput,
-        "input[type='password']"
-      );
+      // Use FormData so we rely on input "name" attributes
+      const fd = new FormData(signupForm);
 
-      const role =
+      const full_name = (
+        fd.get("full_name") ||
+        (signupNameInput && signupNameInput.value) ||
+        ""
+      )
+        .toString()
+        .trim();
+
+      const email = (
+        fd.get("email") ||
+        (signupEmailInput && signupEmailInput.value) ||
+        ""
+      )
+        .toString()
+        .trim();
+
+      const password = (
+        fd.get("password") ||
+        (signupPasswordInput && signupPasswordInput.value) ||
+        ""
+      ).toString();
+
+      const role = (
+        fd.get("role") ||
         (signupRoleInput && signupRoleInput.value) ||
-        (signupForm.querySelector(
-          "#overlaySignupRole, #signupRole, select[name='role']"
-        )?.value) ||
-        "client";
+        "client"
+      ).toString();
 
-      console.log("[Signup] full_name:", full_name);
-      console.log("[Signup] email:", email);
-      console.log("[Signup] role:", role);
+      console.log("[Signup debug]", {
+        full_name,
+        email,
+        passwordLength: password.length,
+        role
+      });
 
       if (!full_name || !email || !password) {
         showError("Name, email and password are required.");
