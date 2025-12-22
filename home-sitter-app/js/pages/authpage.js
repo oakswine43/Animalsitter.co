@@ -1,192 +1,198 @@
 // js/pages/authPage.js
+// Full-page login / signup using REAL backend (/auth/login, /auth/register)
+
 (function () {
-  const API_BASE = window.PETCARE_API_BASE || "http://localhost:4000";
+  const loginTabBtn = document.querySelector('.auth-tab[data-auth-tab="loginPagePanel"]');
+  const signupTabBtn = document.querySelector('.auth-tab[data-auth-tab="signupPagePanel"]');
+
+  const loginPanel = document.getElementById("loginPagePanel");
+  const signupPanel = document.getElementById("signupPagePanel");
+
+  const loginForm = document.getElementById("loginPageForm");
+  const signupForm = document.getElementById("signupRealForm");
+
+  const loginEmailInput = document.getElementById("loginPageEmail");
+  const loginPasswordInput = document.getElementById("loginPagePassword");
+
+  const signupNameInput = document.getElementById("realSignupName");
+  const signupEmailInput = document.getElementById("realSignupEmail");
+  const signupPasswordInput = document.getElementById("realSignupPassword");
+  const signupRoleInput = document.getElementById("realSignupRole");
+
+  const authError = document.getElementById("authPageError");
+  const TOKEN_KEY = "petcare_token";
+
+  // ---------- helpers ----------
 
   function showError(msg) {
-    const el = document.getElementById("authPageError");
-    if (!el) return;
-    el.style.display = msg ? "block" : "none";
-    el.textContent = msg || "";
+    if (!authError) return;
+    authError.textContent = msg || "";
+    authError.style.display = msg ? "block" : "none";
   }
 
-  function switchTab(panelId) {
-    const tabs = document.querySelectorAll("#authPage .auth-tab");
-    const panels = document.querySelectorAll("#authPage .auth-panel");
+  function setTab(tab) {
+    const loginActive = tab === "login";
+    if (loginTabBtn) loginTabBtn.classList.toggle("active", loginActive);
+    if (signupTabBtn) signupTabBtn.classList.toggle("active", !loginActive);
 
-    tabs.forEach((t) => {
-      t.classList.toggle("active", t.getAttribute("data-auth-tab") === panelId);
-    });
-
-    panels.forEach((p) => {
-      p.style.display = p.id === panelId ? "block" : "none";
-    });
+    if (loginPanel) loginPanel.style.display = loginActive ? "block" : "none";
+    if (signupPanel) signupPanel.style.display = loginActive ? "none" : "block";
 
     showError("");
   }
 
-  function bindTabs() {
-    const tabs = document.querySelectorAll("#authPage .auth-tab");
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const panelId = tab.getAttribute("data-auth-tab");
-        if (panelId) switchTab(panelId);
-      });
-    });
-  }
-
-  function mapApiUser(apiUser) {
+  function mapUser(apiUser) {
     if (!apiUser) return null;
-
+    if (typeof window.PetCareMapApiUser === "function") {
+      return window.PetCareMapApiUser(apiUser);
+    }
+    // fallback
     return {
       id: apiUser.id,
       name: apiUser.full_name || apiUser.name || "",
       email: apiUser.email,
-      role: apiUser.role,
-      phone: apiUser.phone || "",
+      role: apiUser.role || "client",
       is_active: apiUser.is_active
     };
   }
 
-  async function postJson(path, body) {
-    const res = await fetch(`${API_BASE}${path}`, {
+  function handleAuthSuccess(data) {
+    showError("");
+
+    const apiUser = data && data.user;
+    const token = data && (data.token || data.jwt);
+
+    if (!apiUser || !token) {
+      showError("Bad response from server.");
+      return;
+    }
+
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch (_) {}
+
+    const user = mapUser(apiUser);
+
+    try {
+      if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
+        window.PetCareState.setCurrentUser(user);
+      }
+      if (typeof window.updateHeaderUser === "function") {
+        window.updateHeaderUser();
+      }
+    } catch (err) {
+      console.warn("Failed to update current user:", err);
+    }
+
+    // Go to dashboard after login/signup
+    if (typeof window.setActivePage === "function") {
+      window.setActivePage("dashboardPage");
+    }
+  }
+
+  async function apiPost(path, body) {
+    if (!window.API_BASE) {
+      throw new Error("API base URL is not configured.");
+    }
+    const res = await fetch(`${window.API_BASE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(body || {})
     });
 
     const data = await res.json().catch(() => ({}));
-
     if (!res.ok) {
-      const msg = data.error || data.message || "Request failed";
-      throw new Error(msg);
+      throw new Error(data.error || "Request failed.");
     }
-
     return data;
   }
 
-  function bindLogin() {
-    const form = document.getElementById("loginPageForm");
-    if (!form) return;
+  // ---------- form handlers ----------
 
-    form.addEventListener("submit", async (e) => {
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       showError("");
 
-      const email = document.getElementById("loginPageEmail")?.value?.trim();
-      const password = document.getElementById("loginPagePassword")?.value;
+      const email = (loginEmailInput.value || "").trim();
+      const password = loginPasswordInput.value || "";
 
       if (!email || !password) {
-        showError("Please enter your email and password.");
+        showError("Email and password are required.");
         return;
       }
 
-      const submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.disabled = true;
-
       try {
-        const data = await postJson("/auth/login", { email, password });
-
-        if (data.token) {
-          localStorage.setItem("petcare_token", data.token);
-        }
-
-        const user = mapApiUser(data.user);
-
-        if (user && window.PetCareState?.setCurrentUser) {
-          window.PetCareState.setCurrentUser(user);
-        }
-
-        window.updateHeaderUser?.();
-        window.setActivePage?.("profilePage");
+        const data = await apiPost("/auth/login", { email, password });
+        handleAuthSuccess(data);
       } catch (err) {
-        showError(err.message || "Invalid email or password.");
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
+        console.error("Login error:", err);
+        showError(err.message || "Login failed.");
       }
     });
   }
 
-  function bindSignup() {
-    const form = document.getElementById("signupRealForm");
-    if (!form) return;
-
-    form.addEventListener("submit", async (e) => {
+  if (signupForm) {
+    signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       showError("");
 
-      const name = document.getElementById("realSignupName")?.value?.trim();
-      const email = document.getElementById("realSignupEmail")?.value?.trim();
-      const password = document.getElementById("realSignupPassword")?.value;
-      const role = document.getElementById("realSignupRole")?.value || "client";
+      const full_name = (signupNameInput.value || "").trim();
+      const email = (signupEmailInput.value || "").trim();
+      const password = signupPasswordInput.value || "";
+      const role = signupRoleInput.value || "client";
 
-      if (!name || !email || !password) {
-        showError("Please fill out name, email, and password.");
+      // 👉 THIS is the message you're seeing
+      if (!full_name || !email || !password) {
+        showError("Name, email and password are required.");
         return;
       }
 
-      const submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.disabled = true;
-
       try {
-        const data = await postJson("/auth/register", {
-          name,
+        const data = await apiPost("/auth/register", {
+          full_name,
           email,
           password,
           role
         });
-
-        if (data.token) {
-          localStorage.setItem("petcare_token", data.token);
-        }
-
-        const user = mapApiUser(data.user);
-
-        if (user && window.PetCareState?.setCurrentUser) {
-          window.PetCareState.setCurrentUser(user);
-        }
-
-        window.updateHeaderUser?.();
-        window.setActivePage?.("profilePage");
+        handleAuthSuccess(data);
       } catch (err) {
-        showError(err.message || "That email is already registered.");
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
+        console.error("Signup error:", err);
+        showError(err.message || "Signup failed.");
       }
     });
   }
 
-  function initAuthPage() {
-    bindTabs();
-    bindLogin();
-    bindSignup();
-    switchTab("loginPagePanel");
+  // ---------- tab buttons ----------
+
+  if (loginTabBtn) {
+    loginTabBtn.addEventListener("click", () => setTab("login"));
+  }
+  if (signupTabBtn) {
+    signupTabBtn.addEventListener("click", () => setTab("signup"));
   }
 
-  window.initAuthPage = initAuthPage;
+  // ---------- global helpers for "Become a sitter" buttons ----------
 
-  // expose mapping for reuse
-  window.PetCareMapApiUser = mapApiUser;
-
-  // ===============================
-  // Open Auth page pre-set for role
-  // ===============================
   window.openSignupForRole = function (role) {
-    // 1. Go to the Auth page
     if (typeof window.setActivePage === "function") {
       window.setActivePage("authPage");
     }
-
-    // 2. Switch tabs to "Sign up"
-    switchTab("signupPagePanel");
-
-    // 3. Pre-select the account type in the dropdown
-    const roleSelect = document.getElementById("realSignupRole");
-    if (roleSelect && (role === "sitter" || role === "client")) {
-      roleSelect.value = role;
+    setTab("signup");
+    if (signupRoleInput && role) {
+      signupRoleInput.value = role;
     }
-
-    // 4. Optional: focus name input
-    const nameInput = document.getElementById("realSignupName");
-    if (nameInput) nameInput.focus();
   };
+
+  // Called from app.js when authPage is activated
+  window.initAuthPage = function () {
+    setTab("login"); // default tab
+  };
+
+  // Initialize once in case user lands directly on /#authPage
+  document.addEventListener("DOMContentLoaded", () => {
+    setTab("login");
+  });
 })();
