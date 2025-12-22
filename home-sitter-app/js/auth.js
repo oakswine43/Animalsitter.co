@@ -98,24 +98,26 @@
     return data;
   }
 
-  async function doSignup({ name, email, password, role }) {
-    if (!window.API_BASE) {
-      throw new Error("API base URL is not configured.");
-    }
-    const res = await fetch(`${window.API_BASE}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ name, email, password, role })
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.error || "Could not create account.");
-    }
-    return data;
+async function doSignup({ full_name, email, password, role }) {
+  if (!window.API_BASE) {
+    throw new Error("API base URL is not configured.");
   }
+
+  const res = await fetch(`${window.API_BASE}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    // 👇 send full_name so the backend gets what it expects
+    body: JSON.stringify({ full_name, email, password, role })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || "Could not create account.");
+  }
+  return data;
+}
 
   // ----- PUBLIC API (for openAuthBtn inline onclick) -----
   const PetCareAuth = {
@@ -173,33 +175,59 @@
     });
   }
 
-  // Signup submit (REAL backend)
-  if (signupForm) {
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      showError("");
+ // Signup submit (REAL backend)
+if (signupForm) {
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    showError("");
 
-      const name = (signupNameInput.value || "").trim();
-      const email = (signupEmailInput.value || "").trim();
-      const password = signupPasswordInput.value || "";
-      const role = signupRoleInput.value || "client";
+// inside signupForm.addEventListener("submit", async (e) => { ... })
 
-      if (!email || !password) {
-        showError("Email and password are required.");
-        return;
-      }
+const name = (signupNameInput.value || "").trim();
+const email = (signupEmailInput.value || "").trim();
+const password = signupPasswordInput.value || "";
+const role = signupRoleInput.value || "client";
 
-      try {
-        const data = await doSignup({ name, email, password, role });
-        // Many APIs log the user in immediately after signup.
-        // If yours only returns { ok:true } and no token, we could auto-login here.
-        handleAuthSuccess(data);
-      } catch (err) {
-        console.error("Signup error:", err);
-        showError(err.message || "Signup failed.");
-      }
-    });
-  }
+if (!name || !email || !password) {
+  showError("Name, email and password are required.");
+  return;
+}
+
+try {
+  const data = await doSignup({
+    full_name: name,   // 👈 map from form “name” to full_name
+    email,
+    password,
+    role,
+  });
+  handleAuthSuccess(data);
+} catch (err) {
+  console.error("Signup error:", err);
+  showError(err.message || "Signup failed.");
+}
+
+    // ✅ Frontend validation matches backend message
+    if (!name || !email || !password) {
+      showError("Name, email and password are required.");
+      return;
+    }
+
+    try {
+      // ✅ Send full_name so the backend is happy
+      const data = await doSignup({
+        full_name: name,
+        email,
+        password,
+        role,
+      });
+
+      handleAuthSuccess(data);
+    } catch (err) {
+      console.error("Signup error:", err);
+      showError(err.message || "Signup failed.");
+    }
+  });
+}
 
   // Logout button
   if (logoutBtn) {
