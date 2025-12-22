@@ -1,4 +1,6 @@
-/* =============== RESET & GLOBAL =============== */
+/* =========================================================
+   RESET & GLOBAL
+   ======================================================= */
 
 *,
 *::before,
@@ -13,12 +15,13 @@ body {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #111827;
-  background-color: #f3f4f6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #0f172a;
+  background: radial-gradient(circle at top left, #e0f2fe, #f9fafb 40%);
+  line-height: 1.5;
 }
 
-/* basic links */
 a {
   color: inherit;
   text-decoration: none;
@@ -31,25 +34,60 @@ button {
   font-family: inherit;
 }
 
-/* Layout root */
+/* Main app shell */
+
 .app-root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* =============== HEADER =============== */
+.app-main {
+  flex: 1;
+}
+
+.app-main-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px 72px;
+}
+
+/* Simple page fade */
+
+.page {
+  display: none;
+  animation: fadeIn 0.22s ease-out;
+}
+.page.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   HEADER / NAV
+   ======================================================= */
 
 .app-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid #e5e7eb;
 }
 
 .app-header-inner {
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -57,6 +95,8 @@ button {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* brand */
 
 .brand {
   display: flex;
@@ -71,34 +111,39 @@ button {
   height: 32px;
 }
 
-/* NAV */
+/* nav pills */
 
 .main-nav {
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: #f3f4f6;
 }
 
 .nav-link {
   border: none;
   background: transparent;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   color: #4b5563;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .nav-link:hover {
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
 }
 
 .nav-link.active {
-  background-color: #111827;
+  background-color: #0f172a;
   color: #ffffff;
+  transform: translateY(-1px);
 }
 
-/* Header right */
+/* header right */
 
 .header-right {
   display: flex;
@@ -124,51 +169,34 @@ button {
   font-size: 13px;
   cursor: pointer;
   border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .btn-small {
-  background-color: #111827;
+  background-color: #0f172a;
   color: #ffffff;
 }
-
 .btn-small:hover {
-  background-color: #0b1220;
+  background-color: #020617;
+  transform: translateY(-1px);
 }
 
 .btn-small-outline {
   background-color: #ffffff;
-  color: #111827;
+  color: #0f172a;
   border-color: #e5e7eb;
 }
 .btn-small-outline:hover {
   background-color: #f3f4f6;
 }
 
-/* =============== MAIN LAYOUT =============== */
-
-.app-main {
-  flex: 1;
-}
-
-.app-main-inner {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 24px 16px 64px;
-}
-
-/* Page switching */
-
-.page {
-  display: none;
-}
-.page.active {
-  display: block;
-}
-
-/* Generic cards/sections */
+/* =========================================================
+   GENERIC ELEMENTS / TYPOGRAPHY
+   ======================================================= */
 
 .section {
-  margin-top: 32px;
+  margin-top: 40px;
 }
 
 .section-header h2 {
@@ -184,28 +212,23 @@ button {
 .section-card {
   background-color: #ffffff;
   border-radius: 16px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.04);
 }
-
-/* Page headers */
 
 .page-header {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
-
 .page-header h1 {
   margin: 0 0 4px;
   font-size: 26px;
 }
-
 .page-subtitle {
   margin: 0;
   font-size: 14px;
   color: #6b7280;
 }
-
-/* Typography helpers */
 
 .eyebrow {
   text-transform: uppercase;
@@ -216,7 +239,7 @@ button {
 }
 
 .hero-lead {
-  margin: 8px 0 16px;
+  margin: 8px 0 18px;
   font-size: 15px;
   color: #4b5563;
 }
@@ -224,25 +247,33 @@ button {
 .text-muted {
   color: #6b7280;
 }
-
 .small {
   font-size: 12px;
 }
 
-/* =============== BUTTONS / PILLS / CHIPS =============== */
+/* Buttons / chips / pills */
 
 .btn-primary {
   border-radius: 999px;
   border: none;
   background: linear-gradient(90deg, #22c55e, #3b82f6);
   color: #ffffff;
-  padding: 8px 18px;
+  padding: 9px 20px;
   font-weight: 600;
   cursor: pointer;
   font-size: 14px;
+  box-shadow: 0 14px 24px rgba(34, 197, 94, 0.3);
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    filter 0.12s ease;
 }
 .btn-primary:hover {
-  filter: brightness(0.95);
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(34, 197, 94, 0.35);
+}
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 18px rgba(34, 197, 94, 0.25);
 }
 
 .btn-secondary {
@@ -252,9 +283,11 @@ button {
   padding: 8px 18px;
   cursor: pointer;
   font-size: 14px;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 .btn-secondary:hover {
   background-color: #f3f4f6;
+  transform: translateY(-1px);
 }
 
 .btn-lg {
@@ -269,18 +302,24 @@ button {
   background-color: #ffffff;
   font-size: 13px;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease;
+}
+.pill:hover {
+  background-color: #f3f4f6;
 }
 .pill-selected {
-  background-color: #111827;
+  background-color: #0f172a;
   color: #ffffff;
-  border-color: #111827;
+  border-color: #0f172a;
+  transform: translateY(-1px);
 }
 
 .badge-pill {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  background-color: #e5f3ff;
+  background-color: #e0f2fe;
   padding: 6px 10px;
   font-size: 12px;
   color: #075985;
@@ -300,19 +339,37 @@ button {
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease,
+    transform 0.1s ease;
 }
 .chip:hover {
   background-color: #f3f4f6;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.05);
+  transform: translateY(-1px);
 }
 
-/* =============== HOME HERO =============== */
+/* =========================================================
+   HOME PAGE LAYOUT
+   ======================================================= */
+
+#homePage {
+  padding-bottom: 32px;
+}
+
+/* hero */
 
 .home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 32px;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+  padding: 24px 20px;
+  border-radius: 24px;
+  background: radial-gradient(circle at top left, #22c55e20, #3b82f610),
+    #eff6ff;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.08);
 }
 
 .home-hero h1 {
@@ -321,8 +378,10 @@ button {
   line-height: 1.15;
 }
 
+/* booking card in hero */
+
 .service-picker-card {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .service-pills-row {
@@ -344,6 +403,7 @@ button {
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
+  border: 1px dashed #d1d5db;
 }
 
 .picker-label {
@@ -360,10 +420,12 @@ button {
   justify-content: flex-end;
 }
 
+/* stats */
+
 .service-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 18px;
   margin-top: 14px;
   padding-top: 10px;
   border-top: 1px solid #e5e7eb;
@@ -380,7 +442,7 @@ button {
   font-size: 14px;
 }
 
-/* Hero right */
+/* hero right */
 
 .home-hero-right {
   display: flex;
@@ -388,9 +450,8 @@ button {
 }
 
 .hero-photo-card {
-  background: radial-gradient(circle at top left, #22c55e20, #3b82f610),
-    #eff6ff;
-  border-radius: 24px;
+  background-color: #ffffff;
+  border-radius: 20px;
   padding: 12px;
   border: 1px solid #dbeafe;
   width: 100%;
@@ -398,10 +459,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
 }
 
 .hero-photo {
-  border-radius: 18px;
+  border-radius: 14px;
   background-image: url("https://images.pexels.com/photos/4588012/pexels-photo-4588012.jpeg?auto=compress&cs=tinysrgb&w=1200");
   background-size: cover;
   background-position: center;
@@ -413,22 +475,22 @@ button {
   color: #374151;
 }
 
-/* badges row */
+/* badges row under hero */
 
 .home-badges-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 24px;
+  margin: 16px 0 10px;
 }
 
-/* =============== HOW IT WORKS + GUARANTEE =============== */
+/* how it works + guarantee */
 
 .home-two-column {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   gap: 24px;
-  margin-top: 26px;
+  margin-top: 24px;
 }
 
 .home-column {
@@ -439,7 +501,7 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .step-card {
@@ -447,13 +509,13 @@ button {
   border-radius: 16px;
   padding: 12px 12px 14px;
   border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.04);
 }
 
 .step-card h3 {
   margin: 0 0 4px;
   font-size: 15px;
 }
-
 .step-card p {
   margin: 0;
   font-size: 13px;
@@ -464,7 +526,7 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background-color: #111827;
+  background-color: #0f172a;
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -472,6 +534,8 @@ button {
   font-size: 12px;
   margin-bottom: 6px;
 }
+
+/* guarantee */
 
 .guarantee-card {
   height: 100%;
@@ -487,10 +551,12 @@ button {
   margin-top: 4px;
 }
 
-/* =============== TESTIMONIALS =============== */
+/* =========================================================
+   TESTIMONIALS
+   ======================================================= */
 
 .testimonial-grid {
-  margin-top: 12px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
@@ -501,9 +567,15 @@ button {
   border-radius: 16px;
   padding: 12px 12px 14px;
   border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.testimonial-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
 }
 
 .testimonial-tag {
@@ -524,10 +596,12 @@ button {
   color: #6b7280;
 }
 
-/* =============== SITTERS NEAR YOU =============== */
+/* =========================================================
+   SITTERS NEAR YOU + MAP PREVIEW
+   ======================================================= */
 
 .sitters-layout {
-  margin-top: 12px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 16px;
@@ -541,7 +615,7 @@ button {
 
 .map-preview {
   border-radius: 16px;
-  height: 200px;
+  height: 210px;
   background: linear-gradient(135deg, #dbeafe, #f9fafb);
   display: flex;
   align-items: center;
@@ -556,7 +630,7 @@ button {
 .sitters-list-items {
   list-style: none;
   padding: 0;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-size: 13px;
   color: #374151;
 }
@@ -564,10 +638,12 @@ button {
   margin-top: 4px;
 }
 
-/* =============== GALLERY =============== */
+/* =========================================================
+   GALLERY
+   ======================================================= */
 
 .gallery-grid {
-  margin-top: 12px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -580,6 +656,12 @@ button {
   border: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.04);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.gallery-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.08);
 }
 
 .gallery-item-img {
@@ -605,15 +687,17 @@ button {
   color: #374151;
 }
 
-/* =============== READY CTA =============== */
+/* =========================================================
+   READY CTA + FOOTER
+   ======================================================= */
 
 .ready-cta {
-  margin-top: 32px;
+  margin-top: 36px;
 }
 
 .ready-cta-inner {
   background: radial-gradient(circle at top left, #22c55e33, #3b82f61a),
-    #111827;
+    #0f172a;
   border-radius: 24px;
   padding: 18px 20px;
   display: flex;
@@ -626,14 +710,13 @@ button {
   margin: 0 0 4px;
   font-size: 22px;
 }
-
 .ready-cta-inner p {
   margin: 0;
   font-size: 14px;
   color: #e5e7eb;
 }
 
-/* =============== FOOTER =============== */
+/* footer */
 
 .site-footer {
   margin-top: 28px;
@@ -641,6 +724,7 @@ button {
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   padding: 18px 20px 14px;
+  box-shadow: 0 -10px 20px rgba(15, 23, 42, 0.04);
 }
 
 .footer-top {
@@ -652,7 +736,7 @@ button {
 }
 
 .footer-brand {
-  max-width: 250px;
+  max-width: 260px;
 }
 
 .footer-logo-row {
@@ -696,7 +780,6 @@ button {
   margin: 0 0 6px;
   font-size: 13px;
 }
-
 .footer-col a {
   display: block;
   font-size: 12px;
@@ -712,7 +795,6 @@ button {
   gap: 6px;
   margin-top: 6px;
 }
-
 .social-circle {
   width: 22px;
   height: 22px;
@@ -734,7 +816,9 @@ button {
   gap: 4px;
 }
 
-/* =============== AUTH / FORMS / PROFILE =============== */
+/* =========================================================
+   AUTH / SETTINGS / PROFILE / OTHER PAGES
+   ======================================================= */
 
 .auth-page-card {
   max-width: 520px;
@@ -784,7 +868,6 @@ button {
   padding: 8px 10px;
   font-size: 14px;
 }
-
 .input:focus {
   outline: none;
   border-color: #3b82f6;
@@ -800,7 +883,7 @@ button {
   font-size: 13px;
 }
 
-/* profile */
+/* Profile */
 
 .profile-card {
   max-width: 720px;
@@ -813,7 +896,7 @@ button {
   gap: 8px;
 }
 
-/* booking avatar */
+/* Generic cards used in booking, etc. */
 
 .avatar-circle {
   width: 48px;
@@ -839,7 +922,7 @@ button {
   color: #6b7280;
 }
 
-/* settings grid */
+/* Settings layout */
 
 .settings-grid {
   display: grid;
@@ -847,7 +930,9 @@ button {
   gap: 16px;
 }
 
-/* =============== RESPONSIVE =============== */
+/* =========================================================
+   RESPONSIVE
+   ======================================================= */
 
 @media (max-width: 960px) {
   .home-hero,
@@ -884,6 +969,10 @@ button {
     width: 100%;
     justify-content: center;
     flex-wrap: wrap;
+  }
+
+  .home-hero {
+    padding: 18px 14px;
   }
 
   .home-hero h1 {
