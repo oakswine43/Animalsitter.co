@@ -8,7 +8,8 @@
 
   <!-- Backend base URL for live API on Railway -->
   <script>
-    window.PETCARE_API_BASE = "https://animalsitterco-production.up.railway.app";
+    // This is what authPage.js & state.js expect
+    window.API_BASE = "https://animalsitterco-production.up.railway.app";
   </script>
 </head>
 <body>
@@ -369,11 +370,23 @@
                 <form id="loginPageForm" class="auth-form">
                   <label>
                     <span>Email</span>
-                    <input type="email" id="loginPageEmail" class="input" required />
+                    <input
+                      type="email"
+                      id="loginPageEmail"
+                      name="email"
+                      class="input"
+                      required
+                    />
                   </label>
                   <label>
                     <span>Password</span>
-                    <input type="password" id="loginPagePassword" class="input" required />
+                    <input
+                      type="password"
+                      id="loginPagePassword"
+                      name="password"
+                      class="input"
+                      required
+                    />
                   </label>
                   <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
                     Log in
@@ -386,19 +399,42 @@
                 <form id="signupRealForm" class="auth-form">
                   <label>
                     <span>Full name</span>
-                    <input type="text" id="realSignupName" class="input" required />
+                    <input
+                      type="text"
+                      id="realSignupName"
+                      name="full_name"
+                      class="input"
+                      required
+                    />
                   </label>
                   <label>
                     <span>Email</span>
-                    <input type="email" id="realSignupEmail" class="input" required />
+                    <input
+                      type="email"
+                      id="realSignupEmail"
+                      name="email"
+                      class="input"
+                      required
+                    />
                   </label>
                   <label>
                     <span>Password</span>
-                    <input type="password" id="realSignupPassword" class="input" required />
+                    <input
+                      type="password"
+                      id="realSignupPassword"
+                      name="password"
+                      class="input"
+                      required
+                    />
                   </label>
                   <label>
                     <span>Account type</span>
-                    <select id="realSignupRole" class="input" required>
+                    <select
+                      id="realSignupRole"
+                      name="role"
+                      class="input"
+                      required
+                    >
                       <option value="client" selected>Client / Pet Parent</option>
                       <option value="sitter">Sitter</option>
                     </select>
@@ -455,6 +491,5 @@
   <script src="js/pages/authPage.js" defer></script>
   <script src="js/pages/profile.js" defer></script>
 
-  
 </body>
 </html>
