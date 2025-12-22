@@ -8,7 +8,7 @@
 
   <!-- Backend base URL for live API on Railway -->
   <script>
-    // This is what authPage.js & state.js expect
+    // This is what authPage.v2.js & state.js expect
     window.API_BASE = "https://animalsitterco-production.up.railway.app";
   </script>
 </head>
@@ -89,7 +89,7 @@
                     <span>See nearby walkers, boarders, and sitters in real time.</span>
                   </div>
 
-                  <!-- Added an extra class + id to support "longer map" styling -->
+                  <!-- Map preview placeholder -->
                   <div class="map-placeholder map-placeholder--tall" id="homeMapPreview">
                     <div class="map-pin-labels">
                       <div class="map-pin">Neighborhood walks</div>
@@ -149,7 +149,7 @@
 
               <!-- Right column -->
               <div class="home-right">
-                <!-- Existing Swipe card -->
+                <!-- Swipe card -->
                 <div class="swipe-card">
                   <h2>Swipe to match with your sitter</h2>
                   <p>
@@ -165,7 +165,7 @@
                   </button>
                 </div>
 
-                <!-- NEW: Become a sitter / client entry card -->
+                <!-- Become a sitter / client card -->
                 <div class="swipe-card">
                   <h2>Earn money as an AnimalSitter</h2>
                   <p>
@@ -488,8 +488,8 @@
   <script src="js/pages/settings.js" defer></script>
 
   <script src="js/pages/sitterProfile.js" defer></script>
-  <script src="js/pages/authPage.js" defer></script>
+  <script src="js/pages/authPage.v2.js" defer></script>
   <script src="js/pages/profile.js" defer></script>
-
+  
 </body>
 </html>
