@@ -13,6 +13,7 @@
   const loginEmailInput = document.getElementById("loginEmail");
   const loginPasswordInput = document.getElementById("loginPassword");
 
+  // Old direct refs (we’ll keep them as fallback)
   const signupNameInput = document.getElementById("overlaySignupName");
   const signupEmailInput = document.getElementById("overlaySignupEmail");
   const signupPasswordInput = document.getElementById("overlaySignupPassword");
@@ -108,7 +109,6 @@
       method: "POST",
       headers: {
         "Content-Type": "application/json"
-        // "Accept": "application/json", // add if your backend needs it
       },
       body: JSON.stringify({ full_name, email, password, role })
     });
@@ -118,6 +118,28 @@
       throw new Error(data.error || "Could not create account.");
     }
     return data;
+  }
+
+  // Helper: safely get a value from possible selectors
+  function getFieldValue(possibleSelectors, fallbackEl) {
+    let value = "";
+
+    if (signupForm) {
+      for (const sel of possibleSelectors) {
+        const el =
+          signupForm.querySelector(sel) || document.querySelector(sel);
+        if (el && typeof el.value !== "undefined") {
+          value = (el.value || "").trim();
+          if (value) return value;
+        }
+      }
+    }
+
+    if (fallbackEl && typeof fallbackEl.value !== "undefined") {
+      value = (fallbackEl.value || "").trim();
+    }
+
+    return value || "";
   }
 
   // ----- PUBLIC API (for openAuthBtn inline onclick) -----
@@ -158,8 +180,8 @@
       e.preventDefault();
       showError("");
 
-      const email = (loginEmailInput.value || "").trim();
-      const password = loginPasswordInput.value || "";
+      const email = (loginEmailInput?.value || "").trim();
+      const password = loginPasswordInput?.value || "";
 
       if (!email || !password) {
         showError("Email and password are required.");
@@ -182,10 +204,27 @@
       e.preventDefault();
       showError("");
 
-      const full_name = (signupNameInput.value || "").trim();
-      const email = (signupEmailInput.value || "").trim();
-      const password = signupPasswordInput.value || "";
-      const role = signupRoleInput.value || "client";
+      // Try several possible selectors so we don't care what the exact IDs are
+      const full_name = getFieldValue(
+        ["#overlaySignupName", "#signupName", 'input[name="full_name"]', 'input[name="name"]'],
+        signupNameInput
+      );
+      const email = getFieldValue(
+        ["#overlaySignupEmail", "#signupEmail", 'input[name="email"]'],
+        signupEmailInput
+      );
+      const password = getFieldValue(
+        ["#overlaySignupPassword", "#signupPassword", 'input[name="password"]'],
+        signupPasswordInput
+      );
+      const role =
+        (signupRoleInput && signupRoleInput.value) ||
+        (signupForm.querySelector("#overlaySignupRole, #signupRole, select[name='role']")?.value) ||
+        "client";
+
+      console.log("[Signup] full_name:", full_name);
+      console.log("[Signup] email:", email);
+      console.log("[Signup] role:", role);
 
       if (!full_name || !email || !password) {
         showError("Name, email and password are required.");
