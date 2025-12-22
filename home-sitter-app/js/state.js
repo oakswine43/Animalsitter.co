@@ -3,21 +3,17 @@
 // Now includes localStorage persistence + real signup/login support.
 
 // ---- API BASE (frontend -> backend) ----
-// This does NOT replace any existing code. It only sets window.API_BASE
-// so other scripts (auth, bookings, etc.) know where your backend lives.
+// Make sure we have window.API_BASE, but don't fight with app.js if it's already set.
 (function () {
-  const isLocal =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
+  if (!window.API_BASE) {
+    const host = window.location.hostname || "";
+    const isLocal = host === "localhost" || host === "127.0.0.1";
 
-  // When you're on the same machine (localhost), talk to 127.0.0.1:4000
-  // When you're on your phone hitting animalsitter.co, talk to your Mac's LAN IP.
-  const backendBase = isLocal
-    ? "http://127.0.0.1:4000"
-    : "http://192.168.156.180:4000"; // <- update this IP if your Mac's IP changes
-
-  window.API_BASE = backendBase;
-  console.log("[Animalsitter] API_BASE =", window.API_BASE);
+    window.API_BASE = isLocal
+      ? "http://localhost:4000"
+      : "https://animalsitterco-production.up.railway.app";
+  }
+  console.log("[Animalsitter][state] API_BASE =", window.API_BASE);
 })();
 
 window.PetCareState = (function () {

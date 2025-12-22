@@ -4,49 +4,25 @@
 // ============================
 
 // -----------------------------
-// API base – works on Mac + phone over Wi-Fi
-// and can still be overridden by window.PETCARE_API_BASE
+// API base – shared for all frontend scripts
+// In dev:  http://localhost:4000
+// In prod: https://animalsitterco-production.up.railway.app
 // -----------------------------
-let base;
-
 (function () {
-  // If something (like a script tag) explicitly set PETCARE_API_BASE, trust that first
-  if (window.PETCARE_API_BASE) {
-    base = window.PETCARE_API_BASE;
-    return;
+  if (!window.API_BASE) {
+    const host = window.location.hostname || "";
+    const isLocal = host === "localhost" || host === "127.0.0.1";
+
+    window.API_BASE = isLocal
+      ? "http://localhost:4000"
+      : "https://animalsitterco-production.up.railway.app";
   }
 
-  const host = window.location.hostname || "";
-
-  const isLocalEnv =
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host.startsWith("192.168.");
-
-  if (isLocalEnv) {
-    // Local dev: your backend is on your Mac at port 4000
-    // 👇 if your Mac IP ever changes, just update this line
-    base = "http://192.168.156.180:4000";
-  } else {
-    // Default / fallback (for now). Later this can be your real production API.
-    base = "http://localhost:4000";
-  }
+  window.PETCARE_API_BASE = window.API_BASE;
+  console.log("[Animalsitter] API_BASE =", window.API_BASE);
 })();
 
-// Normalize base (no trailing slash, no /api)
-if (base.endsWith("/")) {
-  base = base.slice(0, -1);
-}
-
-if (base.toLowerCase().endsWith("/api")) {
-  base = base.slice(0, -4); // remove "/api"
-}
-
-const API_BASE = base;
-window.API_BASE = API_BASE;
-window.PETCARE_API_BASE = API_BASE;
-
-console.log("API_BASE =", API_BASE);
+const API_BASE = window.API_BASE;
 
 /**
  * Optional shared mapper:
