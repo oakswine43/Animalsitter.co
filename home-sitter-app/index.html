@@ -64,72 +64,236 @@
     <main class="app-main">
       <div class="app-main-inner">
         <section id="appSection">
-          <!-- ======================= HOME PAGE ======================= -->
-          <section id="homePage" class="page active">
-            <!-- HERO / SERVICE SELECTOR -->
-            <section class="hero-section">
-              <div class="container hero-grid">
-                <div class="hero-copy">
-                  <p class="eyebrow">Local, trusted pet care</p>
-                  <h1>Book 5-star pet sitters & walkers near you</h1>
-                  <p class="hero-subtitle">
-                    AnimalSitter connects you with background-checked sitters for
-                    walks, drop-ins, daycare, and overnight stays—anytime you can’t
-                    be there.
-                  </p>
+          <!-- HOME PAGE -->
+<section id="homePage" class="page active">
+  <!-- HERO + SERVICE PICKER -->
+  <section class="home-hero">
+    <h1>Local, trusted pet care</h1>
+    <p class="page-subtitle">
+      Book 5-star pet sitters & walkers near you. AnimalSitter connects you with
+      background-checked sitters for walks, drop-ins, daycare, and overnights—anytime
+      you can’t be there.
+    </p>
 
-                  <div class="service-selector-card">
-                    <div class="service-selector-top">
-                      <button class="service-pill selected">Walking</button>
-                      <button class="service-pill">Drop-In</button>
-                      <button class="service-pill">Sitting</button>
-                      <button class="service-pill">Boarding</button>
-                    </div>
-                    <div class="service-selector-bottom">
-                      <div class="selector-field">
-                        <span class="selector-label">Select dates</span>
-                        <span class="selector-badge">Required</span>
-                      </div>
-                      <div class="selector-field">
-                        <span class="selector-label">Add pets</span>
-                        <span class="selector-badge">Required</span>
-                      </div>
-                      <button class="btn-primary-wide">Continue</button>
-                    </div>
-                  </div>
+    <!-- Service strip -->
+    <div class="home-service-strip">
+      <div class="service-chip is-selected">Walking</div>
+      <div class="service-chip">Drop-In</div>
+      <div class="service-chip">Sitting</div>
+      <div class="service-chip">Boarding</div>
 
-                  <div class="hero-stats-row">
-                    <div class="stat">
-                      <div class="stat-label">Completed services</div>
-                      <div class="stat-value">16,000,000+</div>
-                    </div>
-                    <div class="stat">
-                      <div class="stat-label">Pet parents</div>
-                      <div class="stat-value">5,000,000+</div>
-                    </div>
-                    <div class="stat">
-                      <div class="stat-label">Average sitter rating</div>
-                      <div class="stat-value">★ 4.8/5</div>
-                    </div>
-                  </div>
-                </div>
+      <div class="service-strip-meta">
+        <button class="btn-primary btn-sm">Continue</button>
+        <div class="service-strip-fields">
+          <span>📅 Select dates</span>
+          <span>🐾 Add pets</span>
+        </div>
+      </div>
+    </div>
 
-                <div class="hero-image-card">
-                  <div class="hero-pill-row">
-                    <span class="hero-pill">Neighborhood walks</span>
-                    <span class="hero-pill">Overnight stays</span>
-                  </div>
-                  <div class="hero-image-placeholder">
-                    <span>Photo or illustration here</span>
-                  </div>
-                  <p class="hero-caption">
-                    Book verified sitters for walks, playtime, and stays—right in
-                    your neighborhood.
-                  </p>
-                </div>
-              </div>
-            </section>
+    <!-- Stats row -->
+    <div class="home-stats-row">
+      <div class="stat-item">
+        <div class="stat-label">Completed services</div>
+        <div class="stat-value">16,000,000+</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Pet parents</div>
+        <div class="stat-value">5,000,000+</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Average sitter rating</div>
+        <div class="stat-value">★ 4.8/5</div>
+      </div>
+    </div>
+  </section>
 
+  <!-- HOW IT WORKS -->
+  <section class="home-section">
+    <h2>How AnimalSitter works</h2>
+    <p class="page-subtitle">
+      Easily find and book trusted Pet Caregivers near you.
+    </p>
+
+    <ol class="how-it-works">
+      <li>
+        <h3>Pick a service</h3>
+        <p>
+          Choose walks, drop-ins, sittings, or boarding—whatever fits your pet’s
+          needs.
+        </p>
+      </li>
+      <li>
+        <h3>Choose your sitter</h3>
+        <p>
+          Browse verified sitters, read reviews, and match with someone you trust.
+        </p>
+      </li>
+      <li>
+        <h3>Follow along in the app</h3>
+        <p>
+          Get GPS walk routes, photo updates, and real-time messages from your
+          sitter.
+        </p>
+      </li>
+      <li>
+        <h3>Rate and review</h3>
+        <p>
+          Share feedback to help other pet parents find their perfect sitter.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ANIMAL LOVERS WANTED + REVIEWS -->
+  <section class="home-section home-two-col">
+    <div class="home-left-col">
+      <h2>Animal lovers wanted!</h2>
+      <p>
+        Have pet-care experience? Earn money as a dog walker, sitter, or drop-in
+        caregiver—on your schedule.
+      </p>
+      <ul class="bullets">
+        <li>Set your own rates and availability</li>
+        <li>Weekly payouts straight to your account</li>
+        <li>Support from our Trust &amp; Safety team</li>
+      </ul>
+      <button class="btn-primary">Become a sitter</button>
+    </div>
+
+    <div class="home-right-col">
+      <h2>Millions of 5-star services and counting</h2>
+      <div class="review-grid">
+        <article class="review-card">
+          <header>
+            <span class="badge">Sitting</span>
+            <span class="star">★★★★★</span>
+          </header>
+          <p>
+            “Keera was great with Archer and went at his pace! Tons of updates and
+            flexible when our plans changed.”
+          </p>
+          <footer>— Suzanne C</footer>
+        </article>
+
+        <article class="review-card">
+          <header>
+            <span class="badge">Walk</span>
+            <span class="star">★★★★★</span>
+          </header>
+          <p>
+            “Above-and-beyond service and communication. Extra caring and loving every
+            time!”
+          </p>
+          <footer>— Lindsey B</footer>
+        </article>
+
+        <article class="review-card">
+          <header>
+            <span class="badge">Boarding</span>
+            <span class="star">★★★★★</span>
+          </header>
+          <p>
+            “Mia came home happy and tired. Kristen was super responsive and easy to
+            work with.”
+          </p>
+          <footer>— Nicole C</footer>
+        </article>
+
+        <article class="review-card">
+          <header>
+            <span class="badge">Drop-In</span>
+            <span class="star">★★★★★</span>
+          </header>
+          <p>
+            “Sheena saved the day when I was stuck at work—great communication and
+            photos.”
+          </p>
+          <footer>— Lindsay C</footer>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUARANTEE -->
+  <section class="home-section home-two-col">
+    <div class="home-left-col home-photo-placeholder">
+      <!-- You can swap for a real image later -->
+      <span>Photo: happy pet & sitter</span>
+    </div>
+    <div class="home-right-col">
+      <h2>AnimalSitter Guarantee</h2>
+      <p class="page-subtitle">Peace of mind with every booking.</p>
+      <ul class="bullets">
+        <li>
+          <strong>Trustworthy care</strong> – All sitters are screened and
+          background-checked.
+        </li>
+        <li>
+          <strong>Protected bookings</strong> – Coverage for your pet and your home on
+          every stay.
+        </li>
+        <li>
+          <strong>Reliable communication</strong> – In-app messaging, photo and video
+          updates.
+        </li>
+        <li>
+          <strong>Assistance anytime</strong> – Support from our Trust &amp; Safety
+          team when you need it.
+        </li>
+      </ul>
+      <button class="btn-outline">Book now</button>
+    </div>
+  </section>
+
+  <!-- PET RESOURCE CENTER -->
+  <section class="home-section">
+    <h2>Pet resource center</h2>
+    <p class="page-subtitle">
+      Expert info, helpful tools, and tailored insights for every type of pet parent.
+    </p>
+    <div class="chip-row">
+      <button class="chip">Pet health</button>
+      <button class="chip">Dog training</button>
+      <button class="chip">Dog activities</button>
+      <button class="chip">Dog behavior</button>
+      <button class="chip">Dog breeds</button>
+      <button class="chip">Dog grooming</button>
+      <button class="chip">Dog names</button>
+      <button class="chip">Dog senses</button>
+    </div>
+  </section>
+
+  <!-- SITTERS NEAR YOU (STATIC MAP + LIST) -->
+  <section class="home-section">
+    <h2>Sitters near you</h2>
+    <p class="page-subtitle">
+      Preview local sitters who can accept new bookings. (Live map coming soon.)
+    </p>
+    <div class="home-two-col">
+      <div class="home-left-col">
+        <div class="map-placeholder map-placeholder--tall">
+          <span>Static map preview (Knoxville &amp; nearby)</span>
+        </div>
+      </div>
+      <div class="home-right-col">
+        <ul class="sitter-preview-list">
+          <li><strong>Sam</strong> · 1.2 mi · Dog walking &amp; drop-ins</li>
+          <li><strong>Taylor</strong> · 3.4 mi · Overnight stays &amp; daycare</li>
+          <li><strong>Jordan</strong> · 6.1 mi · Cat visits &amp; small pets</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- READY TO GET STARTED -->
+  <section class="home-section home-cta">
+    <h2>Ready to get started?</h2>
+    <p>Book your first service in just a few clicks.</p>
+    <button class="btn-primary">Get started</button>
+  </section>
+</section>
+<!-- END HOME PAGE -->
             <!-- HOW IT WORKS -->
             <section class="section">
               <div class="container">
