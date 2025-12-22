@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AnimalSitter – Book Trusted Local Pet Sitters & Walkers</title>
+
   <link rel="stylesheet" href="css/styles.css" />
 
   <!-- Backend base URL for live API on Railway -->
   <script>
-    // This is what authPage.v2.js & state.js expect
     window.API_BASE = "https://animalsitterco-production.up.railway.app";
   </script>
 </head>
@@ -16,20 +16,20 @@
   <div class="app-root">
     <!-- HEADER -->
     <header class="app-header">
-      <div class="app-header-inner">
+      <div class="app-header-inner container">
         <!-- Brand -->
-        <div class="brand" data-page-jump="homePage" style="cursor:pointer;">
+        <div class="brand" data-page-jump="homePage">
           <img
             src="img/petcare-logo.png"
             alt="AnimalSitter logo"
             class="brand-logo"
           />
-          <span>AnimalSitter</span>
+          <span class="brand-text">ANIMALSITTER</span>
         </div>
 
         <!-- MAIN NAV -->
         <nav class="main-nav">
-          <button class="nav-link" data-page="homePage">Home</button>
+          <button class="nav-link active" data-page="homePage">Home</button>
           <button class="nav-link" data-page="dashboardPage">Dashboard</button>
           <button class="nav-link" data-page="swipePage">Swipe</button>
           <button class="nav-link" data-page="dogsPage">Pets</button>
@@ -40,7 +40,6 @@
 
         <!-- RIGHT SIDE -->
         <div class="header-right">
-          <!-- Simple user pill -->
           <button class="user-pill" id="userPill" type="button">
             Guest
           </button>
@@ -48,12 +47,13 @@
           <button
             type="button"
             id="openAuthBtn"
+            class="btn-outline-small"
             data-page-jump="authPage"
           >
             Login / Sign up
           </button>
 
-          <button id="logoutBtn" type="button">
+          <button id="logoutBtn" type="button" class="btn-outline-small">
             Logout
           </button>
         </div>
@@ -63,737 +63,672 @@
     <!-- MAIN -->
     <main class="app-main">
       <div class="app-main-inner">
-        <section id="appSection" style="display:block;">
+        <section id="appSection">
+          <!-- ======================= HOME PAGE ======================= -->
+          <section id="homePage" class="page active">
+            <!-- HERO / SERVICE SELECTOR -->
+            <section class="hero-section">
+              <div class="container hero-grid">
+                <div class="hero-copy">
+                  <p class="eyebrow">Local, trusted pet care</p>
+                  <h1>Book 5-star pet sitters & walkers near you</h1>
+                  <p class="hero-subtitle">
+                    AnimalSitter connects you with background-checked sitters for
+                    walks, drop-ins, daycare, and overnight stays—anytime you can’t
+                    be there.
+                  </p>
 
-          <!-- HOME PAGE -->
-<section id="homePage" class="page active">
-  <!-- HERO: Local, trusted pet care -->
-  <section class="home-section home-hero">
-    <div class="home-hero-inner">
-      <div class="home-hero-copy">
-        <p class="eyebrow">Local, trusted pet care</p>
-        <h1>Book 5-star pet sitters & walkers near you</h1>
-        <p class="page-subtitle">
-          AnimalSitter connects you with background-checked sitters for walks, drop-ins,
-          daycare, and overnights—anytime you can’t be there.
-        </p>
-
-        <!-- “Walking / Drop-in / Sitting / Boarding” cards -->
-        <div class="home-service-selector">
-          <button class="service-pill active">🚶 Walking</button>
-          <button class="service-pill">🦴 Drop-In</button>
-          <button class="service-pill">🏠 Sitting</button>
-          <button class="service-pill">🛏 Boarding</button>
-        </div>
-
-        <div class="home-service-footer">
-          <div class="home-service-meta">
-            <span>✅ Select dates</span>
-            <span>🐾 Add pets</span>
-          </div>
-          <button
-            type="button"
-            class="btn-primary"
-            data-page-jump="authPage"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-
-      <div class="home-hero-visual">
-        <div class="home-hero-photo"></div>
-        <div class="home-hero-stats">
-          <div>
-            <div class="hero-stat-number">16,000,000+</div>
-            <div class="hero-stat-label">Completed services</div>
-          </div>
-          <div>
-            <div class="hero-stat-number">5,000,000+</div>
-            <div class="hero-stat-label">Pet parents</div>
-          </div>
-          <div>
-            <div class="hero-stat-number">★ 4.8/5</div>
-            <div class="hero-stat-label">Average sitter rating</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section class="home-section home-how">
-    <div class="home-section-header">
-      <h2>How AnimalSitter works</h2>
-      <p>Easily find and book trusted Pet Caregivers near you.</p>
-    </div>
-
-    <div class="home-how-grid">
-      <div class="how-card">
-        <div class="how-icon">1</div>
-        <h3>Pick a service</h3>
-        <p>
-          Choose walks, drop-ins, sittings, or boarding—whatever fits your pet’s needs.
-        </p>
-      </div>
-      <div class="how-card">
-        <div class="how-icon">2</div>
-        <h3>Choose your sitter</h3>
-        <p>
-          Browse verified sitters, read reviews, and match with someone you trust.
-        </p>
-      </div>
-      <div class="how-card">
-        <div class="how-icon">3</div>
-        <h3>Follow along in the app</h3>
-        <p>
-          Get GPS walk routes, photo updates, and real-time messages from your sitter.
-        </p>
-      </div>
-      <div class="how-card">
-        <div class="how-icon">4</div>
-        <h3>Rate & review</h3>
-        <p>
-          Share feedback to help other pet parents find their perfect sitter.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- BECOME A CAREGIVER HERO -->
-  <section class="home-section home-caregiver">
-    <div class="home-caregiver-inner">
-      <div class="home-caregiver-photo"></div>
-      <div class="home-caregiver-copy">
-        <h2>Animal lovers wanted!</h2>
-        <p>
-          Have pet-care experience? Earn money as a dog walker, sitter, or drop-in caregiver—
-          on your schedule.
-        </p>
-        <ul class="bullet-list">
-          <li>Set your own rates and availability</li>
-          <li>Weekly payouts straight to your account</li>
-          <li>Support from our Trust & Safety team</li>
-        </ul>
-        <button
-          type="button"
-          class="btn-primary"
-          onclick="window.openSignupForRole && window.openSignupForRole('sitter')"
-        >
-          Become a sitter
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- TESTIMONIALS STRIP -->
-  <section class="home-section home-testimonials">
-    <div class="home-section-header">
-      <h2>Millions of 5-star services and counting</h2>
-    </div>
-
-    <div class="testimonial-grid">
-      <article class="testimonial-card">
-        <div class="testimonial-photo t1"></div>
-        <div class="testimonial-body">
-          <div class="testimonial-tag">Sitting</div>
-          <p>
-            “Keera was great with Archer and went at his pace! Tons of updates and flexible
-            when our plans changed.”
-          </p>
-          <div class="testimonial-footer">Suzanne C</div>
-        </div>
-      </article>
-
-      <article class="testimonial-card">
-        <div class="testimonial-photo t2"></div>
-        <div class="testimonial-body">
-          <div class="testimonial-tag">Walk</div>
-          <p>
-            “Above-and-beyond service and communication. Extra caring and loving every time.”
-          </p>
-          <div class="testimonial-footer">Lindsey B</div>
-        </div>
-      </article>
-
-      <article class="testimonial-card">
-        <div class="testimonial-photo t3"></div>
-        <div class="testimonial-body">
-          <div class="testimonial-tag">Boarding</div>
-          <p>
-            “Mia came home happy and tired. Kristen was super responsive and easy to work with.”
-          </p>
-          <div class="testimonial-footer">Nicole C</div>
-        </div>
-      </article>
-
-      <article class="testimonial-card">
-        <div class="testimonial-photo t4"></div>
-        <div class="testimonial-body">
-          <div class="testimonial-tag">Drop-In</div>
-          <p>
-            “Sheena saved the day when I was stuck at work—great communication and photos.”
-          </p>
-          <div class="testimonial-footer">Lindsay C</div>
-        </div>
-      </article>
-    </div>
-  </section>
-
-  <!-- GUARANTEE PANEL -->
-  <section class="home-section home-guarantee">
-    <div class="home-guarantee-inner">
-      <div class="home-guarantee-photo"></div>
-      <div class="home-guarantee-copy">
-        <h2>AnimalSitter Guarantee</h2>
-        <p>Peace of mind with every booking.</p>
-        <ul class="bullet-list">
-          <li><strong>Trustworthy care</strong> – All sitters are screened and background-checked.</li>
-          <li><strong>Protected bookings</strong> – Coverage for your pet and your home on every stay.</li>
-          <li><strong>Reliable communication</strong> – In-app messaging, photo and video updates.</li>
-          <li><strong>Assistance anytime</strong> – Support from our Trust & Safety team when you need it.</li>
-        </ul>
-        <button type="button" class="btn-secondary" data-page-jump="authPage">
-          Book now
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- PET RESOURCE CENTER -->
-  <section class="home-section home-resources">
-    <div class="home-section-header">
-      <h2>Pet resource center</h2>
-      <p>
-        Expert info, helpful tools, and tailored insights for every type of pet parent.
-      </p>
-    </div>
-    <div class="resource-grid">
-      <button class="resource-pill">Pet health</button>
-      <button class="resource-pill">Dog training</button>
-      <button class="resource-pill">Dog activities</button>
-      <button class="resource-pill">Dog behavior</button>
-      <button class="resource-pill">Dog breeds</button>
-      <button class="resource-pill">Dog grooming</button>
-      <button class="resource-pill">Dog names</button>
-      <button class="resource-pill">Dog senses</button>
-    </div>
-  </section>
-
-  <!-- STATIC MAP + NEARBY SITTERS
-       Uses existing IDs so home.js can still populate cards. -->
-  <section class="home-section home-map-section">
-    <div class="home-section-header">
-      <h2>Sitters near you</h2>
-      <p>
-        Preview local sitters who can accept new bookings. (Live map coming soon.)
-      </p>
-    </div>
-
-    <div class="home-map-layout">
-      <div class="map-placeholder map-placeholder--tall" id="homeMapPreview">
-        <div class="map-badge">Preview only</div>
-        <div class="map-pin map-pin--1">Sam · 1.2 mi</div>
-        <div class="map-pin map-pin--2">Taylor · 3.4 mi</div>
-        <div class="map-pin map-pin--3">Jordan · 6.1 mi</div>
-      </div>
-
-      <div class="sitter-list" id="homeSittersList">
-        <!-- JS will render sitter cards here from PetCareState.getSitters() -->
-      </div>
-    </div>
-  </section>
-
-  <!-- BOTTOM CTA -->
-  <section class="home-section home-bottom-cta">
-    <div class="home-bottom-inner">
-      <div>
-        <h2>Ready to get started?</h2>
-        <p>Book your first service in just a few clicks.</p>
-      </div>
-      <button type="button" class="btn-primary" data-page-jump="authPage">
-        Get started
-      </button>
-    </div>
-  </section>
-</section>
-
-            <!-- Little trust badges like Wag -->
-            <div class="home-badges" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 20px;">
-              <span class="swipe-meta-pill">Background-checked sitters</span>
-              <span class="swipe-meta-pill">Secure online payments</span>
-              <span class="swipe-meta-pill">Photo & update reports</span>
-              <span class="swipe-meta-pill">Flexible scheduling</span>
-            </div>
-
-            <div class="home-layout">
-              <div class="home-left">
-                <!-- Map + sitters -->
-                <div class="map-card">
-                  <div class="map-header">
-                    <h2>Find sitters near you</h2>
-                    <span>See nearby walkers, boarders, and sitters in real time.</span>
-                  </div>
-
-                  <!-- Map preview placeholder -->
-                  <div class="map-placeholder map-placeholder--tall" id="homeMapPreview">
-                    <div class="map-pin-labels">
-                      <div class="map-pin">Neighborhood walks</div>
-                      <div class="map-pin">Overnight stays</div>
+                  <div class="service-selector-card">
+                    <div class="service-selector-top">
+                      <button class="service-pill selected">Walking</button>
+                      <button class="service-pill">Drop-In</button>
+                      <button class="service-pill">Sitting</button>
+                      <button class="service-pill">Boarding</button>
+                    </div>
+                    <div class="service-selector-bottom">
+                      <div class="selector-field">
+                        <span class="selector-label">Select dates</span>
+                        <span class="selector-badge">Required</span>
+                      </div>
+                      <div class="selector-field">
+                        <span class="selector-label">Add pets</span>
+                        <span class="selector-badge">Required</span>
+                      </div>
+                      <button class="btn-primary-wide">Continue</button>
                     </div>
                   </div>
 
-                  <div class="sitter-list" id="homeSittersList"></div>
+                  <div class="hero-stats-row">
+                    <div class="stat">
+                      <div class="stat-label">Completed services</div>
+                      <div class="stat-value">16,000,000+</div>
+                    </div>
+                    <div class="stat">
+                      <div class="stat-label">Pet parents</div>
+                      <div class="stat-value">5,000,000+</div>
+                    </div>
+                    <div class="stat">
+                      <div class="stat-label">Average sitter rating</div>
+                      <div class="stat-value">★ 4.8/5</div>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- Gallery -->
-                <div class="gallery-card">
-                  <div class="gallery-header">
-                    <div class="gallery-header-main">
-                      <h2>Pup gallery</h2>
-                      <p>Real moments from AnimalSitter walks, playdates, and stays.</p>
-                    </div>
+                <div class="hero-image-card">
+                  <div class="hero-pill-row">
+                    <span class="hero-pill">Neighborhood walks</span>
+                    <span class="hero-pill">Overnight stays</span>
                   </div>
+                  <div class="hero-image-placeholder">
+                    <span>Photo or illustration here</span>
+                  </div>
+                  <p class="hero-caption">
+                    Book verified sitters for walks, playtime, and stays—right in
+                    your neighborhood.
+                  </p>
+                </div>
+              </div>
+            </section>
 
-                  <div class="gallery-grid" id="homeGalleryGrid">
-                    <div class="gallery-item">
-                      <div
-                        class="gallery-item-img"
-                        style="background-image:url('https://images.pexels.com/photos/5731865/pexels-photo-5731865.jpeg?auto=compress&cs=tinysrgb&w=800');"
-                      ></div>
-                      <div class="gallery-item-body">
-                        <div class="gallery-item-meta">Posted by Chris &amp; Milo</div>
-                        <div class="gallery-item-caption">
-                          Park day with Ella – came home tired, happy, and ready to nap.
-                        </div>
-                        <div class="gallery-item-footer">
-                          <span>❤️ 24 • 💬 5</span>
-                          <span class="text-muted">Ella · Overnight sitter</span>
-                        </div>
-                      </div>
-                    </div>
+            <!-- HOW IT WORKS -->
+            <section class="section">
+              <div class="container">
+                <h2 class="section-title">How AnimalSitter works</h2>
+                <p class="section-subtitle">
+                  Easily find and book trusted Pet Caregivers near you.
+                </p>
 
-                    <div class="gallery-item">
-                      <div
-                        class="gallery-item-img"
-                        style="background-image:url('https://images.pexels.com/photos/4588012/pexels-photo-4588012.jpeg?auto=compress&cs=tinysrgb&w=800');"
-                      ></div>
-                      <div class="gallery-item-body">
-                        <div class="gallery-item-meta">Posted by Taylor &amp; Luna</div>
-                        <div class="gallery-item-caption">
-                          Weekend drop-ins with photo updates every visit.
-                        </div>
-                        <div class="gallery-item-footer">
-                          <span>❤️ 18 • 💬 3</span>
-                          <span class="text-muted">Sam · Drop-in visits</span>
-                        </div>
-                      </div>
-                    </div>
+                <div class="how-grid">
+                  <div class="how-step">
+                    <div class="how-number">1</div>
+                    <h3>Pick a service</h3>
+                    <p>
+                      Choose walks, drop-ins, sittings, or boarding—whatever fits your
+                      pet’s needs.
+                    </p>
+                  </div>
+                  <div class="how-step">
+                    <div class="how-number">2</div>
+                    <h3>Choose your sitter</h3>
+                    <p>
+                      Browse verified sitters, read reviews, and match with someone
+                      you trust.
+                    </p>
+                  </div>
+                  <div class="how-step">
+                    <div class="how-number">3</div>
+                    <h3>Follow along in the app</h3>
+                    <p>
+                      Get GPS walk routes, photo updates, and real-time messages from
+                      your sitter.
+                    </p>
                   </div>
                 </div>
               </div>
+            </section>
 
-              <!-- Right column -->
-              <div class="home-right">
-                <!-- Swipe card -->
-                <div class="swipe-card">
-                  <h2>Swipe to match with your sitter</h2>
-                  <p>
-                    Browse sitter cards, read reviews, and swipe to match with the perfect sitter for your pet—just like a dating app, but for pet care.
-                  </p>
-                  <div class="swipe-meta-row">
-                    <span class="swipe-meta-pill">View ratings & reviews</span>
-                    <span class="swipe-meta-pill">See experience & services</span>
-                    <span class="swipe-meta-pill">Message before you book</span>
-                  </div>
-                  <button type="button" class="btn-primary" data-page-jump="swipePage">
-                    Try Swipe Sitter
-                  </button>
-                </div>
-
-                <!-- Become a sitter / client card -->
-                <div class="swipe-card">
-                  <h2>Earn money as an AnimalSitter</h2>
-                  <p>
-                    Love pets? Set your own schedule and rates, offer walks, drop-ins, daycare, or boarding, and get paid for spending time with animals.
-                  </p>
-                  <div class="swipe-meta-row">
-                    <span class="swipe-meta-pill">You choose your services</span>
-                    <span class="swipe-meta-pill">Weekly payouts</span>
-                    <span class="swipe-meta-pill">Support when you need it</span>
-                  </div>
-                  <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
-                    <button
-                      type="button"
-                      class="btn-primary"
-                      onclick="window.openSignupForRole && window.openSignupForRole('sitter')"
-                    >
-                      Become a sitter
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-outline"
-                      onclick="window.openSignupForRole && window.openSignupForRole('client')"
-                    >
-                      Book pet care
-                    </button>
+            <!-- GUARANTEE / TRUST -->
+            <section class="section section-alt">
+              <div class="container guarantee-grid">
+                <div class="guarantee-image">
+                  <div class="guarantee-photo-placeholder">
+                    <span>Happy pet + sitter photo</span>
                   </div>
                 </div>
+                <div class="guarantee-copy">
+                  <h2 class="section-title">AnimalSitter Guarantee</h2>
+                  <p class="section-subtitle">
+                    Peace of mind with every booking.
+                  </p>
+                  <ul class="feature-list">
+                    <li>
+                      <strong>Trustworthy care</strong> – All sitters are screened and
+                      background-checked.
+                    </li>
+                    <li>
+                      <strong>Protected bookings</strong> – Coverage for your pet and
+                      your home on every stay.
+                    </li>
+                    <li>
+                      <strong>Reliable communication</strong> – In-app messaging,
+                      photo and video updates.
+                    </li>
+                    <li>
+                      <strong>Assistance anytime</strong> – Support from our Trust &
+                      Safety team when you need it.
+                    </li>
+                  </ul>
+                  <button class="btn-primary">Book now</button>
+                </div>
+              </div>
+            </section>
 
-                <!-- Reviews -->
-                <div class="reviews-card">
-                  <h2>Why pet parents love AnimalSitter</h2>
+            <!-- REVIEWS / SOCIAL PROOF -->
+            <section class="section">
+              <div class="container">
+                <h2 class="section-title">Millions of 5-star services and counting</h2>
+                <p class="section-subtitle">
+                  Real stories from pet parents who love AnimalSitter.
+                </p>
 
-                  <div class="review-item">
-                    <div class="review-header">
-                      <span><strong>Ella</strong> · Overnight sitter</span>
-                      <span class="star">★★★★★</span>
+                <div class="reviews-grid">
+                  <article class="review-card">
+                    <div class="review-service-pill">Sitting</div>
+                    <p class="review-text">
+                      “Keera was great with Archer and went at his pace! Tons of updates
+                      and flexible when our plans changed.”
+                    </p>
+                    <div class="review-meta">
+                      <span class="review-name">Suzanne C</span>
                     </div>
-                    <div class="review-body">
-                      “We booked last minute and still found an amazing sitter. Ella sent
-                      tons of photos and kept Milo on his feeding and walk schedule.”
+                  </article>
+
+                  <article class="review-card">
+                    <div class="review-service-pill">Walk</div>
+                    <p class="review-text">
+                      “Above-and-beyond service and communication. Extra caring and
+                      loving every time.”
+                    </p>
+                    <div class="review-meta">
+                      <span class="review-name">Lindsey B</span>
+                    </div>
+                  </article>
+
+                  <article class="review-card">
+                    <div class="review-service-pill">Boarding</div>
+                    <p class="review-text">
+                      “Mia came home happy and tired. Kristen was super responsive and
+                      easy to work with.”
+                    </p>
+                    <div class="review-meta">
+                      <span class="review-name">Nicole C</span>
+                    </div>
+                  </article>
+
+                  <article class="review-card">
+                    <div class="review-service-pill">Drop-In</div>
+                    <p class="review-text">
+                      “Sheena saved the day when I was stuck at work—great
+                      communication and photos.”
+                    </p>
+                    <div class="review-meta">
+                      <span class="review-name">Lindsay C</span>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </section>
+
+            <!-- PET RESOURCE CENTER -->
+            <section class="section section-alt">
+              <div class="container">
+                <h2 class="section-title">Pet resource center</h2>
+                <p class="section-subtitle">
+                  Expert info, helpful tools, and tailored insights for every type of
+                  pet parent.
+                </p>
+
+                <div class="resource-pill-row">
+                  <button class="resource-pill">Pet health</button>
+                  <button class="resource-pill">Dog training</button>
+                  <button class="resource-pill">Dog activities</button>
+                  <button class="resource-pill">Dog behavior</button>
+                  <button class="resource-pill">Dog breeds</button>
+                  <button class="resource-pill">Dog grooming</button>
+                  <button class="resource-pill">Dog names</button>
+                  <button class="resource-pill">Dog senses</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- NEARBY SITTERS (MAP + LIST) -->
+            <section class="section">
+              <div class="container">
+                <h2 class="section-title">Sitters near you</h2>
+                <p class="section-subtitle">
+                  Preview local sitters who can accept new bookings. (Live map coming
+                  soon.)
+                </p>
+
+                <div class="nearby-grid">
+                  <div class="nearby-map-card">
+                    <div id="homeMapPreview" class="map-placeholder">
+                      <div class="map-chip-row">
+                        <span class="map-chip">Neighborhood walks</span>
+                        <span class="map-chip">Overnight stays</span>
+                      </div>
+                      <div class="map-body-text">
+                        Map preview area – we’ll show sitter pins here later.
+                      </div>
                     </div>
                   </div>
-
-                  <div class="review-item">
-                    <div class="review-header">
-                      <span><strong>Sam</strong> · Dog walker</span>
-                      <span class="star">★★★★☆</span>
+                  <div class="nearby-sitters-card">
+                    <div id="homeSittersList" class="nearby-sitters-list">
+                      <!-- Filled by JS from PetCareState.getSitters() -->
                     </div>
-                    <div class="review-body">
-                      “Sam gives Luna longer walks than we expected and always leaves a
-                      little recap. It feels like having a trusted friend on standby.”
-                    </div>
-                  </div>
-
-                  <div class="review-item">
-                    <div class="review-header">
-                      <span><strong>Ashley</strong> · Cat drop-ins</span>
-                      <span class="star">★★★★★</span>
-                    </div>
-                    <div class="review-body">
-                      “We used AnimalSitter for a 5-day trip. Litter boxes cleaned, food
-                      on time, and daily pictures. Booking and paying were super easy.”
-                    </div>
+                    <p class="nearby-footnote">
+                      Preview only – sign up or log in to see full profiles, pricing,
+                      and availability.
+                    </p>
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
+
+            <!-- GALLERY -->
+            <section class="section section-alt">
+              <div class="container">
+                <h2 class="section-title">Pup gallery</h2>
+                <p class="section-subtitle">
+                  Real moments from AnimalSitter walks, playdates, and stays.
+                </p>
+
+                <div id="homeGalleryGrid" class="gallery-grid">
+                  <!-- Your existing JS can still inject gallery items here if needed -->
+                </div>
+              </div>
+            </section>
+
+            <!-- FINAL CTA -->
+            <section class="section section-cta">
+              <div class="container final-cta">
+                <div>
+                  <h2>Ready to get started?</h2>
+                  <p>Book your first service in just a few clicks.</p>
+                </div>
+                <button class="btn-primary" data-page-jump="authPage">
+                  Get started
+                </button>
+              </div>
+            </section>
           </section>
 
-          <!-- DASHBOARD PAGE -->
+          <!-- ======================= DASHBOARD PAGE ======================= -->
           <section id="dashboardPage" class="page">
-            <div class="page-header">
-              <h1>Your AnimalSitter dashboard</h1>
-              <p class="page-subtitle">
-                See your upcoming bookings, messages, and pet details all in one place.
-              </p>
-            </div>
-            <div id="dashboardRoot"></div>
-          </section>
-
-          <!-- DOGS / PETS PAGE -->
-          <section id="dogsPage" class="page">
-            <h1>Your pets</h1>
-            <p class="page-subtitle">
-              Add profiles for each pet so sitters know their routines, quirks, and special needs.
-            </p>
-            <div class="section-card">
-              <p class="text-muted">
-                Soon you’ll be able to save feeding instructions, vet info, medications, and more for every pet.
-              </p>
-            </div>
-          </section>
-
-          <!-- SWIPE PAGE -->
-          <section id="swipePage" class="page">
-            <h1>Swipe Sitter</h1>
-            <p class="page-subtitle">
-              Explore sitter cards with photos, services, prices, and reviews—then swipe to match.
-            </p>
-            <div class="section-card">
-              <div id="swipeRoot"></div>
-            </div>
-          </section>
-
-          <!-- MESSAGES PAGE -->
-          <section id="messagesPage" class="page">
-            <h1>Messages</h1>
-            <p class="page-subtitle">
-              Chat with sitters before and after you book to share details and get updates.
-            </p>
-            <div class="section-card">
-              <p class="text-muted">
-                For now, use the chat section on your dashboard to message sitters and clients.
-              </p>
-            </div>
-          </section>
-
-          <!-- SETTINGS PAGE -->
-          <section id="settingsPage" class="page">
-            <h1>Settings</h1>
-            <p class="page-subtitle">
-              Manage your AnimalSitter account, notifications, and what you offer or book.
-            </p>
-            <div class="settings-grid">
-              <div id="settingsMainCard" class="section-card">
-                <h2 id="settingsMainTitle">Account</h2>
-                <div id="settingsMainBody">
-                  <p class="text-muted">
-                    Pick an item on the right to update those settings here—profile, payouts, notifications, and more.
-                  </p>
-                </div>
+            <div class="container">
+              <div class="page-header">
+                <h1>Your AnimalSitter dashboard</h1>
+                <p class="page-subtitle">
+                  See your upcoming bookings, messages, and pet details all in one place.
+                </p>
               </div>
-              <div id="settingsRoleCard" class="section-card"></div>
+              <div id="dashboardRoot"></div>
             </div>
           </section>
 
-          <!-- SITTER PROFILE PAGE -->
-          <section id="sitterProfilePage" class="page">
-            <div id="sitterProfileRoot"></div>
-          </section>
-
-          <!-- BOOKING PAGE -->
-          <section id="bookingPage" class="page">
-            <div class="page-header">
-              <button class="btn-small" data-page-jump="sitterProfilePage">← Back to profile</button>
-              <h1 style="margin-top:8px;">Book this sitter</h1>
+          <!-- ======================= PETS PAGE ======================= -->
+          <section id="dogsPage" class="page">
+            <div class="container">
+              <h1>Your pets</h1>
               <p class="page-subtitle">
-                Share your pet’s routine, schedule, and any special instructions so your sitter can give great care.
+                Add profiles for each pet so sitters know their routines, quirks, and special needs.
               </p>
+              <div class="section-card">
+                <p class="text-muted">
+                  Soon you’ll be able to save feeding instructions, vet info, medications,
+                  and more for every pet.
+                </p>
+              </div>
             </div>
-            <div class="dashboard-layout">
-              <div class="dashboard-card">
-                <div class="booking-sitter-summary section-card">
-                  <div class="booking-sitter-main" style="display:flex; gap:12px; align-items:center;">
-                    <div id="bookingSitterAvatar" class="avatar-circle"
-                      style="width:48px;height:48px;border-radius:999px;background-size:cover;background-position:center;background-color:#e5e7eb;">
-                    </div>
-                    <div>
-                      <div id="bookingSitterName" class="card-title" style="font-size:16px;">Sitter name</div>
-                      <div class="card-subtitle" style="font-size:12px;">
-                        <span id="bookingSitterRating">★ New</span>
-                        <span> · </span>
-                        <span id="bookingSitterDistance">Nearby</span>
+          </section>
+
+          <!-- ======================= SWIPE PAGE ======================= -->
+          <section id="swipePage" class="page">
+            <div class="container">
+              <h1>Swipe Sitter</h1>
+              <p class="page-subtitle">
+                Explore sitter cards with photos, services, prices, and reviews—then swipe to match.
+              </p>
+              <div class="section-card">
+                <div id="swipeRoot"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ======================= MESSAGES PAGE ======================= -->
+          <section id="messagesPage" class="page">
+            <div class="container">
+              <h1>Messages</h1>
+              <p class="page-subtitle">
+                Chat with sitters before and after you book to share details and get updates.
+              </p>
+              <div class="section-card">
+                <p class="text-muted">
+                  Messaging UI coming soon. For now, use your dashboard to see booking details.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ======================= SETTINGS PAGE ======================= -->
+          <section id="settingsPage" class="page">
+            <div class="container">
+              <h1>Settings</h1>
+              <p class="page-subtitle">
+                Manage your AnimalSitter account, notifications, and what you offer or book.
+              </p>
+              <div class="settings-grid">
+                <div id="settingsMainCard" class="section-card">
+                  <h2 id="settingsMainTitle">Account</h2>
+                  <div id="settingsMainBody">
+                    <p class="text-muted">
+                      Pick an item on the right to update those settings here—profile, payouts,
+                      notifications, and more.
+                    </p>
+                  </div>
+                </div>
+                <div id="settingsRoleCard" class="section-card"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ======================= SITTER PROFILE PAGE ======================= -->
+          <section id="sitterProfilePage" class="page">
+            <div class="container">
+              <div id="sitterProfileRoot"></div>
+            </div>
+          </section>
+
+          <!-- ======================= BOOKING PAGE ======================= -->
+          <section id="bookingPage" class="page">
+            <div class="container">
+              <div class="page-header">
+                <button class="btn-small" data-page-jump="sitterProfilePage">
+                  ← Back to profile
+                </button>
+                <h1 style="margin-top:8px;">Book this sitter</h1>
+                <p class="page-subtitle">
+                  Share your pet’s routine, schedule, and any special instructions so your sitter can give great care.
+                </p>
+              </div>
+              <div class="dashboard-layout">
+                <div class="dashboard-card">
+                  <div class="booking-sitter-summary section-card">
+                    <div class="booking-sitter-main">
+                      <div
+                        id="bookingSitterAvatar"
+                        class="avatar-circle"
+                      ></div>
+                      <div>
+                        <div id="bookingSitterName" class="card-title">
+                          Sitter name
+                        </div>
+                        <div class="card-subtitle">
+                          <span id="bookingSitterRating">★ New</span>
+                          <span> · </span>
+                          <span id="bookingSitterDistance">Nearby</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
-                  <div class="section-card">
-                    <p class="text-muted">Booking form is initialized by JS.</p>
-                  </div>
-                </form>
+                  <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
+                    <div class="section-card">
+                      <p class="text-muted">
+                        Booking form is initialized by JavaScript.
+                      </p>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
           </section>
 
-          <!-- BOOKING CONFIRM PAGE -->
+          <!-- ======================= BOOKING CONFIRM PAGE ======================= -->
           <section id="bookingConfirmPage" class="page">
-            <div id="bookingConfirmRoot"></div>
+            <div class="container">
+              <div id="bookingConfirmRoot"></div>
+            </div>
           </section>
 
-          <!-- AUTH PAGE -->
+          <!-- ======================= AUTH PAGE ======================= -->
           <section id="authPage" class="page">
-            <div class="section-card" style="max-width:520px; margin:0 auto;">
-              <h1>Login or create your AnimalSitter account</h1>
-              <p class="page-subtitle">
-                Book trusted pet care or start earning as a sitter—all from one simple account.
-              </p>
+            <div class="container auth-page-container">
+              <div class="section-card auth-card">
+                <h1>Login or create your AnimalSitter account</h1>
+                <p class="page-subtitle">
+                  Book trusted pet care or start earning as a sitter—all from one simple account.
+                </p>
 
-              <div class="auth-tabs">
-                <button type="button" class="auth-tab active" data-auth-tab="loginPagePanel">
-                  Log in
-                </button>
-                <button type="button" class="auth-tab" data-auth-tab="signupPagePanel">
-                  Sign up
-                </button>
-              </div>
-
-              <!-- LOGIN PANEL -->
-              <div id="loginPagePanel" class="auth-panel">
-                <form id="loginPageForm" class="auth-form">
-                  <label>
-                    <span>Email</span>
-                    <input
-                      type="email"
-                      id="loginPageEmail"
-                      name="email"
-                      class="input"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Password</span>
-                    <input
-                      type="password"
-                      id="loginPagePassword"
-                      name="password"
-                      class="input"
-                      required
-                    />
-                  </label>
-                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
+                <div class="auth-tabs">
+                  <button
+                    type="button"
+                    class="auth-tab active"
+                    data-auth-tab="loginPagePanel"
+                  >
                     Log in
                   </button>
-                </form>
-              </div>
-
-              <!-- SIGNUP PANEL -->
-              <div id="signupPagePanel" class="auth-panel" style="display:none;">
-                <form id="signupRealForm" class="auth-form">
-                  <label>
-                    <span>Full name</span>
-                    <input
-                      type="text"
-                      id="realSignupName"
-                      name="full_name"
-                      class="input"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Email</span>
-                    <input
-                      type="email"
-                      id="realSignupEmail"
-                      name="email"
-                      class="input"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Password</span>
-                    <input
-                      type="password"
-                      id="realSignupPassword"
-                      name="password"
-                      class="input"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Account type</span>
-                    <select
-                      id="realSignupRole"
-                      name="role"
-                      class="input"
-                      required
-                    >
-                      <option value="client" selected>Client / Pet Parent</option>
-                      <option value="sitter">Sitter</option>
-                    </select>
-                  </label>
-                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
-                    Create account
+                  <button
+                    type="button"
+                    class="auth-tab"
+                    data-auth-tab="signupPagePanel"
+                  >
+                    Sign up
                   </button>
-                </form>
-              </div>
+                </div>
 
-              <div id="authPageError" class="auth-error" style="display:none;"></div>
+                <!-- LOGIN PANEL -->
+                <div id="loginPagePanel" class="auth-panel">
+                  <form id="loginPageForm" class="auth-form">
+                    <label>
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        id="loginPageEmail"
+                        name="email"
+                        class="input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <input
+                        type="password"
+                        id="loginPagePassword"
+                        name="password"
+                        class="input"
+                        required
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      class="btn-primary"
+                      style="width:100%; margin-top:8px;"
+                    >
+                      Log in
+                    </button>
+                  </form>
+                </div>
+
+                <!-- SIGNUP PANEL -->
+                <div id="signupPagePanel" class="auth-panel" style="display:none;">
+                  <form id="signupRealForm" class="auth-form">
+                    <label>
+                      <span>Full name</span>
+                      <input
+                        type="text"
+                        id="realSignupName"
+                        name="full_name"
+                        class="input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        id="realSignupEmail"
+                        name="email"
+                        class="input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Password</span>
+                      <input
+                        type="password"
+                        id="realSignupPassword"
+                        name="password"
+                        class="input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Account type</span>
+                      <select
+                        id="realSignupRole"
+                        name="role"
+                        class="input"
+                        required
+                      >
+                        <option value="client" selected>Client / Pet Parent</option>
+                        <option value="sitter">Sitter</option>
+                      </select>
+                    </label>
+                    <button
+                      type="submit"
+                      class="btn-primary"
+                      style="width:100%; margin-top:8px;"
+                    >
+                      Create account
+                    </button>
+                  </form>
+                </div>
+
+                <div
+                  id="authPageError"
+                  class="auth-error"
+                  style="display:none;"
+                ></div>
+              </div>
             </div>
           </section>
 
-          <!-- PROFILE PAGE -->
+          <!-- ======================= PROFILE PAGE ======================= -->
           <section id="profilePage" class="page">
-            <div class="section-card" style="max-width:700px; margin:0 auto;">
-              <h1>Your profile</h1>
-              <p class="page-subtitle">
-                Update your name, photo, and contact info so sitters and clients know who they’re working with.
-              </p>
+            <div class="container">
+              <div class="section-card" style="max-width:700px; margin:0 auto;">
+                <h1>Your profile</h1>
+                <p class="page-subtitle">
+                  Update your name, photo, and contact info so sitters and clients know who they’re working with.
+                </p>
 
-              <div id="profileRoot"></div>
+                <div id="profileRoot"></div>
 
-              <div style="margin-top:12px; display:flex; gap:8px;">
-                <button type="button" class="btn-secondary" data-page-jump="settingsPage">
-                  Manage settings
-                </button>
-                <button type="button" class="btn-secondary" id="profileLogoutBtn">
-                  Logout
-                </button>
+                <div class="profile-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    data-page-jump="settingsPage"
+                  >
+                    Manage settings
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="profileLogoutBtn"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             </div>
           </section>
-
         </section>
       </div>
     </main>
-  </div>
 
-<footer class="site-footer">
-  <div class="footer-inner">
-    <div class="footer-column footer-brand-col">
-      <div class="footer-logo">AnimalSitter</div>
-      <p class="footer-text">
-        Book trusted dog walkers, sitters, and drop-in caregivers—anytime you can’t be there.
-      </p>
-      <div class="footer-app-badges">
-        <button class="app-badge"> App Store</button>
-        <button class="app-badge">▶ Google Play</button>
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-column">
+          <div class="footer-brand">
+            <img
+              src="img/petcare-logo.png"
+              alt="AnimalSitter logo"
+              class="footer-logo"
+            />
+            <span>AnimalSitter</span>
+          </div>
+          <p class="footer-text">
+            Book trusted dog walkers, sitters, and drop-in caregivers—anytime you can’t be there.
+          </p>
+          <div class="footer-app-row">
+            <button class="store-badge">Download on the App Store</button>
+            <button class="store-badge">Get it on Google Play</button>
+          </div>
+        </div>
+
+        <div class="footer-column">
+          <h4>About</h4>
+          <a href="#">About AnimalSitter</a>
+          <a href="#">Trust &amp; safety</a>
+          <a href="#">Blog</a>
+          <a href="#">Careers</a>
+          <a href="#">Become a sitter</a>
+        </div>
+
+        <div class="footer-column">
+          <h4>Top cities</h4>
+          <a href="#">Knoxville, TN</a>
+          <a href="#">Oak Ridge, TN</a>
+          <a href="#">Farragut, TN</a>
+          <a href="#">Johnson City, TN</a>
+          <a href="#">More cities</a>
+        </div>
+
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <a href="#">Dog health</a>
+          <a href="#">Dog training</a>
+          <a href="#">Dog parks</a>
+          <a href="#">Pet travel</a>
+
+          <h4 style="margin-top:20px;">Lifestyles</h4>
+          <a href="#">Dog beaches</a>
+          <a href="#">Dog trails</a>
+          <a href="#">Apartments &amp; city life</a>
+        </div>
+
+        <div class="footer-column">
+          <h4>Security</h4>
+          <a href="#">Responsible disclosure</a>
+
+          <h4 style="margin-top:20px;">Account</h4>
+          <a href="#">Delete your account</a>
+
+          <div class="footer-social-row">
+            <button class="social-icon">FB</button>
+            <button class="social-icon">IG</button>
+            <button class="social-icon">X</button>
+            <button class="social-icon">TT</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="footer-column">
-      <h4>About</h4>
-      <a href="#">About AnimalSitter</a>
-      <a href="#">Trust &amp; safety</a>
-      <a href="#">Blog</a>
-      <a href="#">Careers</a>
-      <a href="#" data-page-jump="authPage">Become a sitter</a>
-    </div>
-
-    <div class="footer-column">
-      <h4>Top cities</h4>
-      <a href="#">Knoxville, TN</a>
-      <a href="#">Oak Ridge, TN</a>
-      <a href="#">Farragut, TN</a>
-      <a href="#">Johnson City, TN</a>
-      <a href="#">More cities</a>
-    </div>
-
-    <div class="footer-column">
-      <h4>Resources</h4>
-      <a href="#">Dog health</a>
-      <a href="#">Dog training</a>
-      <a href="#">Dog parks</a>
-      <a href="#">Pet travel</a>
-    </div>
-
-    <div class="footer-column">
-      <h4>Lifestyles</h4>
-      <a href="#">Dog beaches</a>
-      <a href="#">Dog trails</a>
-      <a href="#">Apartments &amp; city life</a>
-
-      <h4 style="margin-top:16px;">Security</h4>
-      <a href="#">Responsible disclosure</a>
-
-      <h4 style="margin-top:16px;">Account</h4>
-      <a href="#">Delete your account</a>
-    </div>
+      <div class="container footer-bottom">
+        <div class="footer-bottom-links">
+          <a href="#">Privacy policy</a>
+          <a href="#">Terms &amp; conditions</a>
+          <a href="#">Accessibility</a>
+          <a href="#">Your privacy choices</a>
+        </div>
+        <span class="footer-copy">
+          © <span id="footerYear"></span> AnimalSitter Co. All rights reserved.
+        </span>
+      </div>
+    </footer>
   </div>
-
-  <div class="footer-bottom">
-    <div class="footer-bottom-links">
-      <a href="#">Privacy policy</a>
-      <a href="#">Terms &amp; conditions</a>
-      <a href="#">Accessibility</a>
-      <a href="#">Your privacy choices</a>
-    </div>
-    <div class="footer-social">
-      <button aria-label="Instagram">IG</button>
-      <button aria-label="Facebook">FB</button>
-      <button aria-label="TikTok">TT</button>
-    </div>
-    <div class="footer-copy">
-      © <span id="footerYear"></span> AnimalSitter Co. All rights reserved.
-    </div>
-  </div>
-</footer>
 
   <!-- SCRIPTS -->
-  <!-- Using defer keeps order + ensures DOM exists for binders -->
+  <script>
+    // simple year helper
+    (function () {
+      var el = document.getElementById("footerYear");
+      if (el) el.textContent = new Date().getFullYear();
+    })();
+  </script>
+
   <script src="js/state.js" defer></script>
   <script src="js/app.js" defer></script>
 
@@ -803,9 +738,9 @@
   <script src="js/pages/dogs.js" defer></script>
   <script src="js/pages/messages.js" defer></script>
   <script src="js/pages/settings.js" defer></script>
-
+ 
   <script src="js/pages/sitterProfile.js" defer></script>
-  <script src="js/pages/authPage.v2.js" defer></script>
+  <script src="js/pages/authPage.js" defer></script>
   <script src="js/pages/profile.js" defer></script>
 
 </body>
