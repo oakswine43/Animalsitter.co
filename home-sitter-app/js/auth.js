@@ -13,7 +13,7 @@
   const loginEmailInput = document.getElementById("loginEmail");
   const loginPasswordInput = document.getElementById("loginPassword");
 
-  // Old direct refs (we’ll keep them as fallback)
+  // Old direct refs (fallbacks)
   const signupNameInput = document.getElementById("overlaySignupName");
   const signupEmailInput = document.getElementById("overlaySignupEmail");
   const signupPasswordInput = document.getElementById("overlaySignupPassword");
@@ -120,26 +120,32 @@
     return data;
   }
 
-  // Helper: safely get a value from possible selectors
-  function getFieldValue(possibleSelectors, fallbackEl) {
-    let value = "";
+  // Helper: get value for signup fields in a very robust way
+  function getSignupField(selectorList, fallbackEl, typeSelector) {
+    let el = null;
 
-    if (signupForm) {
-      for (const sel of possibleSelectors) {
-        const el =
-          signupForm.querySelector(sel) || document.querySelector(sel);
-        if (el && typeof el.value !== "undefined") {
-          value = (el.value || "").trim();
-          if (value) return value;
+    if (signupForm && selectorList && selectorList.length) {
+      for (const sel of selectorList) {
+        const found = signupForm.querySelector(sel) || document.querySelector(sel);
+        if (found) {
+          el = found;
+          break;
         }
       }
     }
 
-    if (fallbackEl && typeof fallbackEl.value !== "undefined") {
-      value = (fallbackEl.value || "").trim();
+    // Fallback: by input type (for email/password)
+    if (!el && signupForm && typeSelector) {
+      el = signupForm.querySelector(typeSelector);
     }
 
-    return value || "";
+    // Fallback: old direct element
+    if (!el && fallbackEl) {
+      el = fallbackEl;
+    }
+
+    const value = el && typeof el.value !== "undefined" ? el.value : "";
+    return value.trim();
   }
 
   // ----- PUBLIC API (for openAuthBtn inline onclick) -----
@@ -204,22 +210,27 @@
       e.preventDefault();
       showError("");
 
-      // Try several possible selectors so we don't care what the exact IDs are
-      const full_name = getFieldValue(
+      const full_name = getSignupField(
         ["#overlaySignupName", "#signupName", 'input[name="full_name"]', 'input[name="name"]'],
-        signupNameInput
+        signupNameInput,
+        "input[type='text']"
       );
-      const email = getFieldValue(
+      const email = getSignupField(
         ["#overlaySignupEmail", "#signupEmail", 'input[name="email"]'],
-        signupEmailInput
+        signupEmailInput,
+        "input[type='email']"
       );
-      const password = getFieldValue(
+      const password = getSignupField(
         ["#overlaySignupPassword", "#signupPassword", 'input[name="password"]'],
-        signupPasswordInput
+        signupPasswordInput,
+        "input[type='password']"
       );
+
       const role =
         (signupRoleInput && signupRoleInput.value) ||
-        (signupForm.querySelector("#overlaySignupRole, #signupRole, select[name='role']")?.value) ||
+        (signupForm.querySelector(
+          "#overlaySignupRole, #signupRole, select[name='role']"
+        )?.value) ||
         "client";
 
       console.log("[Signup] full_name:", full_name);
