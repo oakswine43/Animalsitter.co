@@ -1,5 +1,5 @@
 // js/auth.js
-// Login / signup overlay that talks to the real backend API (/auth/*)
+// Handles login / signup overlay using REAL backend API (/auth/*)
 
 (function () {
   const overlay = document.getElementById("authOverlay");
@@ -42,118 +42,82 @@
     }
   }
 
-  // Use the shared mapper from app.js to normalize user
-  function mapUser(apiUser) {
-    if (window.PetCareMapApiUser) {
-      return window.PetCareMapApiUser(apiUser);
-    }
-    return apiUser;
-  }
-
-  function applyUserToUI(user) {
-    if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
-      window.PetCareState.setCurrentUser(user);
-    }
-    if (window.updateHeaderUser) {
-      window.updateHeaderUser();
-    }
-  }
-
-  async function handleLoginSubmit(e) {
-    e.preventDefault();
+  function handleAuthSuccess(data) {
     showError("");
 
-    const email = (loginEmailInput.value || "").trim();
-    const password = loginPasswordInput.value || "";
+    const apiUser = data.user || null;
+    const token = data.token || data.jwt || null;
 
-    if (!email || !password) {
-      showError("Please enter email and password.");
+    if (!apiUser || !token) {
+      showError("Bad response from server.");
       return;
     }
 
+    // Save JWT
     try {
-      const res = await fetch(`${window.API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data.token || !data.user) {
-        const msg = data.error || "Invalid email or password.";
-        showError(msg);
-        return;
-      }
-
-      // Save JWT token
-      localStorage.setItem(TOKEN_KEY, data.token);
-
-      const user = mapUser(data.user);
-      applyUserToUI(user);
-
-      if (overlay) overlay.style.display = "none";
-    } catch (err) {
-      console.error("LOGIN_ERROR", err);
-      showError("Could not reach server. Please try again.");
-    }
-  }
-
-  async function handleSignupSubmit(e) {
-    e.preventDefault();
-    showError("");
-
-    const name = (signupNameInput.value || "").trim();
-    const email = (signupEmailInput.value || "").trim();
-    const password = signupPasswordInput.value || "";
-    const role = signupRoleInput.value || "client";
-
-    if (!email || !password) {
-      showError("Please enter email and password.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${window.API_BASE}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role })
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data.token || !data.user) {
-        const msg = data.error || "Could not create account.";
-        showError(msg);
-        return;
-      }
-
-      // Save JWT token
-      localStorage.setItem(TOKEN_KEY, data.token);
-
-      const user = mapUser(data.user);
-      applyUserToUI(user);
-
-      if (overlay) overlay.style.display = "none";
-    } catch (err) {
-      console.error("SIGNUP_ERROR", err);
-      showError("Could not reach server. Please try again.");
-    }
-  }
-
-  function handleLogoutClick() {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
+      localStorage.setItem(TOKEN_KEY, token);
     } catch (_) {}
-    if (window.PetCareState && window.PetCareState.logout) {
-      window.PetCareState.logout();
+
+    // Map API user -> frontend user object
+    const mapped =
+      typeof window.PetCareMapApiUser === "function"
+        ? window.PetCareMapApiUser(apiUser)
+        : apiUser;
+
+    // Update global state + header pill
+    try {
+      if (window.PetCareState && window.PetCareState.setCurrentUser) {
+        window.PetCareState.setCurrentUser(mapped);
+      }
+      if (typeof window.updateHeaderUser === "function") {
+        window.updateHeaderUser();
+      }
+    } catch (err) {
+      console.warn("Failed to update current user:", err);
     }
-    if (window.updateHeaderUser) {
-      window.updateHeaderUser();
-    }
+
+    if (overlay) overlay.style.display = "none";
   }
 
-  // ----- PUBLIC API (for "Log in / Sign up" button) -----
+  async function doLogin(email, password) {
+    if (!window.API_BASE) {
+      throw new Error("API base URL is not configured.");
+    }
+    const res = await fetch(`${window.API_BASE}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Invalid email or password.");
+    }
+    return data;
+  }
+
+  async function doSignup({ name, email, password, role }) {
+    if (!window.API_BASE) {
+      throw new Error("API base URL is not configured.");
+    }
+    const res = await fetch(`${window.API_BASE}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, email, password, role })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || "Could not create account.");
+    }
+    return data;
+  }
+
+  // ----- PUBLIC API (for openAuthBtn inline onclick) -----
   const PetCareAuth = {
     show(whichTab) {
       if (!overlay) return;
@@ -169,12 +133,14 @@
 
   // ----- EVENT HOOKS -----
 
-  
+  // Close button
   if (closeBtn) {
-    closeBtn.addEventListener("click", () => PetCareAuth.hide());
+    closeBtn.addEventListener("click", () => {
+      PetCareAuth.hide();
+    });
   }
 
-
+  // Switch tabs
   authTabs.forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.getAttribute("data-auth-tab");
@@ -183,16 +149,80 @@
     });
   });
 
-
+  // Login submit (REAL backend)
   if (loginForm) {
-    loginForm.addEventListener("submit", handleLoginSubmit);
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showError("");
+
+      const email = (loginEmailInput.value || "").trim();
+      const password = loginPasswordInput.value || "";
+
+      if (!email || !password) {
+        showError("Email and password are required.");
+        return;
+      }
+
+      try {
+        const data = await doLogin(email, password);
+        handleAuthSuccess(data);
+      } catch (err) {
+        console.error("Login error:", err);
+        showError(err.message || "Login failed.");
+      }
+    });
   }
 
+  // Signup submit (REAL backend)
   if (signupForm) {
-    signupForm.addEventListener("submit", handleSignupSubmit);
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showError("");
+
+      const name = (signupNameInput.value || "").trim();
+      const email = (signupEmailInput.value || "").trim();
+      const password = signupPasswordInput.value || "";
+      const role = signupRoleInput.value || "client";
+
+      if (!email || !password) {
+        showError("Email and password are required.");
+        return;
+      }
+
+      try {
+        const data = await doSignup({ name, email, password, role });
+        // Many APIs log the user in immediately after signup.
+        // If yours only returns { ok:true } and no token, we could auto-login here.
+        handleAuthSuccess(data);
+      } catch (err) {
+        console.error("Signup error:", err);
+        showError(err.message || "Signup failed.");
+      }
+    });
   }
 
+  // Logout button
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", handleLogoutClick);
+    logoutBtn.addEventListener("click", () => {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+      } catch (_) {}
+
+      try {
+        if (window.PetCareState && window.PetCareState.logout) {
+          window.PetCareState.logout();
+        } else if (window.PetCareState && window.PetCareState.setCurrentUser) {
+          window.PetCareState.setCurrentUser(null);
+        }
+        if (typeof window.updateHeaderUser === "function") {
+          window.updateHeaderUser();
+        }
+      } catch (err) {
+        console.warn("Logout error:", err);
+      }
+    });
   }
+
+  // NOTE: restoring the JWT session from TOKEN_KEY
+  // is handled in app.js via window.restoreSession()
 })();
