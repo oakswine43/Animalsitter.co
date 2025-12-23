@@ -1,41 +1,88 @@
 // home-sitter-app/js/pages/profile.js
-// Profile page that is actually wired to PetCareState currentUser + avatar UI
+// Profile page wired to PetCareState, appState, and header pill fallback
 
 (function () {
-  // ---- helpers to talk to PetCareState ----
+  // Try to read from PetCareState, then appState, then header pill
   function getCurrentUser() {
-    // Prefer centralized PetCareState (where authPage.js writes)
+    let user = null;
+
+    // 1) Central state (best source)
     if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
-      return window.PetCareState.getCurrentUser();
+      try {
+        user = window.PetCareState.getCurrentUser();
+      } catch (_) {}
     }
 
-    // Fallback to appState if anything else set it
-    const appState = window.appState || {};
-    if (appState.currentUser) return appState.currentUser;
+    // 2) Fallback: appState
+    if ((!user || !user.id) && window.appState && window.appState.currentUser) {
+      user = window.appState.currentUser;
+    }
 
-    // Default guest
-    return {
-      id: "guest",
-      name: "Guest",
-      role: "guest",
-      email: "",
-      phone: ""
-    };
+    // 3) Fallback: parse header pill text like "Joshua Admin · ADMIN"
+    if (!user || !user.id || user.role === "guest" || user.role === "GUEST") {
+      const pill = document.getElementById("userPill");
+      if (pill) {
+        const raw = (pill.textContent || "").trim();
+        // Handle "Name · ROLE" or "Name - ROLE"
+        let name = "";
+        let role = "guest";
+
+        if (raw && raw.toLowerCase() !== "guest") {
+          let parts = raw.split("·");
+          if (parts.length === 1) {
+            parts = raw.split("-");
+          }
+          if (parts.length >= 2) {
+            name = parts[0].trim();
+            role = parts[1].trim().toLowerCase();
+          } else {
+            name = raw;
+          }
+
+          user = {
+            id: "header-user",
+            name: name || "Guest user",
+            full_name: name || "Guest user",
+            role: role || "guest",
+            email: "",
+            phone: ""
+          };
+        }
+      }
+    }
+
+    // 4) Final fallback
+    if (!user || !user.id) {
+      user = {
+        id: "guest",
+        name: "Guest user",
+        full_name: "Guest user",
+        role: "guest",
+        email: "",
+        phone: ""
+      };
+    }
+
+    return user;
   }
 
   function setCurrentUser(user) {
-    // Save into PetCareState
+    // Save into PetCareState if available
     if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
-      window.PetCareState.setCurrentUser(user);
+      try {
+        window.PetCareState.setCurrentUser(user);
+      } catch (_) {}
     }
 
-    // Also mirror into appState so anything else using it still works
+    // Mirror into appState
     if (!window.appState) window.appState = {};
     window.appState.currentUser = user;
 
-    // Update header pill if helper exists
+    // Refresh header pill if helper exists
     if (typeof window.updateHeaderUser === "function") {
-      window.updateHeaderUser();
+      try {
+        window.updateHeaderUser();
+      } catch (_) {}
     }
   }
 
@@ -214,9 +261,7 @@
       if (photoInput) photoInput.click();
     }
 
-    if (avatar) {
-      avatar.addEventListener("click", openPhotoPicker);
-    }
+    if (avatar) avatar.addEventListener("click", openPhotoPicker);
     if (cameraPill) {
       cameraPill.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -249,15 +294,12 @@
           phone: (phoneInput.value || "").trim() || phone
         };
 
-        // Save back into PetCareState + appState
         setCurrentUser(updated);
 
-        // Update summary row
         summaryName.textContent = updated.full_name;
         summaryRole.textContent = prettyRole(updated.role || rawRole);
         summaryPhone.textContent = updated.phone || "—";
 
-        // Little "Saved" feedback
         if (saveBtn) {
           saveBtn.disabled = true;
           const originalText = saveBtn.textContent;
@@ -269,14 +311,12 @@
         }
       });
     }
-
-    // Logout button is still handled in app.js via id="profileLogoutBtn"
   }
 
-  // expose so app.js can re-render when navigating
+  // Make it callable from app.js
   window.renderProfilePage = renderProfilePage;
 
-  // render once on load in case profile is the first page opened
+  // Render once on load
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
