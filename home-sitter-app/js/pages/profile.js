@@ -1,37 +1,39 @@
 // home-sitter-app/js/pages/profile.js
-// Profile page wired to PetCareState so it uses the real logged-in user.
+// Profile page that is actually wired to PetCareState currentUser + avatar UI
 
 (function () {
+  // ---- helpers to talk to PetCareState ----
   function getCurrentUser() {
-    // Prefer central PetCareState (localStorage + backend auth)
+    // Prefer centralized PetCareState (where authPage.js writes)
     if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
       return window.PetCareState.getCurrentUser();
     }
 
-    // Fallback to any old appState if it exists
+    // Fallback to appState if anything else set it
     const appState = window.appState || {};
-    return (
-      appState.currentUser ||
-      appState.user || {
-        id: "guest",
-        name: "Guest user",
-        role: "guest",
-        email: "",
-        phone: ""
-      }
-    );
+    if (appState.currentUser) return appState.currentUser;
+
+    // Default guest
+    return {
+      id: "guest",
+      name: "Guest",
+      role: "guest",
+      email: "",
+      phone: ""
+    };
   }
 
   function setCurrentUser(user) {
+    // Save into PetCareState
     if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
       window.PetCareState.setCurrentUser(user);
     }
 
-    // Keep legacy appState in sync so nothing else breaks
-    window.appState = window.appState || {};
+    // Also mirror into appState so anything else using it still works
+    if (!window.appState) window.appState = {};
     window.appState.currentUser = user;
 
-    // Refresh header pill if that helper exists
+    // Update header pill if helper exists
     if (typeof window.updateHeaderUser === "function") {
       window.updateHeaderUser();
     }
@@ -45,6 +47,16 @@
     return (first + last).toUpperCase();
   }
 
+  function prettyRole(roleKey) {
+    if (!roleKey) return "GUEST";
+    const r = String(roleKey).toLowerCase();
+    if (r === "client") return "CLIENT • Pet parent";
+    if (r === "sitter") return "SITTER • Pet caregiver";
+    if (r === "employee") return "EMPLOYEE • Support staff";
+    if (r === "admin") return "ADMIN";
+    return r.toUpperCase();
+  }
+
   function renderProfilePage() {
     const root = document.getElementById("profileRoot");
     if (!root) return;
@@ -52,133 +64,142 @@
     const user = getCurrentUser();
 
     const fullName = user.full_name || user.name || "Guest user";
-    const roleKey = (user.role || "guest").toUpperCase();
+    const rawRole = user.role || "guest";
+    const roleDisplay = prettyRole(rawRole);
     const phone = user.phone || "";
     const email = user.email || "";
 
     root.innerHTML = `
       <div class="profile-layout">
-        <div class="profile-body">
-          <!-- LEFT: avatar / photo -->
-          <div class="profile-photo-column">
-            <div class="avatar-large" id="profileAvatar">
-              <span class="avatar-initials">${getInitials(fullName)}</span>
-              <div class="avatar-camera-pill">
-                <span>📷</span>
-                <span>Change</span>
-              </div>
-            </div>
-            <p class="profile-photo-text">
-              Add a clear photo of yourself. This helps pet parents recognize you
-              at pick-ups and drop-offs.
+        <div class="section-card profile-main-card">
+          <div class="section-header">
+            <h1>Your profile</h1>
+            <p>
+              Update your name, photo, and contact info so sitters and clients
+              know who they’re working with.
             </p>
-            <input
-              type="file"
-              accept="image/*"
-              id="profilePhotoInput"
-              hidden
-            />
           </div>
 
-          <!-- RIGHT: form -->
-          <div class="profile-form-column">
-            <form id="profileForm" class="auth-form">
-              <div class="profile-form-grid">
-                <label>
-                  <span>Full name</span>
-                  <input
-                    type="text"
-                    id="profileNameInput"
-                    class="input"
-                    value="${fullName}"
-                    autocomplete="name"
-                  />
-                </label>
-                <label>
-                  <span>Role</span>
-                  <input
-                    type="text"
-                    id="profileRoleInput"
-                    class="input"
-                    value="${roleKey}"
-                    disabled
-                  />
-                </label>
-                <label>
-                  <span>Phone</span>
-                  <input
-                    type="tel"
-                    id="profilePhoneInput"
-                    class="input"
-                    value="${phone}"
-                    placeholder="000-000-0000"
-                    autocomplete="tel"
-                  />
-                </label>
-                <label>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    id="profileEmailInput"
-                    class="input"
-                    value="${email}"
-                    placeholder="you@example.com"
-                    autocomplete="email"
-                    disabled
-                  />
-                </label>
+          <div class="profile-body">
+            <!-- LEFT: avatar / photo -->
+            <div class="profile-photo-column">
+              <div class="avatar-large" id="profileAvatar">
+                <span class="avatar-initials">${getInitials(fullName)}</span>
+                <div class="avatar-camera-pill">
+                  <span>📷</span>
+                  <span>Change</span>
+                </div>
               </div>
+              <p class="profile-photo-text">
+                Add a clear photo of yourself. This helps pet parents recognize you
+                at pick-ups and drop-offs.
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                id="profilePhotoInput"
+                hidden
+              />
+            </div>
 
-              <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
-                <button
-                  type="submit"
-                  class="btn-primary"
-                  id="profileSaveBtn"
-                >
-                  Save changes
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  id="profileManageSettingsBtn"
-                  data-page-jump="settingsPage"
-                >
-                  Manage settings
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  id="profileLogoutBtn"
-                >
-                  Logout
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <!-- RIGHT: form -->
+            <div class="profile-form-column">
+              <form id="profileForm" class="auth-form">
+                <div class="profile-form-grid">
+                  <label>
+                    <span>Full name</span>
+                    <input
+                      type="text"
+                      id="profileNameInput"
+                      class="input"
+                      value="${fullName}"
+                    />
+                  </label>
+                  <label>
+                    <span>Role</span>
+                    <input
+                      type="text"
+                      id="profileRoleInput"
+                      class="input"
+                      value="${roleDisplay}"
+                      disabled
+                    />
+                  </label>
+                  <label>
+                    <span>Phone</span>
+                    <input
+                      type="tel"
+                      id="profilePhoneInput"
+                      class="input"
+                      value="${phone}"
+                      placeholder="000-000-0000"
+                    />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input
+                      type="email"
+                      id="profileEmailInput"
+                      class="input"
+                      value="${email}"
+                      placeholder="you@example.com"
+                      disabled
+                    />
+                  </label>
+                </div>
 
-        <!-- SUMMARY -->
-        <div class="profile-summary-row">
-          <div>
-            <strong>Name:</strong>
-            <span id="profileSummaryName">${fullName}</span>
+                <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button
+                    type="submit"
+                    class="btn-primary"
+                    id="profileSaveBtn"
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="profileManageSettingsBtn"
+                    data-page-jump="settingsPage"
+                  >
+                    Manage settings
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="profileLogoutBtn"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-          <div>
-            <strong>Role:</strong>
-            <span id="profileSummaryRole">${roleKey}</span>
-          </div>
-          <div>
-            <strong>Phone:</strong>
-            <span id="profileSummaryPhone">${phone || "—"}</span>
+
+          <!-- SUMMARY -->
+          <div class="profile-summary-row">
+            <div>
+              <strong>Name:</strong>
+              <span id="profileSummaryName">${fullName}</span>
+            </div>
+            <div>
+              <strong>Role:</strong>
+              <span id="profileSummaryRole">${roleDisplay}</span>
+            </div>
+            <div>
+              <strong>Phone:</strong>
+              <span id="profileSummaryPhone">${phone || "—"}</span>
+            </div>
           </div>
         </div>
       </div>
     `;
 
-    // -------- wire up interactions --------
-
+    // ---- wires & interactions ----
     const photoInput = root.querySelector("#profilePhotoInput");
     const avatar = root.querySelector("#profileAvatar");
+    const cameraPill = root.querySelector(".avatar-camera-pill");
+
     const form = root.querySelector("#profileForm");
     const saveBtn = root.querySelector("#profileSaveBtn");
 
@@ -196,8 +217,6 @@
     if (avatar) {
       avatar.addEventListener("click", openPhotoPicker);
     }
-
-    const cameraPill = root.querySelector(".avatar-camera-pill");
     if (cameraPill) {
       cameraPill.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -224,22 +243,21 @@
       form.addEventListener("submit", function (e) {
         e.preventDefault();
 
-        const updatedName = nameInput.value.trim() || fullName;
-        const updatedPhone = phoneInput.value.trim();
-
-        const updatedUser = {
+        const updated = {
           ...user,
-          full_name: updatedName,
-          name: updatedName,
-          phone: updatedPhone
+          full_name: (nameInput.value || "").trim() || fullName,
+          phone: (phoneInput.value || "").trim() || phone
         };
 
-        setCurrentUser(updatedUser);
+        // Save back into PetCareState + appState
+        setCurrentUser(updated);
 
-        summaryName.textContent = updatedUser.full_name;
-        summaryRole.textContent = (updatedUser.role || roleKey).toUpperCase();
-        summaryPhone.textContent = updatedUser.phone || "—";
+        // Update summary row
+        summaryName.textContent = updated.full_name;
+        summaryRole.textContent = prettyRole(updated.role || rawRole);
+        summaryPhone.textContent = updated.phone || "—";
 
+        // Little "Saved" feedback
         if (saveBtn) {
           saveBtn.disabled = true;
           const originalText = saveBtn.textContent;
@@ -251,12 +269,14 @@
         }
       });
     }
+
+    // Logout button is still handled in app.js via id="profileLogoutBtn"
   }
 
-  // Let app.js call this when navigating
+  // expose so app.js can re-render when navigating
   window.renderProfilePage = renderProfilePage;
 
-  // Render on load (in case Profile is opened directly)
+  // render once on load in case profile is the first page opened
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
