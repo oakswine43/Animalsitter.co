@@ -1,84 +1,29 @@
 // home-sitter-app/js/pages/profile.js
-// Profile page wired to PetCareState, appState, and header pill fallback
+// Profile page linked directly to PetCareState current user
 
 (function () {
-  // Try to read from PetCareState, then appState, then header pill
   function getCurrentUser() {
-    let user = null;
-
-    // 1) Central state (best source)
     if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
-      try {
-        user = window.PetCareState.getCurrentUser();
-      } catch (_) {}
+      return window.PetCareState.getCurrentUser() || {};
     }
-
-    // 2) Fallback: appState
-    if ((!user || !user.id) && window.appState && window.appState.currentUser) {
-      user = window.appState.currentUser;
-    }
-
-    // 3) Fallback: parse header pill text like "Joshua Admin · ADMIN"
-    if (!user || !user.id || user.role === "guest" || user.role === "GUEST") {
-      const pill = document.getElementById("userPill");
-      if (pill) {
-        const raw = (pill.textContent || "").trim();
-        // Handle "Name · ROLE" or "Name - ROLE"
-        let name = "";
-        let role = "guest";
-
-        if (raw && raw.toLowerCase() !== "guest") {
-          let parts = raw.split("·");
-          if (parts.length === 1) {
-            parts = raw.split("-");
-          }
-          if (parts.length >= 2) {
-            name = parts[0].trim();
-            role = parts[1].trim().toLowerCase();
-          } else {
-            name = raw;
-          }
-
-          user = {
-            id: "header-user",
-            name: name || "Guest user",
-            full_name: name || "Guest user",
-            role: role || "guest",
-            email: "",
-            phone: ""
-          };
-        }
-      }
-    }
-
-    // 4) Final fallback
-    if (!user || !user.id) {
-      user = {
-        id: "guest",
-        name: "Guest user",
-        full_name: "Guest user",
-        role: "guest",
-        email: "",
-        phone: ""
-      };
-    }
-
-    return user;
+    // fallback guest
+    return {
+      id: "guest",
+      name: "Guest user",
+      full_name: "Guest user",
+      role: "guest",
+      email: "",
+      phone: ""
+    };
   }
 
   function setCurrentUser(user) {
-    // Save into PetCareState if available
     if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
       try {
         window.PetCareState.setCurrentUser(user);
       } catch (_) {}
     }
-
-    // Mirror into appState
-    if (!window.appState) window.appState = {};
-    window.appState.currentUser = user;
-
-    // Refresh header pill if helper exists
+    // keep header in sync
     if (typeof window.updateHeaderUser === "function") {
       try {
         window.updateHeaderUser();
@@ -195,12 +140,8 @@
                   </label>
                 </div>
 
-                <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-                  <button
-                    type="submit"
-                    class="btn-primary"
-                    id="profileSaveBtn"
-                  >
+                <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="submit" class="btn-primary" id="profileSaveBtn">
                     Save changes
                   </button>
                   <button
@@ -263,19 +204,19 @@
 
     if (avatar) avatar.addEventListener("click", openPhotoPicker);
     if (cameraPill) {
-      cameraPill.addEventListener("click", function (e) {
+      cameraPill.addEventListener("click", (e) => {
         e.stopPropagation();
         openPhotoPicker();
       });
     }
 
     if (photoInput) {
-      photoInput.addEventListener("change", function (e) {
+      photoInput.addEventListener("change", (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function (ev) {
+        reader.onload = (ev) => {
           const dataUrl = ev.target.result;
           avatar.style.backgroundImage = `url('${dataUrl}')`;
           avatar.classList.add("has-photo");
@@ -285,7 +226,7 @@
     }
 
     if (form) {
-      form.addEventListener("submit", function (e) {
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
 
         const updated = {
@@ -302,21 +243,21 @@
 
         if (saveBtn) {
           saveBtn.disabled = true;
-          const originalText = saveBtn.textContent;
+          const original = saveBtn.textContent;
           saveBtn.textContent = "Saved";
           setTimeout(() => {
             saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
+            saveBtn.textContent = original;
           }, 1200);
         }
       });
     }
   }
 
-  // Make it callable from app.js
+  // expose for app.js
   window.renderProfilePage = renderProfilePage;
 
-  // Render once on load
+  // render on load too
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
