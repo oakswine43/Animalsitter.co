@@ -25,21 +25,23 @@
 const API_BASE = window.API_BASE;
 
 /**
- * Optional shared mapper:
- * If authPage.js doesn't expose a global mapper,
- * we define a safe default here.
+ * Shared mapper:
+ * If authPage.js doesn't expose a mapper, use this one.
  *
- * NOTE: backend uses `photo_url`, so we also map that
- * into avatar_url for anything that expects it.
+ * Backend returns: id, full_name, email, role, phone, photo_url, avatar_url, is_active
  */
 if (!window.PetCareMapApiUser) {
   window.PetCareMapApiUser = function (apiUser) {
     if (!apiUser) return null;
+
+    const fullName = apiUser.full_name || apiUser.name || "";
+
     return {
       id: apiUser.id,
-      name: apiUser.full_name || apiUser.name || "",
-      email: apiUser.email,
-      role: apiUser.role,
+      name: fullName,
+      full_name: fullName,
+      email: apiUser.email || "",
+      role: apiUser.role || "client",
       phone: apiUser.phone || "",
       is_active: apiUser.is_active,
       avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
@@ -48,6 +50,9 @@ if (!window.PetCareMapApiUser) {
   };
 }
 
+// -----------------------------
+// Header user chip
+// -----------------------------
 function updateHeaderUser() {
   const user = window.PetCareState?.getCurrentUser?.();
   const pill = document.getElementById("userPill");
@@ -56,6 +61,7 @@ function updateHeaderUser() {
 
   if (!pill) return;
 
+  // Guest / not logged in
   if (!user || user.role === "guest") {
     pill.textContent = "Guest";
     if (logoutBtn) logoutBtn.style.display = "none";
@@ -63,7 +69,8 @@ function updateHeaderUser() {
     return;
   }
 
-  const displayName = user.name || user.email || "User";
+  const displayName =
+    user.name || user.full_name || user.email || "User";
   const role = user.role ? String(user.role).toUpperCase() : "USER";
   pill.textContent = `${displayName} · ${role}`;
 
@@ -71,12 +78,15 @@ function updateHeaderUser() {
   if (authBtn) authBtn.style.display = "none";
 }
 
+// -----------------------------
+// Logout
+// -----------------------------
 function doLogout() {
   try {
     window.PetCareState?.logout?.();
   } catch (_) {}
 
-  // Clear token if you're using JWT
+  // Clear JWT if used
   try {
     localStorage.removeItem("petcare_token");
   } catch (_) {}
@@ -85,7 +95,9 @@ function doLogout() {
   setActivePage("homePage");
 }
 
-// SINGLE version of setActivePage
+// -----------------------------
+// Page navigation
+// -----------------------------
 function setActivePage(pageId) {
   const pages = document.querySelectorAll(".page");
   pages.forEach((p) => p.classList.remove("active"));
@@ -99,12 +111,12 @@ function setActivePage(pageId) {
     l.classList.toggle("active", linkPage === pageId);
   });
 
-  // Optional UX: scroll to top on page switch
+  // Scroll to top on page switch (nice UX)
   try {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (_) {}
 
-  // Page initializers
+  // Page initializers / hooks
   if (pageId === "homePage" && typeof window.initHomePage === "function") {
     window.initHomePage();
   }
@@ -140,8 +152,11 @@ function setActivePage(pageId) {
   }
 }
 
+// -----------------------------
+// Nav wiring
+// -----------------------------
 function setupNav() {
-  // Prevent duplicate listeners if initAppShell is ever called again
+  // Prevent duplicate listeners if initAppShell ever runs twice
   if (window.__petcareNavBound) return;
   window.__petcareNavBound = true;
 
@@ -153,7 +168,7 @@ function setupNav() {
     });
   });
 
-  // Global page jump handler (buttons with data-page-jump)
+  // Global "go to page" on any element with data-page-jump
   document.body.addEventListener("click", function (e) {
     const btn = e.target.closest("[data-page-jump]");
     if (!btn) return;
@@ -166,18 +181,15 @@ function setupNav() {
     logoutBtn.addEventListener("click", doLogout);
   }
 
-  // Profile page logout button (if present in DOM)
   const profileLogoutBtn = document.getElementById("profileLogoutBtn");
   if (profileLogoutBtn) {
     profileLogoutBtn.addEventListener("click", doLogout);
   }
 }
 
-/**
- * Restore session from JWT (if present)
- * Requires backend route:
- *  GET /auth/me  with Authorization: Bearer <token>
- */
+// -----------------------------
+// Restore session from JWT
+// -----------------------------
 async function restoreSession() {
   const token = localStorage.getItem("petcare_token");
   if (!token) return;
@@ -196,13 +208,15 @@ async function restoreSession() {
       window.PetCareState.setCurrentUser(user);
     }
 
-    // Make sure header pill updates after restore
     updateHeaderUser();
   } catch {
-    // token invalid or server offline -> ignore
+    // invalid token / server offline – ignore
   }
 }
 
+// -----------------------------
+// App bootstrap
+// -----------------------------
 function initAppShell() {
   const appSection = document.getElementById("appSection");
   if (appSection) appSection.style.display = "block";
@@ -219,8 +233,12 @@ window.initAppShell = initAppShell;
 window.doLogout = doLogout;
 window.restoreSession = restoreSession;
 
+// Start app
 document.addEventListener("DOMContentLoaded", async function () {
-  if (window.PetCareState && typeof window.PetCareState.ensureDefaultUser === "function") {
+  if (
+    window.PetCareState &&
+    typeof window.PetCareState.ensureDefaultUser === "function"
+  ) {
     window.PetCareState.ensureDefaultUser();
   }
 

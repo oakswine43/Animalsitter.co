@@ -1,106 +1,31 @@
-// home-sitter-app/js/pages/profile.js
-// Profile page wired to backend user + PetCareState
+// js/pages/profile.js
+// Renders the profile page using PetCareState.getCurrentUser()
 
 (function () {
-  const TOKEN_KEY = "petcare_token";
-
-  function getToken() {
-    try {
-      return localStorage.getItem(TOKEN_KEY) || "";
-    } catch (_) {
-      return "";
+  function getCurrentUser() {
+    if (
+      window.PetCareState &&
+      typeof window.PetCareState.getCurrentUser === "function"
+    ) {
+      return window.PetCareState.getCurrentUser();
     }
-  }
 
-  function hasApiBase() {
-    return typeof window.API_BASE === "string" && window.API_BASE.length > 0;
-  }
-
-  async function fetchUserFromApi() {
-    if (!hasApiBase()) return null;
-    const token = getToken();
-    if (!token) return null;
-
-    try {
-      const res = await fetch(`${window.API_BASE}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) {
-        console.warn("[profile] /auth/me status:", res.status);
-        return null;
-      }
-
-      const data = await res.json().catch(() => null);
-      if (!data) return null;
-
-      // some backends return { user }, some return user directly
-      const apiUser = data.user || data;
-      return apiUser || null;
-    } catch (err) {
-      console.warn("[profile] failed to fetch /auth/me", err);
-      return null;
-    }
-  }
-
-  async function saveProfileToApi(payload) {
-    if (!hasApiBase()) return null;
-    const token = getToken();
-    if (!token) return null;
-
-    const res = await fetch(`${window.API_BASE}/me/profile`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(payload || {})
-    });
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg = (data && data.error) || "Failed to save profile.";
-      throw new Error(msg);
-    }
-    return data && (data.user || data);
-  }
-
-  function mapApiUser(apiUser) {
-    if (!apiUser) return null;
-    const fullName = apiUser.full_name || apiUser.name || "";
-
+    // Fallback guest
     return {
-      id: apiUser.id,
-      name: fullName,
-      full_name: fullName,
-      email: apiUser.email || "",
-      role: apiUser.role || "client",
-      phone: apiUser.phone || "",
-      is_active: apiUser.is_active
+      id: "guest",
+      full_name: "Guest user",
+      role: "guest",
+      phone: "000-000-0000",
+      email: ""
     };
   }
 
-  function getUserFromState() {
-    if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
-      return window.PetCareState.getCurrentUser() || null;
-    }
-    return null;
-  }
-
-  function setUserInState(user) {
+  function setCurrentUser(user) {
     if (
       window.PetCareState &&
-      typeof window.PetCareState.setCurrentUser === "function" &&
-      user
+      typeof window.PetCareState.setCurrentUser === "function"
     ) {
       window.PetCareState.setCurrentUser(user);
-    }
-    if (typeof window.updateHeaderUser === "function") {
-      try {
-        window.updateHeaderUser();
-      } catch (_) {}
     }
   }
 
@@ -112,23 +37,16 @@
     return (first + last).toUpperCase();
   }
 
-  function prettyRole(roleKey) {
-    if (!roleKey) return "GUEST";
-    const r = String(roleKey).toLowerCase();
-    if (r === "client") return "CLIENT";
-    if (r === "sitter") return "SITTER";
-    if (r === "employee") return "EMPLOYEE";
-    if (r === "admin") return "ADMIN";
-    return r.toUpperCase();
-  }
+  function renderProfilePage() {
+    const root = document.getElementById("profileRoot");
+    if (!root) return;
 
-  function renderProfile(root, user) {
+    const user = getCurrentUser();
+
     const fullName = user.full_name || user.name || "Guest user";
-    const rawRole = user.role || "guest";
-    const phone = user.phone || "";
+    const role = (user.role || "guest").toUpperCase();
+    const phone = user.phone || "000-000-0000";
     const email = user.email || "";
-
-    const roleDisplay = prettyRole(rawRole);
 
     root.innerHTML = `
       <div class="profile-layout">
@@ -144,7 +62,7 @@
           <div class="profile-body">
             <!-- LEFT: avatar / photo -->
             <div class="profile-photo-column">
-              <div class="avatar-large" id="profileAvatar">
+              <div class="avatar-large has-initials" id="profileAvatar">
                 <span class="avatar-initials">${getInitials(fullName)}</span>
                 <div class="avatar-camera-pill">
                   <span>📷</span>
@@ -182,7 +100,7 @@
                       type="text"
                       id="profileRoleInput"
                       class="input"
-                      value="${roleDisplay}"
+                      value="${role}"
                       disabled
                     />
                   </label>
@@ -209,8 +127,12 @@
                   </label>
                 </div>
 
-                <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
-                  <button type="submit" class="btn-primary" id="profileSaveBtn">
+                <div style="margin-top: 16px; display: flex; gap: 8px;">
+                  <button
+                    type="submit"
+                    class="btn-primary"
+                    id="profileSaveBtn"
+                  >
                     Save changes
                   </button>
                   <button
@@ -241,23 +163,22 @@
             </div>
             <div>
               <strong>Role:</strong>
-              <span id="profileSummaryRole">${roleDisplay}</span>
+              <span id="profileSummaryRole">${role}</span>
             </div>
             <div>
               <strong>Phone:</strong>
-              <span id="profileSummaryPhone">${phone || "—"}</span>
+              <span id="profileSummaryPhone">${phone}</span>
             </div>
           </div>
         </div>
       </div>
     `;
 
-    // ---- hooks ----
+    // ---- wires & interactions ----
     const photoInput = root.querySelector("#profilePhotoInput");
     const avatar = root.querySelector("#profileAvatar");
-    const cameraPill = root.querySelector(".avatar-camera-pill");
-    const form = root.querySelector("#profileForm");
     const saveBtn = root.querySelector("#profileSaveBtn");
+    const form = root.querySelector("#profileForm");
 
     const nameInput = root.querySelector("#profileNameInput");
     const phoneInput = root.querySelector("#profilePhoneInput");
@@ -267,24 +188,29 @@
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
     function openPhotoPicker() {
-      if (photoInput) photoInput.click();
+      if (photoInput) {
+        photoInput.click();
+      }
     }
 
-    if (avatar) avatar.addEventListener("click", openPhotoPicker);
+    if (avatar) {
+      avatar.addEventListener("click", openPhotoPicker);
+    }
+    const cameraPill = root.querySelector(".avatar-camera-pill");
     if (cameraPill) {
-      cameraPill.addEventListener("click", (e) => {
+      cameraPill.addEventListener("click", function (e) {
         e.stopPropagation();
         openPhotoPicker();
       });
     }
 
     if (photoInput) {
-      photoInput.addEventListener("change", (e) => {
+      photoInput.addEventListener("change", function (e) {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = function (ev) {
           const dataUrl = ev.target.result;
           avatar.style.backgroundImage = `url('${dataUrl}')`;
           avatar.classList.add("has-photo");
@@ -294,85 +220,46 @@
     }
 
     if (form) {
-      form.addEventListener("submit", async (e) => {
+      form.addEventListener("submit", function (e) {
         e.preventDefault();
 
-        const updatedPayload = {
-          full_name: (nameInput.value || "").trim(),
-          phone: (phoneInput.value || "").trim()
-        };
-
-        // optimistic UI update
-        let updatedUser = {
+        const updated = {
           ...user,
-          full_name: updatedPayload.full_name || fullName,
-          name: updatedPayload.full_name || fullName,
-          phone: updatedPayload.phone || phone
+          full_name: nameInput.value.trim() || fullName,
+          name: nameInput.value.trim() || fullName,
+          phone: phoneInput.value.trim() || phone
         };
 
-        try {
-          const apiUser = await saveProfileToApi(updatedPayload);
-          if (apiUser) {
-            updatedUser = mapApiUser(apiUser);
-          }
-        } catch (err) {
-          console.warn("[profile] save failed:", err);
-          // we still keep optimistic update
+        setCurrentUser(updated);
+
+        summaryName.textContent = updated.full_name;
+        summaryRole.textContent = (updated.role || role).toUpperCase();
+        summaryPhone.textContent = updated.phone || "—";
+
+        if (typeof window.updateHeaderUser === "function") {
+          window.updateHeaderUser();
         }
 
-        setUserInState(updatedUser);
+        saveBtn.disabled = true;
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Saved";
 
-        summaryName.textContent = updatedUser.full_name;
-        summaryRole.textContent = prettyRole(updatedUser.role || user.role);
-        summaryPhone.textContent = updatedUser.phone || "—";
-
-        if (saveBtn) {
-          saveBtn.disabled = true;
-          const original = saveBtn.textContent;
-          saveBtn.textContent = "Saved";
-          setTimeout(() => {
-            saveBtn.disabled = false;
-            saveBtn.textContent = original;
-          }, 1200);
-        }
+        setTimeout(() => {
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+        }, 1200);
       });
     }
-
-    // logout button still uses global handler in app.js via id="profileLogoutBtn"
   }
 
-  async function initProfilePage() {
-    const root = document.getElementById("profileRoot");
-    if (!root) return;
+  // Make both names available to app.js
+  window.renderProfilePage = renderProfilePage;
+  window.initProfilePage = renderProfilePage;
 
-    // 1) try backend /auth/me
-    let user = null;
-    const apiUser = await fetchUserFromApi();
-    if (apiUser) {
-      user = mapApiUser(apiUser);
-      setUserInState(user);
-    } else {
-      // 2) fallback to whatever PetCareState has (maybe from login)
-      user = getUserFromState() || {
-        id: "guest",
-        full_name: "Guest user",
-        name: "Guest user",
-        role: "guest",
-        email: "",
-        phone: ""
-      };
-    }
-
-    renderProfile(root, user);
-  }
-
-  // expose for router
-  window.renderProfilePage = initProfilePage;
-
-  // render when DOM ready
+  // Also render once on load in case profile is the first page opened
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initProfilePage);
+    document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
-    initProfilePage();
+    renderProfilePage();
   }
 })();
