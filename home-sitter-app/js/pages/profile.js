@@ -1,7 +1,9 @@
 // js/pages/profile.js
-// Renders the profile page using PetCareState.getCurrentUser()
+// Profile page wired to PetCareState / backend user
 
 (function () {
+  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "";
+
   function getCurrentUser() {
     if (
       window.PetCareState &&
@@ -10,13 +12,14 @@
       return window.PetCareState.getCurrentUser();
     }
 
-    // Fallback guest
+    // fallback guest
     return {
-      id: "guest",
+      id: null,
       full_name: "Guest user",
+      name: "Guest user",
       role: "guest",
-      phone: "000-000-0000",
-      email: ""
+      email: "",
+      phone: ""
     };
   }
 
@@ -37,6 +40,29 @@
     return (first + last).toUpperCase();
   }
 
+  // Optional: try to persist to backend (best-effort, safe to fail silently)
+  async function saveProfileToBackend(updated) {
+    const token = localStorage.getItem("petcare_token");
+    if (!token || !API_BASE) return;
+
+    try {
+      // adjust endpoint if your backend uses a different route
+      await fetch(`${API_BASE}/auth/me`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: updated.full_name,
+          phone: updated.phone
+        })
+      });
+    } catch (err) {
+      console.warn("[Profile] Failed to sync with backend:", err);
+    }
+  }
+
   function renderProfilePage() {
     const root = document.getElementById("profileRoot");
     if (!root) return;
@@ -44,8 +70,8 @@
     const user = getCurrentUser();
 
     const fullName = user.full_name || user.name || "Guest user";
-    const role = (user.role || "guest").toUpperCase();
-    const phone = user.phone || "000-000-0000";
+    const roleKey = (user.role || "guest").toUpperCase();
+    const phone = user.phone || "";
     const email = user.email || "";
 
     root.innerHTML = `
@@ -62,8 +88,12 @@
           <div class="profile-body">
             <!-- LEFT: avatar / photo -->
             <div class="profile-photo-column">
-              <div class="avatar-large has-initials" id="profileAvatar">
-                <span class="avatar-initials">${getInitials(fullName)}</span>
+              <div class="avatar-large has-photo" id="profileAvatar">
+                ${
+                  user.photo_url || user.avatar_url
+                    ? `<div class="avatar-img" style="background-image:url('${user.photo_url || user.avatar_url}')"></div>`
+                    : `<span class="avatar-initials">${getInitials(fullName)}</span>`
+                }
                 <div class="avatar-camera-pill">
                   <span>📷</span>
                   <span>Change</span>
@@ -100,7 +130,7 @@
                       type="text"
                       id="profileRoleInput"
                       class="input"
-                      value="${role}"
+                      value="${roleKey}"
                       disabled
                     />
                   </label>
@@ -163,11 +193,11 @@
             </div>
             <div>
               <strong>Role:</strong>
-              <span id="profileSummaryRole">${role}</span>
+              <span id="profileSummaryRole">${roleKey}</span>
             </div>
             <div>
               <strong>Phone:</strong>
-              <span id="profileSummaryPhone">${phone}</span>
+              <span id="profileSummaryPhone">${phone || "—"}</span>
             </div>
           </div>
         </div>
@@ -177,8 +207,8 @@
     // ---- wires & interactions ----
     const photoInput = root.querySelector("#profilePhotoInput");
     const avatar = root.querySelector("#profileAvatar");
-    const saveBtn = root.querySelector("#profileSaveBtn");
     const form = root.querySelector("#profileForm");
+    const saveBtn = root.querySelector("#profileSaveBtn");
 
     const nameInput = root.querySelector("#profileNameInput");
     const phoneInput = root.querySelector("#profilePhoneInput");
@@ -188,9 +218,7 @@
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
     function openPhotoPicker() {
-      if (photoInput) {
-        photoInput.click();
-      }
+      if (photoInput) photoInput.click();
     }
 
     if (avatar) {
@@ -220,43 +248,57 @@
     }
 
     if (form) {
-      form.addEventListener("submit", function (e) {
+      form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
-        const updated = {
+        const updatedFullName = nameInput.value.trim() || fullName;
+        const updatedPhone = phoneInput.value.trim();
+
+        const updatedUser = {
           ...user,
-          full_name: nameInput.value.trim() || fullName,
-          name: nameInput.value.trim() || fullName,
-          phone: phoneInput.value.trim() || phone
+          full_name: updatedFullName,
+          name: updatedFullName,
+          phone: updatedPhone
         };
 
-        setCurrentUser(updated);
+        setCurrentUser(updatedUser);
 
-        summaryName.textContent = updated.full_name;
-        summaryRole.textContent = (updated.role || role).toUpperCase();
-        summaryPhone.textContent = updated.phone || "—";
+        summaryName.textContent = updatedFullName;
+        summaryRole.textContent = (updatedUser.role || roleKey).toUpperCase();
+        summaryPhone.textContent = updatedPhone || "—";
 
         if (typeof window.updateHeaderUser === "function") {
           window.updateHeaderUser();
         }
 
-        saveBtn.disabled = true;
-        const originalText = saveBtn.textContent;
-        saveBtn.textContent = "Saved";
+        if (saveBtn) {
+          const originalText = saveBtn.textContent;
+          saveBtn.disabled = true;
+          saveBtn.textContent = "Saved";
+          setTimeout(() => {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+          }, 1200);
+        }
 
-        setTimeout(() => {
-          saveBtn.disabled = false;
-          saveBtn.textContent = originalText;
-        }, 1200);
+        // Best-effort backend sync
+        await saveProfileToBackend(updatedUser);
       });
+    }
+
+    // Logout button on profile card uses same handler as global
+    const profileLogoutBtn = root.querySelector("#profileLogoutBtn");
+    if (profileLogoutBtn && typeof window.doLogout === "function") {
+      profileLogoutBtn.addEventListener("click", window.doLogout);
     }
   }
 
-  // Make both names available to app.js
-  window.renderProfilePage = renderProfilePage;
-  window.initProfilePage = renderProfilePage;
+  // Expose so app.js can call when navigating
+  window.initProfilePage = function () {
+    renderProfilePage();
+  };
 
-  // Also render once on load in case profile is the first page opened
+  // Also render once on load in case profile is first page opened
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
