@@ -1,129 +1,43 @@
 // js/pages/profile.js
-// Profile page: loads from /profile and saves back to /profile + /profile/photo
+// Profile page wired to real backend (/profile, /profile/photo)
 
 (function () {
-  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "";
+  const TOKEN_KEY = "petcare_token";
 
   function getToken() {
     try {
-      return localStorage.getItem("petcare_token") || "";
+      return localStorage.getItem(TOKEN_KEY);
     } catch (_) {
-      return "";
-    }
-  }
-
-  function mapApiUser(apiUser) {
-    if (!apiUser) return null;
-    if (typeof window.PetCareMapApiUser === "function") {
-      return window.PetCareMapApiUser(apiUser);
-    }
-    return {
-      id: apiUser.id,
-      name: apiUser.full_name || apiUser.name || "",
-      full_name: apiUser.full_name || apiUser.name || "",
-      email: apiUser.email || "",
-      role: apiUser.role || "client",
-      phone: apiUser.phone || "",
-      avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-      is_active: apiUser.is_active
-    };
-  }
-
-  async function loadProfileFromApi() {
-    const token = getToken();
-    if (!API_BASE || !token) return null;
-
-    try {
-      const res = await fetch(`${API_BASE}/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) {
-        console.warn("GET /profile failed:", res.status);
-        return null;
-      }
-
-      const data = await res.json();
-      return data.user || null;
-    } catch (err) {
-      console.error("loadProfileFromApi error:", err);
       return null;
     }
   }
 
-  async function saveProfileToApi(updates) {
-    const token = getToken();
-    if (!API_BASE || !token) throw new Error("Not logged in");
-
-    const body = {
-      full_name: updates.full_name,
-      phone: updates.phone
-      // avatar_url will be handled by /profile/photo
-    };
-
-    const res = await fetch(`${API_BASE}/profile`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      console.error("PUT /profile failed:", res.status, data);
-      throw new Error(data.error || "Server error");
+  function getCurrentUser() {
+    if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
+      return window.PetCareState.getCurrentUser();
     }
-
-    return data.user;
-  }
-
-  async function uploadProfilePhoto(file) {
-    const token = getToken();
-    if (!API_BASE || !token) throw new Error("Not logged in");
-
-    const formData = new FormData();
-    formData.append("photo", file);
-
-    const res = await fetch(`${API_BASE}/profile/photo`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      body: formData
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      console.error("POST /profile/photo failed:", res.status, data);
-      throw new Error(data.error || "Photo upload failed");
-    }
-
-    return data; // { ok, url, fullUrl }
-  }
-
-  function buildInitialUser(fallback) {
-    const appState = window.appState || {};
-    const localUser =
-      fallback ||
-      appState.currentUser ||
-      appState.user ||
-      { id: null, full_name: "Guest user", role: "GUEST", phone: "" };
-
-    const fullName = localUser.full_name || localUser.name || "Guest user";
     return {
-      ...localUser,
-      full_name: fullName,
-      name: fullName,
-      email: localUser.email || "",
-      role: (localUser.role || "GUEST").toUpperCase(),
-      phone: localUser.phone || ""
+      id: null,
+      full_name: "Guest user",
+      name: "Guest user",
+      role: "guest",
+      email: "",
+      phone: ""
     };
+  }
+
+  function setCurrentUser(user) {
+    if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
+      window.PetCareState.setCurrentUser(user);
+    } else {
+      // fallback to legacy appState
+      if (!window.appState) window.appState = {};
+      window.appState.currentUser = user;
+    }
+
+    if (typeof window.updateHeaderUser === "function") {
+      window.updateHeaderUser();
+    }
   }
 
   function getInitials(name) {
@@ -134,35 +48,116 @@
     return (first + last).toUpperCase();
   }
 
-  function setCurrentUserGlobal(mappedUser) {
-    // Update PetCareState for header + other pages
-    try {
-      if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
-        window.PetCareState.setCurrentUser(mappedUser);
+  function getApiBase() {
+    return window.API_BASE || window.PETCARE_API_BASE || "";
+  }
+
+  function applyAvatarFromUser(avatarEl, user) {
+    if (!avatarEl || !user) return;
+    const url = user.avatar_url || user.photo_url;
+    const initialsEl = avatarEl.querySelector(".avatar-initials");
+
+    if (url) {
+      avatarEl.style.backgroundImage = `url('${url}')`;
+      avatarEl.classList.add("has-photo");
+      if (initialsEl) initialsEl.style.display = "none";
+    } else {
+      avatarEl.style.backgroundImage = "";
+      avatarEl.classList.remove("has-photo");
+      if (initialsEl) {
+        initialsEl.textContent = getInitials(user.full_name || user.name);
+        initialsEl.style.display = "flex";
       }
-    } catch (e) {
-      console.warn("setCurrentUserGlobal failed:", e);
-    }
-
-    // Also mirror into window.appState so profile.js getCurrentUser fallback still works
-    if (!window.appState) window.appState = {};
-    window.appState.currentUser = mappedUser;
-
-    if (typeof window.updateHeaderUser === "function") {
-      window.updateHeaderUser();
     }
   }
 
-  async function renderProfilePage() {
+  async function saveProfileToApi(fullName, phone) {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Not logged in.");
+    }
+
+    const res = await fetch(`${getApiBase()}/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        full_name: fullName,
+        phone
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || "Server error");
+    }
+
+    const apiUser = data.user;
+    if (!apiUser) {
+      throw new Error("Bad response from server.");
+    }
+
+    // Normalize via shared mapper if present
+    let mapped = apiUser;
+    if (typeof window.PetCareMapApiUser === "function") {
+      mapped = window.PetCareMapApiUser(apiUser);
+    } else {
+      const full_name2 = apiUser.full_name || apiUser.name || "";
+      mapped = {
+        id: apiUser.id,
+        name: full_name2,
+        full_name: full_name2,
+        email: apiUser.email || "",
+        role: apiUser.role || "client",
+        phone: apiUser.phone || "",
+        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
+        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
+        is_active: apiUser.is_active
+      };
+    }
+
+    setCurrentUser(mapped);
+    return mapped;
+  }
+
+  async function uploadPhoto(file) {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Not logged in.");
+    }
+
+    const fd = new FormData();
+    fd.append("photo", file);
+
+    const res = await fetch(`${getApiBase()}/profile/photo`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+        // do NOT set Content-Type manually for FormData
+      },
+      body: fd
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to upload profile photo.");
+    }
+
+    // data.url is the /uploads/... path
+    return data;
+  }
+
+  function renderProfilePage() {
     const root = document.getElementById("profileRoot");
     if (!root) return;
 
-    // Try to load from API first so refresh shows DB values
-    let apiUser = await loadProfileFromApi();
-    let user = buildInitialUser(apiUser ? mapApiUser(apiUser) : null);
-
+    const user = getCurrentUser();
     const fullName = user.full_name || user.name || "Guest user";
-    const role = (user.role || "GUEST").toUpperCase();
+    const role = (user.role || "guest").toUpperCase();
     const phone = user.phone || "";
     const email = user.email || "";
 
@@ -180,17 +175,8 @@
           <div class="profile-body">
             <!-- LEFT: avatar / photo -->
             <div class="profile-photo-column">
-              <div class="avatar-large ${user.avatar_url ? "has-photo" : ""}" id="profileAvatar"
-                   style="${
-                     user.avatar_url
-                       ? `background-image: url('${user.avatar_url}');`
-                       : ""
-                   }">
-                ${
-                  user.avatar_url
-                    ? ""
-                    : `<span class="avatar-initials">${getInitials(fullName)}</span>`
-                }
+              <div class="avatar-large" id="profileAvatar">
+                <span class="avatar-initials">${getInitials(fullName)}</span>
                 <div class="avatar-camera-pill">
                   <span>📷</span>
                   <span>Change</span>
@@ -301,9 +287,8 @@
       </div>
     `;
 
-    // ---- wires & interactions ----
-    const photoInput = root.querySelector("#profilePhotoInput");
     const avatar = root.querySelector("#profileAvatar");
+    const photoInput = root.querySelector("#profilePhotoInput");
     const form = root.querySelector("#profileForm");
     const saveBtn = root.querySelector("#profileSaveBtn");
 
@@ -313,21 +298,22 @@
     const summaryName = root.querySelector("#profileSummaryName");
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
+    // Apply existing avatar (from DB) if present
+    applyAvatarFromUser(avatar, user);
+
     function openPhotoPicker() {
-      if (photoInput) {
-        photoInput.click();
-      }
+      if (photoInput) photoInput.click();
     }
 
     if (avatar) {
       avatar.addEventListener("click", openPhotoPicker);
-      const cameraPill = avatar.querySelector(".avatar-camera-pill");
-      if (cameraPill) {
-        cameraPill.addEventListener("click", function (e) {
-          e.stopPropagation();
-          openPhotoPicker();
-        });
-      }
+    }
+    const cameraPill = root.querySelector(".avatar-camera-pill");
+    if (cameraPill) {
+      cameraPill.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openPhotoPicker();
+      });
     }
 
     if (photoInput) {
@@ -335,25 +321,22 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
-        try {
-          const result = await uploadProfilePhoto(file);
-          const url = result.fullUrl || result.url;
-
-          avatar.style.backgroundImage = `url('${url}')`;
+        // Show local preview immediately
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          const dataUrl = ev.target.result;
+          avatar.style.backgroundImage = `url('${dataUrl}')`;
           avatar.classList.add("has-photo");
           const initialsEl = avatar.querySelector(".avatar-initials");
-          if (initialsEl) initialsEl.remove();
+          if (initialsEl) initialsEl.style.display = "none";
+        };
+        reader.readAsDataURL(file);
 
-          // Also update global user
-          const updatedUser = {
-            ...user,
-            avatar_url: result.url
-          };
-          const mapped = mapApiUser(updatedUser);
-          setCurrentUserGlobal(mapped);
+        try {
+          await uploadPhoto(file);
         } catch (err) {
-          console.error(err);
-          alert(err.message || "Photo upload failed");
+          console.error("Photo upload error:", err);
+          alert(err.message || "Failed to upload photo.");
         }
       });
     }
@@ -362,48 +345,51 @@
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
-        const newName = nameInput.value.trim();
-        const newPhone = phoneInput.value.trim();
+        const newName = (nameInput.value || "").trim() || fullName;
+        const newPhone = (phoneInput.value || "").trim();
+
+        saveBtn.disabled = true;
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Saving...";
 
         try {
-          saveBtn.disabled = true;
-          saveBtn.textContent = "Saving...";
+          const updatedUser = await saveProfileToApi(newName, newPhone);
 
-          const updatedApiUser = await saveProfileToApi({
-            full_name: newName,
-            phone: newPhone
-          });
-
-          const mapped = mapApiUser(updatedApiUser);
-          user = mapped;
-
-          summaryName.textContent = mapped.full_name || mapped.name;
-          summaryPhone.textContent = mapped.phone || "—";
-
-          setCurrentUserGlobal(mapped);
+          summaryName.textContent = updatedUser.full_name || updatedUser.name || newName;
+          summaryPhone.textContent = updatedUser.phone || "—";
 
           saveBtn.textContent = "Saved";
           setTimeout(() => {
             saveBtn.disabled = false;
-            saveBtn.textContent = "Save changes";
-          }, 1000);
+            saveBtn.textContent = originalText;
+          }, 1200);
         } catch (err) {
           console.error("Profile save error:", err);
           alert(err.message || "Server error");
           saveBtn.disabled = false;
-          saveBtn.textContent = "Save changes";
+          saveBtn.textContent = originalText;
         }
       });
     }
 
+    // Logout button (handled globally too, but wire it here)
     const profileLogoutBtn = root.querySelector("#profileLogoutBtn");
-    if (profileLogoutBtn && typeof window.doLogout === "function") {
-      profileLogoutBtn.addEventListener("click", window.doLogout);
+    if (profileLogoutBtn) {
+      profileLogoutBtn.addEventListener("click", function () {
+        if (typeof window.doLogout === "function") {
+          window.doLogout();
+        }
+      });
     }
   }
 
+  // expose so app.js can call when navigating
   window.renderProfilePage = renderProfilePage;
+  window.initProfilePage = function () {
+    renderProfilePage();
+  };
 
+  // also render once on load in case profile is the first page opened
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
