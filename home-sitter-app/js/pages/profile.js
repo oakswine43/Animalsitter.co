@@ -1,26 +1,33 @@
 // home-sitter-app/js/pages/profile.js
+
 (function () {
   const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "";
 
   function getCurrentUser() {
+    // Prefer PetCareState (what authPage/app.js use)
     if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
       return window.PetCareState.getCurrentUser();
     }
-    return {
-      id: null,
-      full_name: "Guest user",
-      name: "Guest user",
-      role: "guest",
-      phone: "",
-      email: ""
-    };
+
+    // Fallback to appState if present
+    const appState = window.appState || {};
+    return (
+      appState.currentUser ||
+      appState.user || {
+        id: null,
+        full_name: "Guest user",
+        role: "guest",
+        phone: "000-000-0000",
+        email: "",
+      }
+    );
   }
 
   function setCurrentUser(user) {
     if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
       window.PetCareState.setCurrentUser(user);
     } else {
-      window.appState = window.appState || {};
+      if (!window.appState) window.appState = {};
       window.appState.currentUser = user;
     }
 
@@ -37,6 +44,57 @@
     return (first + last).toUpperCase();
   }
 
+  async function uploadProfilePhoto(file, avatarEl, user) {
+    if (!API_BASE) {
+      console.warn("No API_BASE configured, cannot upload photo.");
+      return;
+    }
+
+    const token = localStorage.getItem("petcare_token");
+    if (!token) {
+      console.warn("No auth token found, cannot upload photo.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    try {
+      const res = await fetch(`${API_BASE}/profile/photo`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Note: do NOT set Content-Type manually; browser will set multipart boundary
+        },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to upload photo.");
+      }
+
+      const photoUrl = data.url || data.fullUrl;
+
+      // Update avatar background to the saved URL
+      if (photoUrl && avatarEl) {
+        avatarEl.style.backgroundImage = `url('${photoUrl}')`;
+        avatarEl.classList.add("has-photo");
+      }
+
+      // Update current user in state so header + profile use it after refresh
+      const updatedUser = {
+        ...user,
+        avatar_url: photoUrl,
+        photo_url: photoUrl,
+      };
+      setCurrentUser(updatedUser);
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      alert(err.message || "Failed to upload profile photo.");
+    }
+  }
+
   function renderProfilePage() {
     const root = document.getElementById("profileRoot");
     if (!root) return;
@@ -46,7 +104,7 @@
     const role = (user.role || "guest").toUpperCase();
     const phone = user.phone || "";
     const email = user.email || "";
-    const avatarUrl = user.avatar_url || user.photo_url || "";
+    const photoUrl = user.avatar_url || user.photo_url || null;
 
     root.innerHTML = `
       <div class="profile-layout">
@@ -62,14 +120,8 @@
           <div class="profile-body">
             <!-- LEFT: avatar / photo -->
             <div class="profile-photo-column">
-              <div class="avatar-large ${avatarUrl ? "has-photo" : ""}" id="profileAvatar" ${
-                avatarUrl ? `style="background-image:url('${avatarUrl}')"` : ""
-              }>
-                ${
-                  avatarUrl
-                    ? ""
-                    : `<span class="avatar-initials">${getInitials(fullName)}</span>`
-                }
+              <div class="avatar-large" id="profileAvatar">
+                <span class="avatar-initials">${getInitials(fullName)}</span>
                 <div class="avatar-camera-pill">
                   <span>📷</span>
                   <span>Change</span>
@@ -183,8 +235,8 @@
     // ---- wires & interactions ----
     const photoInput = root.querySelector("#profilePhotoInput");
     const avatar = root.querySelector("#profileAvatar");
-    const saveBtn = root.querySelector("#profileSaveBtn");
     const form = root.querySelector("#profileForm");
+    const saveBtn = root.querySelector("#profileSaveBtn");
 
     const nameInput = root.querySelector("#profileNameInput");
     const phoneInput = root.querySelector("#profilePhoneInput");
@@ -193,8 +245,16 @@
     const summaryRole = root.querySelector("#profileSummaryRole");
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
+    // If user already has a photo, show it
+    if (photoUrl && avatar) {
+      avatar.style.backgroundImage = `url('${photoUrl}')`;
+      avatar.classList.add("has-photo");
+    }
+
     function openPhotoPicker() {
-      if (photoInput) photoInput.click();
+      if (photoInput) {
+        photoInput.click();
+      }
     }
 
     if (avatar) {
@@ -208,21 +268,23 @@
       });
     }
 
-    // Preview-only avatar (no backend upload yet)
-    if (photoInput && avatar) {
+    if (photoInput) {
       photoInput.addEventListener("change", function (e) {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
+        // Local preview immediately
         const reader = new FileReader();
         reader.onload = function (ev) {
-          const dataUrl = ev.target.result;
-          avatar.style.backgroundImage = `url('${dataUrl}')`;
-          avatar.classList.add("has-photo");
-          const initialsEl = avatar.querySelector(".avatar-initials");
-          if (initialsEl) initialsEl.remove();
+          if (avatar) {
+            avatar.style.backgroundImage = `url('${ev.target.result}')`;
+            avatar.classList.add("has-photo");
+          }
         };
         reader.readAsDataURL(file);
+
+        // Upload to backend to persist
+        uploadProfilePhoto(file, avatar, user);
       });
     }
 
@@ -230,90 +292,86 @@
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
+        const token = localStorage.getItem("petcare_token");
+        if (!API_BASE || !token) {
+          console.warn("No API_BASE or auth token; saving only locally.");
+        }
+
         const updatedName = nameInput.value.trim() || fullName;
         const updatedPhone = phoneInput.value.trim();
 
-        const token = localStorage.getItem("petcare_token");
+        // Optimistically update UI + state
+        const updatedUser = {
+          ...user,
+          full_name: updatedName,
+          name: updatedName,
+          phone: updatedPhone,
+        };
+        setCurrentUser(updatedUser);
 
-        try {
-          saveBtn.disabled = true;
-          const originalText = saveBtn.textContent;
-          saveBtn.textContent = "Saving...";
+        summaryName.textContent = updatedUser.full_name;
+        summaryRole.textContent = (updatedUser.role || role).toUpperCase();
+        summaryPhone.textContent = updatedUser.phone || "—";
 
-          const res = await fetch(`${API_BASE}/auth/me`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({
-              full_name: updatedName,
-              phone: updatedPhone
-              // avatar_url: later when you have upload support
-            })
-          });
+        // Save to backend
+        if (API_BASE && token && user && user.id) {
+          try {
+            const res = await fetch(`${API_BASE}/profile`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name: updatedName,
+                phone: updatedPhone,
+              }),
+            });
 
-          const data = await res.json().catch(() => ({}));
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              throw new Error(data.error || "Failed to update profile.");
+            }
 
-          if (!res.ok || !data.user) {
-            console.error("Profile update error response:", data);
-            alert(data.error || "Failed to update profile.");
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-            return;
+            // Merge any canonical values from backend (e.g., trimmed phone)
+            const serverUser = data.user || {};
+            const mergedUser = {
+              ...updatedUser,
+              full_name: serverUser.full_name || updatedUser.full_name,
+              phone: serverUser.phone ?? updatedUser.phone,
+              avatar_url: serverUser.avatar_url || updatedUser.avatar_url,
+              photo_url: serverUser.photo_url || updatedUser.photo_url,
+            };
+            setCurrentUser(mergedUser);
+          } catch (err) {
+            console.error("Profile save error:", err);
+            alert(err.message || "Failed to save profile.");
           }
-
-          // Normalize user
-          const apiUser = data.user;
-          const mapped =
-            typeof window.PetCareMapApiUser === "function"
-              ? window.PetCareMapApiUser(apiUser)
-              : {
-                  id: apiUser.id,
-                  name: apiUser.full_name || apiUser.name || "",
-                  full_name: apiUser.full_name || apiUser.name || "",
-                  email: apiUser.email,
-                  role: apiUser.role,
-                  phone: apiUser.phone || "",
-                  avatar_url: apiUser.avatar_url || null
-                };
-
-          // Save globally so restoreSession + header use the same data
-          setCurrentUser(mapped);
-
-          // Update summary row immediately
-          summaryName.textContent = mapped.full_name;
-          summaryRole.textContent = (mapped.role || role).toUpperCase();
-          summaryPhone.textContent = mapped.phone || "—";
-
-          // Optional: also log so you can see it's updated
-          console.log("[Profile] Updated user from API:", mapped);
-
-          saveBtn.textContent = "Saved";
-          setTimeout(() => {
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-          }, 1200);
-        } catch (err) {
-          console.error("Profile update error (network):", err);
-          alert("Error updating profile. Please try again.");
-          saveBtn.disabled = false;
-          saveBtn.textContent = "Save changes";
         }
+
+        saveBtn.disabled = true;
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Saved";
+
+        setTimeout(() => {
+          saveBtn.disabled = false;
+          saveBtn.textContent = originalText;
+        }, 1200);
       });
     }
 
-    // Logout button - use global handler from app.js
-    const logoutBtn = root.querySelector("#profileLogoutBtn");
-    if (logoutBtn && typeof window.doLogout === "function") {
-      logoutBtn.addEventListener("click", window.doLogout);
+    // Logout button (profile page)
+    const profileLogoutBtn = root.querySelector("#profileLogoutBtn");
+    if (profileLogoutBtn && typeof window.doLogout === "function") {
+      profileLogoutBtn.addEventListener("click", window.doLogout);
     }
   }
 
-  // expose so app.js can call on navigation
+  // expose so app.js can call when navigating
+  window.renderProfilePage = renderProfilePage;
   window.initProfilePage = renderProfilePage;
 
-  // render once on load in case profile is first page
+  // also render once on load in case profile is the first page opened
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
