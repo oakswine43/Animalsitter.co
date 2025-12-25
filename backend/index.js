@@ -302,7 +302,7 @@ app.use("/auth", authRoutes);
 // =====================
 
 // GET /profile  -> return current user's profile
-app.get("/profile", requireAuth, async (req, res) => {
+app.get("/profile", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log("GET /profile for user", userId);
@@ -333,7 +333,7 @@ app.get("/profile", requireAuth, async (req, res) => {
 });
 
 // PUT /profile  -> update basic fields (name, phone, avatar_url)
-app.put("/profile", requireAuth, async (req, res) => {
+app.put("/profile", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const { full_name, name, phone, avatar_url } = req.body || {};
@@ -341,10 +341,17 @@ app.put("/profile", requireAuth, async (req, res) => {
     const fields = [];
     const params = [];
 
-    // accept either full_name or name from the client
-    if (typeof full_name === "string" || typeof name === "string") {
+    // Safely pick a new name (support both full_name and name)
+    const incomingName =
+      typeof full_name === "string"
+        ? full_name
+        : typeof name === "string"
+        ? name
+        : null;
+
+    if (incomingName !== null) {
       fields.push("full_name = ?");
-      params.push((full_name || name).trim());
+      params.push(incomingName.trim());
     }
 
     if (typeof phone === "string") {
@@ -393,7 +400,7 @@ app.put("/profile", requireAuth, async (req, res) => {
 // POST /profile/photo  (multipart/form-data, field name: photo)
 app.post(
   "/profile/photo",
-  requireAuth,
+  authMiddleware,
   upload.single("photo"),
   async (req, res) => {
     try {
@@ -428,7 +435,6 @@ app.post(
     }
   }
 );
-
 // =====================
 // PUP GALLERY ROUTES
 // =====================
