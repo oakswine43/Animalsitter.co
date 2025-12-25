@@ -127,7 +127,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GET /auth/me  (used by restoreSession in app.js)
+// GET /auth/me  (used by restoreSession)
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -149,6 +149,62 @@ router.get("/me", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("AUTH_ME_ERROR:", err);
     res.status(500).json({ error: "Server error loading user." });
+  }
+});
+
+// ✅ PUT /auth/me  (update profile in DB)
+router.put("/me", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { full_name, phone, avatar_url } = req.body || {};
+
+    const [rows] = await pool.query(
+      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const current = rows[0];
+
+    const newFullName =
+      typeof full_name === "string" && full_name.trim()
+        ? full_name.trim()
+        : current.full_name;
+    const newPhone =
+      typeof phone === "string" && phone.trim()
+        ? phone.trim()
+        : current.phone;
+    const newAvatarUrl =
+      typeof avatar_url === "string" && avatar_url.trim()
+        ? avatar_url.trim()
+        : current.avatar_url;
+
+    await pool.query(
+      `UPDATE users
+       SET full_name = ?, phone = ?, avatar_url = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [newFullName, newPhone || null, newAvatarUrl || null, userId]
+    );
+
+    const [updatedRows] = await pool.query(
+      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
+
+    const dbUser = mapDbUser(updatedRows[0]);
+    res.json({ user: dbUser });
+  } catch (err) {
+    console.error("AUTH_ME_UPDATE_ERROR:", err);
+    res.status(500).json({ error: "Server error updating profile." });
   }
 });
 
