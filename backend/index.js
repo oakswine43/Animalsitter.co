@@ -1,4 +1,3 @@
-// backend/index.js
 require("dotenv").config();
 
 const path = require("path");
@@ -11,6 +10,7 @@ const jwt = require("jsonwebtoken");
 
 const pool = require("./db");
 const authRoutes = require("./routes/auth");
+const authMiddleware = require("./middleware/auth"); // still used for /auth/me etc.
 
 const app = express();
 
@@ -70,8 +70,8 @@ const upload = multer({
 });
 
 // =====================
-// Auth middleware (for profile routes)
-// (dev-friendly: decode, not verify, so token secret mismatch won't kill us)
+// Dev-friendly auth for /profile routes
+// (verify with secret, fall back to decode so tokens still work)
 // =====================
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization || "";
@@ -81,21 +81,31 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: "Missing auth token." });
   }
 
-  try {
-    const payload = jwt.decode(token); // no verify -> dev friendly
-    if (!payload) {
-      throw new Error("Unable to decode token");
-    }
+  const SECRET = process.env.JWT_SECRET || "dev-secret";
 
+  // 1) Try verify
+  try {
+    const payload = jwt.verify(token, SECRET);
     const userId = payload.id || payload.userId || payload.sub;
-    if (!userId) {
-      throw new Error("No user id in token payload");
-    }
+    if (!userId) throw new Error("No user id in token payload (verify).");
 
     req.user = { id: userId };
-    next();
-  } catch (err) {
-    console.error("AUTH_TOKEN_ERROR:", err.message);
+    return next();
+  } catch (verifyErr) {
+    console.warn("JWT_VERIFY_FAILED, falling back to decode:", verifyErr.message);
+  }
+
+  // 2) Fallback: decode (dev-friendly)
+  try {
+    const payload = jwt.decode(token);
+    if (!payload) throw new Error("Unable to decode token");
+    const userId = payload.id || payload.userId || payload.sub;
+    if (!userId) throw new Error("No user id in token payload (decode).");
+
+    req.user = { id: userId };
+    return next();
+  } catch (decodeErr) {
+    console.error("AUTH_TOKEN_ERROR:", decodeErr.message);
     return res.status(401).json({ error: "Invalid auth token." });
   }
 }
@@ -162,8 +172,12 @@ app.get("/health", async (req, res) => {
 // DB DEBUG – for https://<your-backend>.up.railway.app/debug/db
 app.get("/debug/db", async (req, res) => {
   try {
-    const [[dbRow]] = await pool.query("SELECT DATABASE() AS dbName, NOW() AS serverTime");
-    const [[userRow]] = await pool.query("SELECT COUNT(*) AS user_count FROM users");
+    const [[dbRow]] = await pool.query(
+      "SELECT DATABASE() AS dbName, NOW() AS serverTime"
+    );
+    const [[userRow]] = await pool.query(
+      "SELECT COUNT(*) AS user_count FROM users"
+    );
 
     return res.json({
       ok: true,
@@ -301,7 +315,7 @@ app.get("/profile", requireAuth, async (req, res) => {
          role,
          phone,
          is_active,
-         photo_url
+         avatar_url
        FROM users
        WHERE id = ?`,
       [userId]
@@ -318,23 +332,29 @@ app.get("/profile", requireAuth, async (req, res) => {
   }
 });
 
-// PUT /profile  -> update basic fields (name, phone, etc.)
+// PUT /profile  -> update basic fields (name, phone, avatar_url)
 app.put("/profile", requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, phone } = req.body || {};
+    const { full_name, name, phone, avatar_url } = req.body || {};
 
     const fields = [];
     const params = [];
 
-    if (typeof name === "string") {
+    // accept either full_name or name from the client
+    if (typeof full_name === "string" || typeof name === "string") {
       fields.push("full_name = ?");
-      params.push(name.trim());
+      params.push((full_name || name).trim());
     }
 
     if (typeof phone === "string") {
       fields.push("phone = ?");
       params.push(phone.trim());
+    }
+
+    if (typeof avatar_url === "string") {
+      fields.push("avatar_url = ?");
+      params.push(avatar_url.trim());
     }
 
     if (!fields.length) {
@@ -357,7 +377,7 @@ app.put("/profile", requireAuth, async (req, res) => {
          role,
          phone,
          is_active,
-         photo_url
+         avatar_url
        FROM users
        WHERE id = ?`,
       [userId]
@@ -371,37 +391,43 @@ app.put("/profile", requireAuth, async (req, res) => {
 });
 
 // POST /profile/photo  (multipart/form-data, field name: photo)
-app.post("/profile/photo", requireAuth, upload.single("photo"), async (req, res) => {
-  try {
-    const userId = req.user.id;
+app.post(
+  "/profile/photo",
+  requireAuth,
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
 
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded." });
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+      }
+
+      const relativePath = `/uploads/${req.file.filename}`;
+
+      // Save in avatar_url so it matches auth.js mapDbUser
+      await pool.query(
+        `UPDATE users
+         SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [relativePath, userId]
+      );
+
+      const fullUrl = `${req.protocol}://${req.get("host")}${relativePath}`;
+
+      console.log("PROFILE_PHOTO_SAVED for user", userId, "->", relativePath);
+
+      res.json({
+        ok: true,
+        url: relativePath,
+        fullUrl
+      });
+    } catch (err) {
+      console.error("PROFILE_PHOTO_ERROR:", err);
+      res.status(500).json({ error: "Failed to upload profile photo." });
     }
-
-    const relativePath = `/uploads/${req.file.filename}`;
-
-    await pool.query(
-      `UPDATE users
-       SET photo_url = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [relativePath, userId]
-    );
-
-    const fullUrl = `${req.protocol}://${req.get("host")}${relativePath}`;
-
-    console.log("PROFILE_PHOTO_SAVED for user", userId, "->", relativePath);
-
-    res.json({
-      ok: true,
-      url: relativePath,
-      fullUrl
-    });
-  } catch (err) {
-    console.error("PROFILE_PHOTO_ERROR:", err);
-    res.status(500).json({ error: "Failed to upload profile photo." });
   }
-});
+);
 
 // =====================
 // PUP GALLERY ROUTES
@@ -435,7 +461,8 @@ app.get("/gallery/posts", async (req, res) => {
 app.get("/gallery/posts/:id/comments", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId)
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
 
     const [rows] = await pool.query(
       `SELECT
@@ -461,7 +488,8 @@ app.get("/gallery/posts/:id/comments", async (req, res) => {
 app.post("/gallery/posts/:id/like", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId)
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
 
     const [result] = await pool.query(
       `UPDATE gallery_posts
@@ -492,11 +520,14 @@ app.post("/gallery/posts/:id/like", async (req, res) => {
 app.post("/gallery/posts/:id/comments", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId)
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
 
     const { author_name, body } = req.body || {};
     if (!body || !body.trim()) {
-      return res.status(400).json({ ok: false, error: "Comment body is required." });
+      return res
+        .status(400)
+        .json({ ok: false, error: "Comment body is required." });
     }
 
     const safeAuthor = (author_name || "Guest").trim().slice(0, 120);
@@ -590,7 +621,6 @@ app.post("/bookings", async (req, res) => {
     // 2) Lookup emails
     const [[clientRow] = [[]]] = await Promise.all([
       pool.query(`SELECT email FROM users WHERE id = ?`, [client_id])
-      // second dummy removed – only one query actually needed
     ]).catch(() => [[[]]]);
     const clientEmail = clientRow?.email || null;
 
