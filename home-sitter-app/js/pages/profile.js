@@ -12,6 +12,10 @@
     }
   }
 
+  function getApiBase() {
+    return window.API_BASE || window.PETCARE_API_BASE || "";
+  }
+
   function getCurrentUser() {
     if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
       return window.PetCareState.getCurrentUser();
@@ -48,14 +52,22 @@
     return (first + last).toUpperCase();
   }
 
-  function getApiBase() {
-    return window.API_BASE || window.PETCARE_API_BASE || "";
+  // Make sure avatar URL is absolute (prefix API_BASE if it starts with "/")
+  function normalizeAvatarUrl(url) {
+    if (!url) return null;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("/")) return `${getApiBase()}${url}`;
+    return url;
   }
 
   function applyAvatarFromUser(avatarEl, user) {
     if (!avatarEl || !user) return;
-    const url = user.avatar_url || user.photo_url;
+
+    let url = user.avatar_url || user.photo_url;
+    url = normalizeAvatarUrl(url);
+
     const initialsEl = avatarEl.querySelector(".avatar-initials");
+    const displayName = user.full_name || user.name;
 
     if (url) {
       avatarEl.style.backgroundImage = `url('${url}')`;
@@ -65,7 +77,7 @@
       avatarEl.style.backgroundImage = "";
       avatarEl.classList.remove("has-photo");
       if (initialsEl) {
-        initialsEl.textContent = getInitials(user.full_name || user.name);
+        initialsEl.textContent = getInitials(displayName);
         initialsEl.style.display = "flex";
       }
     }
@@ -113,11 +125,15 @@
         email: apiUser.email || "",
         role: apiUser.role || "client",
         phone: apiUser.phone || "",
-        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
+        avatar_url: normalizeAvatarUrl(apiUser.avatar_url || apiUser.photo_url || null),
+        photo_url: normalizeAvatarUrl(apiUser.photo_url || apiUser.avatar_url || null),
         is_active: apiUser.is_active
       };
     }
+
+    // ensure avatar urls normalized even if mapper didn't
+    mapped.avatar_url = normalizeAvatarUrl(mapped.avatar_url || mapped.photo_url);
+    mapped.photo_url = mapped.avatar_url || mapped.photo_url;
 
     setCurrentUser(mapped);
     return mapped;
@@ -147,8 +163,20 @@
       throw new Error(data.error || "Failed to upload profile photo.");
     }
 
-    // data.url is the /uploads/... path
-    return data;
+    // data.url is the /uploads/... path; data.fullUrl may be a full URL
+    let url = data.fullUrl || data.url || null;
+    url = normalizeAvatarUrl(url);
+
+    // Update the current user in state so refresh of profile UI uses new avatar
+    const current = getCurrentUser() || {};
+    const updated = {
+      ...current,
+      avatar_url: url,
+      photo_url: url
+    };
+    setCurrentUser(updated);
+
+    return { ...data, normalizedUrl: url };
   }
 
   function renderProfilePage() {
@@ -298,7 +326,7 @@
     const summaryName = root.querySelector("#profileSummaryName");
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
-    // Apply existing avatar (from DB) if present
+    // Apply existing avatar (from DB / currentUser) if present
     applyAvatarFromUser(avatar, user);
 
     function openPhotoPicker() {
@@ -337,6 +365,9 @@
         } catch (err) {
           console.error("Photo upload error:", err);
           alert(err.message || "Failed to upload photo.");
+        } finally {
+          // allow reselecting same file if needed
+          e.target.value = "";
         }
       });
     }
@@ -355,7 +386,8 @@
         try {
           const updatedUser = await saveProfileToApi(newName, newPhone);
 
-          summaryName.textContent = updatedUser.full_name || updatedUser.name || newName;
+          summaryName.textContent =
+            updatedUser.full_name || updatedUser.name || newName;
           summaryPhone.textContent = updatedUser.phone || "—";
 
           saveBtn.textContent = "Saved";

@@ -29,12 +29,30 @@ const API_BASE = window.API_BASE;
  * If authPage.js doesn't expose a mapper, use this one.
  *
  * Backend returns: id, full_name, email, role, phone, photo_url, avatar_url, is_active
+ * We also normalize avatar/photo URLs to be absolute using API_BASE.
  */
 if (!window.PetCareMapApiUser) {
   window.PetCareMapApiUser = function (apiUser) {
     if (!apiUser) return null;
 
     const fullName = apiUser.full_name || apiUser.name || "";
+
+    // Raw value from backend: may be "/uploads/xyz.jpg" OR a full URL
+    const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
+
+    let fullAvatar = null;
+    if (rawAvatar) {
+      if (
+        rawAvatar.startsWith("http://") ||
+        rawAvatar.startsWith("https://")
+      ) {
+        // already absolute
+        fullAvatar = rawAvatar;
+      } else {
+        // make it absolute against backend host
+        fullAvatar = `${API_BASE}${rawAvatar}`;
+      }
+    }
 
     return {
       id: apiUser.id,
@@ -44,8 +62,8 @@ if (!window.PetCareMapApiUser) {
       role: apiUser.role || "client",
       phone: apiUser.phone || "",
       is_active: apiUser.is_active,
-      avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-      photo_url: apiUser.photo_url || apiUser.avatar_url || null
+      avatar_url: fullAvatar,
+      photo_url: fullAvatar
     };
   };
 }

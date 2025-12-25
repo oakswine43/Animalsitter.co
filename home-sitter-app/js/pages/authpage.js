@@ -2,8 +2,12 @@
 // Full-page login / signup using REAL backend (/auth/login, /auth/register)
 
 (function () {
-  const loginTabBtn = document.querySelector('.auth-tab[data-auth-tab="loginPagePanel"]');
-  const signupTabBtn = document.querySelector('.auth-tab[data-auth-tab="signupPagePanel"]');
+  const loginTabBtn = document.querySelector(
+    '.auth-tab[data-auth-tab="loginPagePanel"]'
+  );
+  const signupTabBtn = document.querySelector(
+    '.auth-tab[data-auth-tab="signupPagePanel"]'
+  );
 
   const loginPanel = document.getElementById("loginPagePanel");
   const signupPanel = document.getElementById("signupPagePanel");
@@ -43,15 +47,17 @@
 
   function mapUser(apiUser) {
     if (!apiUser) return null;
-    if (typeof window.PetCareMapApiUser === "function") {
-      return window.PetCareMapApiUser(apiUser);
-    }
-    // fallback
+
+    const fullName = apiUser.full_name || apiUser.name || "";
+
+    // Normalized user object for the frontend
     return {
       id: apiUser.id,
-      name: apiUser.full_name || apiUser.name || "",
-      email: apiUser.email,
+      name: fullName,
+      full_name: fullName,
+      email: apiUser.email || "",
       role: apiUser.role || "client",
+      phone: apiUser.phone || "",
       is_active: apiUser.is_active
     };
   }
@@ -74,7 +80,10 @@
     const user = mapUser(apiUser);
 
     try {
-      if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
+      if (
+        window.PetCareState &&
+        typeof window.PetCareState.setCurrentUser === "function"
+      ) {
         window.PetCareState.setCurrentUser(user);
       }
       if (typeof window.updateHeaderUser === "function") {
@@ -144,7 +153,6 @@
       const password = signupPasswordInput.value || "";
       const role = signupRoleInput.value || "client";
 
-      // 👉 THIS is the message you're seeing
       if (!full_name || !email || !password) {
         showError("Name, email and password are required.");
         return;
