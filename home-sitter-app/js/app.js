@@ -24,12 +24,33 @@
 
 const API_BASE = window.API_BASE;
 
+// -----------------------------
+// URL normalization helper
+// Makes sure /uploads/... becomes a full URL with API_BASE
+// -----------------------------
+function normalizeAvatarUrl(url) {
+  if (!url) return null;
+
+  // Already absolute or data URL
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:")
+  ) {
+    return url;
+  }
+
+  // Treat as relative to the backend
+  const base = window.API_BASE || window.PETCARE_API_BASE || "";
+  const trimmedBase = base.replace(/\/+$/, "");
+  const trimmedUrl = url.startsWith("/") ? url : `/${url}`;
+
+  return `${trimmedBase}${trimmedUrl}`;
+}
+
 /**
  * Shared mapper:
- * If authPage.js doesn't expose a mapper, use this one.
- *
  * Backend returns: id, full_name, email, role, phone, photo_url, avatar_url, is_active
- * We also normalize avatar/photo URLs to be absolute using API_BASE.
  */
 if (!window.PetCareMapApiUser) {
   window.PetCareMapApiUser = function (apiUser) {
@@ -37,22 +58,11 @@ if (!window.PetCareMapApiUser) {
 
     const fullName = apiUser.full_name || apiUser.name || "";
 
-    // Raw value from backend: may be "/uploads/xyz.jpg" OR a full URL
     const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
+    const rawPhoto = apiUser.photo_url || apiUser.avatar_url || null;
 
-    let fullAvatar = null;
-    if (rawAvatar) {
-      if (
-        rawAvatar.startsWith("http://") ||
-        rawAvatar.startsWith("https://")
-      ) {
-        // already absolute
-        fullAvatar = rawAvatar;
-      } else {
-        // make it absolute against backend host
-        fullAvatar = `${API_BASE}${rawAvatar}`;
-      }
-    }
+    const avatarUrl = normalizeAvatarUrl(rawAvatar);
+    const photoUrl = normalizeAvatarUrl(rawPhoto);
 
     return {
       id: apiUser.id,
@@ -62,8 +72,8 @@ if (!window.PetCareMapApiUser) {
       role: apiUser.role || "client",
       phone: apiUser.phone || "",
       is_active: apiUser.is_active,
-      avatar_url: fullAvatar,
-      photo_url: fullAvatar
+      avatar_url: avatarUrl,
+      photo_url: photoUrl
     };
   };
 }
@@ -104,7 +114,6 @@ function doLogout() {
     window.PetCareState?.logout?.();
   } catch (_) {}
 
-  // Clear JWT if used
   try {
     localStorage.removeItem("petcare_token");
   } catch (_) {}
@@ -129,12 +138,10 @@ function setActivePage(pageId) {
     l.classList.toggle("active", linkPage === pageId);
   });
 
-  // Scroll to top on page switch (nice UX)
   try {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (_) {}
 
-  // Page initializers / hooks
   if (pageId === "homePage" && typeof window.initHomePage === "function") {
     window.initHomePage();
   }
@@ -174,7 +181,6 @@ function setActivePage(pageId) {
 // Nav wiring
 // -----------------------------
 function setupNav() {
-  // Prevent duplicate listeners if initAppShell ever runs twice
   if (window.__petcareNavBound) return;
   window.__petcareNavBound = true;
 
@@ -186,7 +192,6 @@ function setupNav() {
     });
   });
 
-  // Global "go to page" on any element with data-page-jump
   document.body.addEventListener("click", function (e) {
     const btn = e.target.closest("[data-page-jump]");
     if (!btn) return;
@@ -207,13 +212,15 @@ function setupNav() {
 
 // -----------------------------
 // Restore session from JWT
+// NOW USES /profile so we always get avatar_url from DB
 // -----------------------------
 async function restoreSession() {
   const token = localStorage.getItem("petcare_token");
   if (!token) return;
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    // Call /profile instead of /auth/me so we get avatar_url/photo_url every time
+    const res = await fetch(`${API_BASE}/profile`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -227,8 +234,8 @@ async function restoreSession() {
     }
 
     updateHeaderUser();
-  } catch {
-    // invalid token / server offline – ignore
+  } catch (err) {
+    console.warn("restoreSession error:", err);
   }
 }
 
@@ -244,14 +251,12 @@ function initAppShell() {
   setActivePage("homePage");
 }
 
-// Expose globals used by other scripts
 window.updateHeaderUser = updateHeaderUser;
 window.setActivePage = setActivePage;
 window.initAppShell = initAppShell;
 window.doLogout = doLogout;
 window.restoreSession = restoreSession;
 
-// Start app
 document.addEventListener("DOMContentLoaded", async function () {
   if (
     window.PetCareState &&
@@ -261,6 +266,5 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   await restoreSession();
-
   initAppShell();
 });

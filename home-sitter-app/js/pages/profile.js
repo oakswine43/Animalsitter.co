@@ -17,7 +17,10 @@
   }
 
   function getCurrentUser() {
-    if (window.PetCareState && typeof window.PetCareState.getCurrentUser === "function") {
+    if (
+      window.PetCareState &&
+      typeof window.PetCareState.getCurrentUser === "function"
+    ) {
       return window.PetCareState.getCurrentUser();
     }
     return {
@@ -31,10 +34,12 @@
   }
 
   function setCurrentUser(user) {
-    if (window.PetCareState && typeof window.PetCareState.setCurrentUser === "function") {
+    if (
+      window.PetCareState &&
+      typeof window.PetCareState.setCurrentUser === "function"
+    ) {
       window.PetCareState.setCurrentUser(user);
     } else {
-      // fallback to legacy appState
       if (!window.appState) window.appState = {};
       window.appState.currentUser = user;
     }
@@ -52,22 +57,11 @@
     return (first + last).toUpperCase();
   }
 
-  // Make sure avatar URL is absolute (prefix API_BASE if it starts with "/")
-  function normalizeAvatarUrl(url) {
-    if (!url) return null;
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    if (url.startsWith("/")) return `${getApiBase()}${url}`;
-    return url;
-  }
-
   function applyAvatarFromUser(avatarEl, user) {
     if (!avatarEl || !user) return;
 
-    let url = user.avatar_url || user.photo_url;
-    url = normalizeAvatarUrl(url);
-
+    const url = user.avatar_url || user.photo_url || "";
     const initialsEl = avatarEl.querySelector(".avatar-initials");
-    const displayName = user.full_name || user.name;
 
     if (url) {
       avatarEl.style.backgroundImage = `url('${url}')`;
@@ -77,17 +71,52 @@
       avatarEl.style.backgroundImage = "";
       avatarEl.classList.remove("has-photo");
       if (initialsEl) {
-        initialsEl.textContent = getInitials(displayName);
+        initialsEl.textContent = getInitials(user.full_name || user.name);
         initialsEl.style.display = "flex";
       }
     }
   }
 
+  async function fetchProfileFromApi() {
+    const token = getToken();
+    if (!token) throw new Error("Not logged in.");
+
+    const res = await fetch(`${getApiBase()}/profile`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.user) {
+      throw new Error(data.error || "Failed to load profile.");
+    }
+
+    let apiUser = data.user;
+    if (typeof window.PetCareMapApiUser === "function") {
+      apiUser = window.PetCareMapApiUser(apiUser);
+    } else {
+      const fullName = apiUser.full_name || apiUser.name || "";
+      apiUser = {
+        id: apiUser.id,
+        name: fullName,
+        full_name: fullName,
+        email: apiUser.email || "",
+        role: apiUser.role || "client",
+        phone: apiUser.phone || "",
+        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
+        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
+        is_active: apiUser.is_active
+      };
+    }
+
+    setCurrentUser(apiUser);
+    return apiUser;
+  }
+
   async function saveProfileToApi(fullName, phone) {
     const token = getToken();
-    if (!token) {
-      throw new Error("Not logged in.");
-    }
+    if (!token) throw new Error("Not logged in.");
 
     const res = await fetch(`${getApiBase()}/profile`, {
       method: "PUT",
@@ -103,47 +132,35 @@
 
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
+    if (!res.ok || !data.user) {
       throw new Error(data.error || "Server error");
     }
 
-    const apiUser = data.user;
-    if (!apiUser) {
-      throw new Error("Bad response from server.");
-    }
-
-    // Normalize via shared mapper if present
-    let mapped = apiUser;
+    let apiUser = data.user;
     if (typeof window.PetCareMapApiUser === "function") {
-      mapped = window.PetCareMapApiUser(apiUser);
+      apiUser = window.PetCareMapApiUser(apiUser);
     } else {
-      const full_name2 = apiUser.full_name || apiUser.name || "";
-      mapped = {
+      const fullName2 = apiUser.full_name || apiUser.name || "";
+      apiUser = {
         id: apiUser.id,
-        name: full_name2,
-        full_name: full_name2,
+        name: fullName2,
+        full_name: fullName2,
         email: apiUser.email || "",
         role: apiUser.role || "client",
         phone: apiUser.phone || "",
-        avatar_url: normalizeAvatarUrl(apiUser.avatar_url || apiUser.photo_url || null),
-        photo_url: normalizeAvatarUrl(apiUser.photo_url || apiUser.avatar_url || null),
+        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
+        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
         is_active: apiUser.is_active
       };
     }
 
-    // ensure avatar urls normalized even if mapper didn't
-    mapped.avatar_url = normalizeAvatarUrl(mapped.avatar_url || mapped.photo_url);
-    mapped.photo_url = mapped.avatar_url || mapped.photo_url;
-
-    setCurrentUser(mapped);
-    return mapped;
+    setCurrentUser(apiUser);
+    return apiUser;
   }
 
   async function uploadPhoto(file) {
     const token = getToken();
-    if (!token) {
-      throw new Error("Not logged in.");
-    }
+    if (!token) throw new Error("Not logged in.");
 
     const fd = new FormData();
     fd.append("photo", file);
@@ -152,7 +169,6 @@
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`
-        // do NOT set Content-Type manually for FormData
       },
       body: fd
     });
@@ -163,20 +179,9 @@
       throw new Error(data.error || "Failed to upload profile photo.");
     }
 
-    // data.url is the /uploads/... path; data.fullUrl may be a full URL
-    let url = data.fullUrl || data.url || null;
-    url = normalizeAvatarUrl(url);
-
-    // Update the current user in state so refresh of profile UI uses new avatar
-    const current = getCurrentUser() || {};
-    const updated = {
-      ...current,
-      avatar_url: url,
-      photo_url: url
-    };
-    setCurrentUser(updated);
-
-    return { ...data, normalizedUrl: url };
+    // After upload, re-fetch profile so user.avatar_url matches DB
+    const updatedUser = await fetchProfileFromApi();
+    return { upload: data, user: updatedUser };
   }
 
   function renderProfilePage() {
@@ -326,7 +331,7 @@
     const summaryName = root.querySelector("#profileSummaryName");
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
-    // Apply existing avatar (from DB / currentUser) if present
+    // Apply existing avatar (from DB) if present
     applyAvatarFromUser(avatar, user);
 
     function openPhotoPicker() {
@@ -349,7 +354,7 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
-        // Show local preview immediately
+        // Local preview immediately
         const reader = new FileReader();
         reader.onload = function (ev) {
           const dataUrl = ev.target.result;
@@ -361,13 +366,12 @@
         reader.readAsDataURL(file);
 
         try {
-          await uploadPhoto(file);
+          const { user: updatedUser } = await uploadPhoto(file);
+          // Make sure avatar state is synced with DB and normalized
+          applyAvatarFromUser(avatar, updatedUser);
         } catch (err) {
           console.error("Photo upload error:", err);
           alert(err.message || "Failed to upload photo.");
-        } finally {
-          // allow reselecting same file if needed
-          e.target.value = "";
         }
       });
     }
@@ -404,7 +408,6 @@
       });
     }
 
-    // Logout button (handled globally too, but wire it here)
     const profileLogoutBtn = root.querySelector("#profileLogoutBtn");
     if (profileLogoutBtn) {
       profileLogoutBtn.addEventListener("click", function () {
@@ -415,13 +418,11 @@
     }
   }
 
-  // expose so app.js can call when navigating
   window.renderProfilePage = renderProfilePage;
   window.initProfilePage = function () {
     renderProfilePage();
   };
 
-  // also render once on load in case profile is the first page opened
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", renderProfilePage);
   } else {
