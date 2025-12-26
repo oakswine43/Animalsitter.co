@@ -10,21 +10,28 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const JWT_EXPIRES_IN = "7d";
 
-function mapDbUser(row) {
-  if (!row) return null;
-
+/**
+ * Build a full name from first/last safely.
+ */
+function buildFullName(row) {
   const first = row.first_name || "";
   const last = row.last_name || "";
-  const full =
-    row.full_name ||
-    `${first} ${last}`.trim() ||
-    null;
+  return `${first} ${last}`.trim();
+}
+
+/**
+ * Map DB user row -> API user object.
+ * NOTE: full_name is computed, not stored.
+ */
+function mapDbUser(row) {
+  if (!row) return null;
+  const full_name = buildFullName(row);
 
   return {
     id: row.id,
-    first_name: first || null,
-    last_name: last || null,
-    full_name: full,
+    first_name: row.first_name || "",
+    last_name: row.last_name || "",
+    full_name, // computed
     email: row.email,
     role: row.role,
     phone: row.phone,
@@ -33,31 +40,41 @@ function mapDbUser(row) {
   };
 }
 
+// ----------------------------------------
 // POST /auth/register
+// ----------------------------------------
 router.post("/register", async (req, res) => {
   try {
-    let {
+    const {
       first_name,
       last_name,
-      full_name,
+      full_name,   // optional legacy
       email,
       password,
       role = "client",
       phone
     } = req.body || {};
 
-    first_name = typeof first_name === "string" ? first_name.trim() : "";
-    last_name = typeof last_name === "string" ? last_name.trim() : "";
-    full_name = typeof full_name === "string" ? full_name.trim() : "";
-
-    if (!full_name) {
-      full_name = `${first_name} ${last_name}`.trim();
-    }
-
-    if (!full_name || !email || !password) {
+    if (!email || !password) {
       return res
         .status(400)
-        .json({ error: "First/last name or full name, email and password are required." });
+        .json({ error: "Email and password are required." });
+    }
+
+    // Derive first/last if only full_name is sent
+    let fName = (first_name || "").trim();
+    let lName = (last_name || "").trim();
+
+    if (!fName && full_name) {
+      const parts = full_name.trim().split(/\s+/);
+      fName = parts[0] || "";
+      lName = parts.slice(1).join(" ");
+    }
+
+    if (!fName) {
+      return res
+        .status(400)
+        .json({ error: "First name is required." });
     }
 
     if (password.length < 6) {
@@ -66,6 +83,7 @@ router.post("/register", async (req, res) => {
         .json({ error: "Password must be at least 6 characters." });
     }
 
+    // Check if email already exists
     const [existingRows] = await pool.query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
       [email]
@@ -78,16 +96,23 @@ router.post("/register", async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO users
-         (first_name, last_name, full_name, email, password_hash, role, phone,
-          is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
-      [first_name || null, last_name || null, full_name, email, password_hash, role, phone || null]
+         (first_name, last_name, email, password_hash, role, phone, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      [fName, lName, email, password_hash, role, phone || null]
     );
 
     const newUserId = result.insertId;
 
     const [userRows] = await pool.query(
-      `SELECT id, first_name, last_name, full_name, email, role, phone, is_active, avatar_url
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -109,7 +134,9 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// ----------------------------------------
 // POST /auth/login
+// ----------------------------------------
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -125,7 +152,6 @@ router.post("/login", async (req, res) => {
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -164,7 +190,9 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// ----------------------------------------
 // GET /auth/me
+// ----------------------------------------
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -174,7 +202,6 @@ router.get("/me", authMiddleware, async (req, res) => {
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -198,18 +225,25 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// ----------------------------------------
 // PUT /auth/me  (update profile)
+// ----------------------------------------
 router.put("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    let { first_name, last_name, full_name, phone, avatar_url } = req.body || {};
+    const {
+      first_name,
+      last_name,
+      full_name,    // optional legacy
+      phone,
+      avatar_url
+    } = req.body || {};
 
     const [rows] = await pool.query(
       `SELECT
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -227,37 +261,39 @@ router.put("/me", authMiddleware, async (req, res) => {
 
     const current = rows[0];
 
-    first_name =
-      typeof first_name === "string" && first_name.trim()
-        ? first_name.trim()
-        : current.first_name;
+    // Figure out new first/last names
+    let newFirst = current.first_name || "";
+    let newLast = current.last_name || "";
 
-    last_name =
-      typeof last_name === "string" && last_name.trim()
-        ? last_name.trim()
-        : current.last_name;
+    if (typeof first_name === "string") {
+      newFirst = first_name.trim();
+    }
+    if (typeof last_name === "string") {
+      newLast = last_name.trim();
+    }
 
-    full_name =
-      typeof full_name === "string" && full_name.trim()
-        ? full_name.trim()
-        : (current.full_name ||
-           `${first_name || ""} ${last_name || ""}`.trim());
+    // If only full_name sent, split it
+    if (!first_name && !last_name && typeof full_name === "string") {
+      const parts = full_name.trim().split(/\s+/);
+      newFirst = parts[0] || "";
+      newLast = parts.slice(1).join(" ");
+    }
 
-    phone =
+    const newPhone =
       typeof phone === "string" && phone.trim()
         ? phone.trim()
         : current.phone;
 
-    avatar_url =
+    const newAvatar =
       typeof avatar_url === "string" && avatar_url.trim()
         ? avatar_url.trim()
         : current.avatar_url;
 
     await pool.query(
       `UPDATE users
-       SET first_name = ?, last_name = ?, full_name = ?, phone = ?, avatar_url = ?, updated_at = NOW()
+       SET first_name = ?, last_name = ?, phone = ?, avatar_url = ?, updated_at = NOW()
        WHERE id = ?`,
-      [first_name || null, last_name || null, full_name, phone || null, avatar_url || null, userId]
+      [newFirst, newLast, newPhone || null, newAvatar || null, userId]
     );
 
     const [updatedRows] = await pool.query(
@@ -265,7 +301,6 @@ router.put("/me", authMiddleware, async (req, res) => {
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -285,7 +320,9 @@ router.put("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// ----------------------------------------
 // POST /auth/change-password
+// ----------------------------------------
 router.post("/change-password", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;

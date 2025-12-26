@@ -60,7 +60,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  // ⬇️ Increase limit so typical phone photos work (8 MB)
+  // ✅ 8 MB so phone pics work
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -281,7 +281,6 @@ app.get("/profile", authMiddleware, async (req, res) => {
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -296,25 +295,71 @@ app.get("/profile", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    res.json({ ok: true, user: rows[0] });
+    const row = rows[0];
+    const full_name = `${row.first_name || ""} ${row.last_name || ""}`.trim();
+
+    res.json({
+      ok: true,
+      user: {
+        ...row,
+        full_name
+      }
+    });
   } catch (err) {
     console.error("PROFILE_GET_ERROR:", err);
     res.status(500).json({ error: "Failed to load profile." });
   }
 });
 
-// PUT /profile  -> update basic fields (first/last name, phone, avatar_url)
+// PUT /profile  -> update first_name, last_name, phone, etc.
 app.put("/profile", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    let { first_name, last_name, full_name, phone, avatar_url } = req.body || {};
+    const { first_name, last_name, full_name, phone } = req.body || {};
+
+    const fields = [];
+    const params = [];
+
+    if (typeof first_name === "string") {
+      fields.push("first_name = ?");
+      params.push(first_name.trim());
+    }
+
+    if (typeof last_name === "string") {
+      fields.push("last_name = ?");
+      params.push(last_name.trim());
+    }
+
+    // Optional: if only full_name is sent, split it
+    if (!first_name && !last_name && typeof full_name === "string") {
+      const parts = full_name.trim().split(/\s+/);
+      const fName = parts[0] || "";
+      const lName = parts.slice(1).join(" ");
+      fields.push("first_name = ?", "last_name = ?");
+      params.push(fName, lName);
+    }
+
+    if (typeof phone === "string") {
+      fields.push("phone = ?");
+      params.push(phone.trim());
+    }
+
+    if (!fields.length) {
+      return res.status(400).json({ error: "No changes submitted." });
+    }
+
+    fields.push("updated_at = CURRENT_TIMESTAMP");
+
+    const sql = `UPDATE users SET ${fields.join(", ")} WHERE id = ?`;
+    params.push(userId);
+
+    await pool.query(sql, params);
 
     const [rows] = await pool.query(
       `SELECT
          id,
          first_name,
          last_name,
-         full_name,
          email,
          role,
          phone,
@@ -329,69 +374,337 @@ app.put("/profile", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const current = rows[0];
+    const row = rows[0];
+    const full_name2 = `${row.first_name || ""} ${row.last_name || ""}`.trim();
 
-    first_name =
-      typeof first_name === "string" && first_name.trim()
-        ? first_name.trim()
-        : current.first_name;
-
-    last_name =
-      typeof last_name === "string" && last_name.trim()
-        ? last_name.trim()
-        : current.last_name;
-
-    full_name =
-      typeof full_name === "string" && full_name.trim()
-        ? full_name.trim()
-        : (current.full_name ||
-           `${first_name || ""} ${last_name || ""}`.trim());
-
-    phone =
-      typeof phone === "string" && phone.trim()
-        ? phone.trim()
-        : current.phone;
-
-    avatar_url =
-      typeof avatar_url === "string" && avatar_url.trim()
-        ? avatar_url.trim()
-        : current.avatar_url;
-
-    await pool.query(
-      `UPDATE users
-       SET first_name = ?, last_name = ?, full_name = ?, phone = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [first_name || null, last_name || null, full_name, phone || null, avatar_url || null, userId]
-    );
-
-    const [updatedRows] = await pool.query(
-      `SELECT
-         id,
-         first_name,
-         last_name,
-         full_name,
-         email,
-         role,
-         phone,
-         is_active,
-         avatar_url
-       FROM users
-       WHERE id = ?`,
-      [userId]
-    );
-
-    res.json({ ok: true, user: updatedRows[0] });
+    res.json({
+      ok: true,
+      user: {
+        ...row,
+        full_name: full_name2
+      }
+    });
   } catch (err) {
     console.error("PROFILE_UPDATE_ERROR:", err);
     res.status(500).json({ error: "Failed to update profile." });
   }
 });
 
+// POST /profile/photo  (multipart/form-data, field name: photo)
+app.post(
+  "/profile/photo",
+  authMiddleware,
+  upload.single("photo"),
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+      }
+
+      const relativePath = `/uploads/${req.file.filename}`;
+
+      await pool.query(
+        `UPDATE users
+         SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [relativePath, userId]
+      );
+
+      const fullUrl = `${req.protocol}://${req.get("host")}${relativePath}`;
+
+      console.log("PROFILE_PHOTO_SAVED for user", userId, "->", relativePath);
+
+      res.json({
+        ok: true,
+        url: relativePath,
+        fullUrl
+      });
+    } catch (err) {
+      console.error("PROFILE_PHOTO_ERROR:", err);
+      res.status(500).json({ error: "Failed to upload profile photo." });
+    }
+  }
+);
+
 // =====================
 // PUP GALLERY ROUTES
 // =====================
-// (unchanged – trimmed here for brevity, keep your existing gallery + bookings routes)
-// ... keep your /gallery and /bookings routes exactly as you had them ...
+
+// Get posts for the gallery
+app.get("/gallery/posts", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+         id,
+         title,
+         author_name,
+         caption,
+         image_url,
+         likes_count,
+         created_at
+       FROM gallery_posts
+       ORDER BY created_at DESC
+       LIMIT 20`
+    );
+
+    res.json({ ok: true, posts: rows });
+  } catch (err) {
+    console.error("GALLERY_POSTS_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to load gallery posts." });
+  }
+});
+
+// Get comments for a specific post
+app.get("/gallery/posts/:id/comments", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+         id,
+         post_id,
+         author_name,
+         body,
+         created_at
+       FROM gallery_comments
+       WHERE post_id = ?
+       ORDER BY created_at ASC`,
+      [postId]
+    );
+
+    res.json({ ok: true, comments: rows });
+  } catch (err) {
+    console.error("GALLERY_COMMENTS_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to load comments." });
+  }
+});
+
+// Like a gallery post (anyone can like for now)
+app.post("/gallery/posts/:id/like", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE gallery_posts
+       SET likes_count = likes_count + 1
+       WHERE id = ?`,
+      [postId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, error: "Post not found." });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, likes_count
+       FROM gallery_posts
+       WHERE id = ?`,
+      [postId]
+    );
+
+    res.json({ ok: true, post: rows[0] });
+  } catch (err) {
+    console.error("GALLERY_LIKE_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to like post." });
+  }
+});
+
+// Add a comment to a post (no auth required; uses name from body or "Guest")
+app.post("/gallery/posts/:id/comments", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
+
+    const { author_name, body } = req.body || {};
+    if (!body || !body.trim()) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Comment body is required." });
+    }
+
+    const safeAuthor = (author_name || "Guest").trim().slice(0, 120);
+
+    await pool.query(
+      `INSERT INTO gallery_comments (post_id, author_name, body)
+       VALUES (?, ?, ?)`,
+      [postId, safeAuthor, body.trim()]
+    );
+
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error("GALLERY_COMMENT_CREATE_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to add comment." });
+  }
+});
+
+// =====================
+// BOOKINGS + COMMISSION
+// =====================
+
+// Helper to generate a simple receipt number like MR-2025-00001
+function makeReceiptNumber(bookingId) {
+  const year = new Date().getFullYear();
+  const padded = String(bookingId).padStart(5, "0");
+  return `MR-${year}-${padded}`;
+}
+
+app.post("/bookings", async (req, res) => {
+  try {
+    const {
+      client_id,
+      sitter_id,
+      pet_id = null,
+      service_type,
+      start_time,
+      end_time,
+      location,
+      price_total,
+      notes,
+      payment_method = "card",
+      currency = "USD"
+    } = req.body || {};
+
+    // Basic validation
+    if (!client_id || !sitter_id || !service_type || !start_time || !end_time) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Missing required fields (client_id, sitter_id, service_type, start_time, end_time)."
+      });
+    }
+
+    const price = Number(price_total);
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid price_total." });
+    }
+
+    // Commission + payout
+    const platformFee = parseFloat((price * COMMISSION_RATE).toFixed(2));
+    const sitterPayout = parseFloat((price - platformFee).toFixed(2));
+
+    // 1) Insert booking
+    const [bookingResult] = await pool.query(
+      `INSERT INTO bookings
+       (client_id, sitter_id, pet_id,
+        service_type, status,
+        start_time, end_time,
+        total_price, start_datetime, end_datetime,
+        location, price_total, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        client_id,
+        sitter_id,
+        pet_id,
+        service_type,
+        "accepted", // for now we auto-accept
+        start_time,
+        end_time,
+        price,
+        start_time,
+        end_time,
+        location || null,
+        price,
+        notes || null
+      ]
+    );
+
+    const bookingId = bookingResult.insertId;
+
+    // 2) Lookup emails
+    const [[clientRow] = [[]]] = await Promise.all([
+      pool.query(`SELECT email FROM users WHERE id = ?`, [client_id])
+    ]).catch(() => [[[]]]);
+    const clientEmail = clientRow?.email || null;
+
+    const [sitterRows] = await pool.query(
+      `SELECT email FROM users WHERE id = ?`,
+      [sitter_id]
+    );
+    const sitterEmail = sitterRows[0]?.email || null;
+
+    // 3) Insert into mr_transactions for the full charge to the client
+    const receiptNumber = makeReceiptNumber(bookingId);
+
+    const [txResult] = await pool.query(
+      `INSERT INTO mr_transactions
+       (booking_id, client_id, sitter_id,
+        receipt_number, transaction_type,
+        amount, currency, payment_method,
+        status, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        bookingId,
+        client_id,
+        sitter_id,
+        receiptNumber,
+        "CHARGE",
+        price,
+        currency,
+        payment_method,
+        "paid",
+        notes || "Booking charge"
+      ]
+    );
+    const transactionId = txResult.insertId;
+
+    // 4) Insert an admin_receipts row for the platform commission
+    await pool.query(
+      `INSERT INTO admin_receipts
+       (transaction_id,
+        receipt_number,
+        transaction_type,
+        amount,
+        currency,
+        payment_status,
+        payment_method,
+        booking_id,
+        service_type,
+        booking_status,
+        client_email,
+        sitter_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        transactionId,
+        receiptNumber,
+        "CHARGE",
+        platformFee, // platform's cut
+        currency,
+        "paid",
+        payment_method,
+        bookingId,
+        service_type,
+        "accepted",
+        clientEmail,
+        sitterEmail
+      ]
+    );
+
+    res.status(201).json({
+      ok: true,
+      booking_id: bookingId,
+      client_id,
+      sitter_id,
+      service_type,
+      total_price: price,
+      commission_rate: COMMISSION_RATE,
+      platform_fee: platformFee,
+      sitter_payout: sitterPayout
+    });
+  } catch (err) {
+    console.error("BOOKING_CREATE_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to create booking." });
+  }
+});
 
 // =====================
 // 404 + error handlers
@@ -412,7 +725,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error("UNHANDLED_ERROR:", err);
 
-  // ⬇️ Special handling for Multer errors
+  // Special handling for Multer errors
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
