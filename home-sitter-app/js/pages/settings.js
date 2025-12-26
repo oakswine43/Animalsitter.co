@@ -1,347 +1,218 @@
 // js/pages/settings.js
-// Settings page: left nav, right content (like your screenshot)
+// Settings page: left nav = Settings items, right = stacked content for that item
 
 (function () {
   function getState() {
     return window.PetCareState || null;
   }
 
-  // ------------- VIEWS SHOWN ON THE RIGHT -------------
+  // ----------------- VIEWS ON THE RIGHT -----------------
   const SETTINGS_VIEWS = {
-    profile_photo: {
-      title: "Profile photo",
+    account_overview: {
+      title: "Account",
       description:
-        "Upload a new photo so people can recognize you in bookings and messages.",
+        "Manage your basic profile info that sitters and clients will see.",
       body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>New profile photo</span>
-              <input type="file" class="input" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save photo (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_name: {
-      title: "Name",
-      description:
-        "Change how your name appears to clients, sitters, and staff.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group">
-            <label>
-              <span>First name</span>
-              <input type="text" class="input" placeholder="First name" />
-            </label>
-          </div>
-          <div class="field-group">
-            <label>
-              <span>Last name</span>
-              <input type="text" class="input" placeholder="Last name" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save name (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_email: {
-      title: "Email",
-      description:
-        "This is where we send booking confirmations, receipts, and account alerts.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>New email</span>
-              <input type="email" class="input" placeholder="you@example.com" />
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Confirm password (for security)</span>
-              <input type="password" class="input" placeholder="••••••••" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save email (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_phone: {
-      title: "Phone number",
-      description:
-        "We use your phone number for urgent updates and sitter contact.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Phone number</span>
-              <input type="tel" class="input" placeholder="(555) 555-5555" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save phone (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_address: {
-      title: "Address",
-      description:
-        "Your address helps sitters know where they’re going for overnights and drop-ins.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Street address</span>
-              <input type="text" class="input" placeholder="Street" />
-            </label>
-          </div>
-          <div class="field-group">
-            <label>
-              <span>City</span>
-              <input type="text" class="input" placeholder="City" />
-            </label>
-          </div>
-          <div class="field-group">
-            <label>
-              <span>State</span>
-              <input type="text" class="input" placeholder="State" />
-            </label>
-          </div>
-          <div class="field-group">
-            <label>
-              <span>ZIP</span>
-              <input type="text" class="input" placeholder="ZIP" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save address (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_bio: {
-      title: "Sitter bio",
-      description:
-        "Especially for sitters: share your experience, training, and what makes you different.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Short bio</span>
-              <textarea
-                rows="4"
-                class="input"
-                placeholder="Tell clients about your dog experience, schedule, and home setup."
-              ></textarea>
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save bio (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    profile_emergency: {
-      title: "Emergency contact",
-      description:
-        "Optional, but recommended so sitters know who to reach in an emergency.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group">
-            <label>
-              <span>Contact name</span>
-              <input type="text" class="input" placeholder="Name" />
-            </label>
-          </div>
-          <div class="field-group">
-            <label>
-              <span>Relationship</span>
-              <input type="text" class="input" placeholder="Friend, parent, etc." />
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Phone number</span>
-              <input type="tel" class="input" placeholder="(555) 555-5555" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save contact (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    login_password: {
-      title: "Password",
-      description:
-        "Use a strong password you don’t reuse on other websites (demo only).",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Current password</span>
-              <input type="password" class="input" placeholder="Current password" />
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label>
-              <span>New password</span>
-              <input type="password" class="input" placeholder="New password" />
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Confirm new password</span>
-              <input type="password" class="input" placeholder="Repeat new password" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Update password (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    login_2fa: {
-      title: "Two-factor authentication",
-      description:
-        "Add an extra layer of security by requiring a code from your phone.",
-      body: `
-        <p class="text-muted" style="font-size:13px; margin-bottom:8px;">
-          In a real app, this is where you’d scan a QR code with an authenticator app
-          or confirm your phone number. This demo only shows the layout.
-        </p>
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label>
-              <span>Phone number</span>
-              <input type="tel" class="input" placeholder="(555) 555-5555" />
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Turn on 2FA (demo)</button>
-          </div>
-        </form>
-      `,
-    },
-
-    notify_push: {
-      title: "Push notifications",
-      description:
-        "Turn mobile / browser push notifications on or off for this account.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label style="display:flex; align-items:center; gap:8px;">
-              <input type="checkbox" checked />
-              <span>Enable push notifications on this device</span>
-            </label>
-          </div>
-          <p class="text-muted" style="font-size:12px; margin-top:4px;">
-            In a real app, this would ask the browser or app for notification permission.
+        <div class="settings-section-block">
+          <h3>Profile</h3>
+          <p class="text-muted small">
+            Your name and profile photo help people recognize you in bookings and messages.
           </p>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save (demo)</button>
-          </div>
-        </form>
-      `,
-    },
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group">
+              <label>
+                <span>First name</span>
+                <input type="text" class="input" placeholder="First name" />
+              </label>
+            </div>
+            <div class="field-group">
+              <label>
+                <span>Last name</span>
+                <input type="text" class="input" placeholder="Last name" />
+              </label>
+            </div>
+            <div class="field-group form-grid-full" style="margin-top:8px;">
+              <button type="button" class="btn-primary btn-sm">
+                Save name (demo)
+              </button>
+            </div>
+          </form>
+        </div>
 
-    notify_email: {
-      title: "Email notifications",
-      description: "Control which emails we send you.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" checked />
-              <span>Bookings &amp; schedule changes</span>
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" checked />
-              <span>Messages &amp; updates from sitters/clients</span>
-            </label>
-          </div>
-          <div class="field-group form-grid-full">
-            <label style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" />
-              <span>Product news &amp; occasional tips</span>
-            </label>
-          </div>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save (demo)</button>
-          </div>
-        </form>
-      `,
-    },
+        <div class="settings-section-divider"></div>
 
-    notify_sms: {
-      title: "SMS updates",
-      description: "Choose whether we text you about important activity.",
-      body: `
-        <form class="form-grid" autocomplete="off">
-          <div class="field-group form-grid-full">
-            <label style="display:flex; gap:8px; align-items:center;">
-              <input type="checkbox" />
-              <span>Send me SMS updates for time-sensitive changes (demo)</span>
-            </label>
-          </div>
-          <p class="text-muted" style="font-size:12px; margin-top:4px;">
-            Carrier rates may apply in a real app.
+        <div class="settings-section-block">
+          <h3>Contact</h3>
+          <p class="text-muted small">
+            We’ll use this info for booking confirmations and important alerts.
           </p>
-          <div class="form-grid-full" style="margin-top:8px;">
-            <button type="button" class="btn-primary">Save (demo)</button>
-          </div>
-        </form>
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label>
+                <span>Email</span>
+                <input type="email" class="input" placeholder="you@example.com" />
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label>
+                <span>Phone</span>
+                <input type="tel" class="input" placeholder="(555) 555-5555" />
+              </label>
+            </div>
+            <div class="form-grid-full" style="margin-top:8px;">
+              <button type="button" class="btn-primary btn-sm">
+                Save contact info (demo)
+              </button>
+            </div>
+          </form>
+        </div>
+      `,
+    },
+
+    password_security: {
+      title: "Password & security",
+      description:
+        "Keep your AnimalSitter account secure with a strong password and extra protection.",
+      body: `
+        <div class="settings-section-block">
+          <h3>Password</h3>
+          <p class="text-muted small">
+            Use a unique password you don’t reuse on other websites.
+          </p>
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label>
+                <span>Current password</span>
+                <input type="password" class="input" placeholder="Current password" />
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label>
+                <span>New password</span>
+                <input type="password" class="input" placeholder="New password" />
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label>
+                <span>Confirm new password</span>
+                <input type="password" class="input" placeholder="Repeat new password" />
+              </label>
+            </div>
+            <div class="form-grid-full" style="margin-top:8px;">
+              <button type="button" class="btn-primary btn-sm">
+                Update password (demo)
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="settings-section-divider"></div>
+
+        <div class="settings-section-block">
+          <h3>Two-factor authentication</h3>
+          <p class="text-muted small">
+            Add an extra step at sign-in by confirming a code from your phone.
+          </p>
+
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" />
+                <span>Require a code when logging in (demo toggle)</span>
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label>
+                <span>Phone number</span>
+                <input type="tel" class="input" placeholder="(555) 555-5555" />
+              </label>
+            </div>
+            <div class="form-grid-full" style="margin-top:8px;">
+              <button type="button" class="btn-primary btn-sm">
+                Save security settings (demo)
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Later we can add more blocks under Password & security here -->
+      `,
+    },
+
+    notifications: {
+      title: "Notifications",
+      description:
+        "Choose how AnimalSitter contacts you about bookings, messages, and updates.",
+      body: `
+        <div class="settings-section-block">
+          <h3>Push notifications</h3>
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label style="display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" checked />
+                <span>Allow push notifications on this device</span>
+              </label>
+            </div>
+            <p class="text-muted small">
+              In a real app this would ask the browser or phone for permission.
+            </p>
+          </form>
+        </div>
+
+        <div class="settings-section-divider"></div>
+
+        <div class="settings-section-block">
+          <h3>Email notifications</h3>
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label style="display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" checked />
+                <span>Bookings &amp; schedule changes</span>
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label style="display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" checked />
+                <span>Messages from sitters or clients</span>
+              </label>
+            </div>
+            <div class="field-group form-grid-full">
+              <label style="display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" />
+                <span>Product news &amp; occasional tips</span>
+              </label>
+            </div>
+          </form>
+        </div>
+
+        <div class="settings-section-divider"></div>
+
+        <div class="settings-section-block">
+          <h3>SMS updates</h3>
+          <form class="form-grid" autocomplete="off">
+            <div class="field-group form-grid-full">
+              <label style="display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" />
+                <span>Text me about time-sensitive booking changes (demo)</span>
+              </label>
+            </div>
+            <p class="text-muted small">
+              Carrier rates may apply in a real app.
+            </p>
+          </form>
+        </div>
       `,
     },
   };
 
-  // Left-nav structure (what appears in the list)
+  // Left-nav list: one “Settings” group, like the screenshot
   const SETTINGS_GROUPS = [
     {
-      heading: "Profile",
+      heading: "Settings",
       items: [
-        { key: "profile_photo", label: "Profile photo" },
-        { key: "profile_name", label: "Name" },
-        { key: "profile_email", label: "Email" },
-        { key: "profile_phone", label: "Phone number" },
-        { key: "profile_address", label: "Address" },
-        { key: "profile_bio", label: "Sitter bio" },
-        { key: "profile_emergency", label: "Emergency contact" },
-      ],
-    },
-    {
-      heading: "Login & Security",
-      items: [
-        { key: "login_password", label: "Password" },
-        { key: "login_2fa", label: "Two-factor authentication" },
-      ],
-    },
-    {
-      heading: "Notifications",
-      items: [
-        { key: "notify_push", label: "Push notifications" },
-        { key: "notify_email", label: "Email notifications" },
-        { key: "notify_sms", label: "SMS updates" },
+        { key: "account_overview", label: "Account" },
+        { key: "password_security", label: "Password & security" },
+        { key: "notifications", label: "Notifications" },
       ],
     },
   ];
@@ -359,21 +230,21 @@
       titleEl.textContent = "Account settings";
       bodyEl.innerHTML = `
         <p class="text-muted">
-          Choose a setting on the left to manage your profile, security, or notifications.
+          Choose a setting on the left to manage your profile,
+          security, or notifications.
         </p>
       `;
-      return;
+    } else {
+      titleEl.textContent = view.title;
+      bodyEl.innerHTML = `
+        <p class="text-muted" style="margin-bottom:8px;">
+          ${view.description || ""}
+        </p>
+        ${view.body || ""}
+      `;
     }
 
-    titleEl.textContent = view.title;
-    bodyEl.innerHTML = `
-      <p class="text-muted" style="margin-bottom:8px;">
-        ${view.description || ""}
-      </p>
-      ${view.body || ""}
-    `;
-
-    // highlight active nav item
+    // highlight active button
     const nav = document.getElementById("settingsNavCard");
     if (!nav) return;
     const buttons = nav.querySelectorAll("[data-settings-key]");
@@ -397,7 +268,7 @@
     const displayName =
       (user && (user.name || user.full_name || user.email)) || "Your account";
 
-    // Top header in nav
+    // header with initial + name
     navCard.querySelector(".settings-nav-header").innerHTML = `
       <div class="settings-nav-initial-circle">
         ${displayName.charAt(0).toUpperCase()}
@@ -410,7 +281,6 @@
       </div>
     `;
 
-    // Grouped list
     navList.innerHTML = SETTINGS_GROUPS.map(
       (group) => `
       <li class="settings-nav-section">
@@ -441,12 +311,12 @@
 
   window.initSettingsPage = function () {
     buildLeftNav();
-    renderMainView(null); // default intro text
+    // default to Account, like clicking "Settings" in the screenshot
+    renderMainView("account_overview");
 
     const navCard = document.getElementById("settingsNavCard");
     if (!navCard) return;
 
-    // click in left nav → update right card
     navCard.addEventListener("click", function (e) {
       const btn = e.target.closest("[data-settings-key]");
       if (!btn) return;
