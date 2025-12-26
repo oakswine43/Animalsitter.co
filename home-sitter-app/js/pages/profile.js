@@ -1,4 +1,4 @@
-// js/pages/profile.js
+// home-sitter-app/js/pages/profile.js
 // Profile page wired to real backend (/profile, /profile/photo)
 
 (function () {
@@ -71,12 +71,14 @@
       avatarEl.style.backgroundImage = "";
       avatarEl.classList.remove("has-photo");
       if (initialsEl) {
-        initialsEl.textContent = getInitials(user.full_name || user.name);
+        const full = user.full_name || user.name || "";
+        initialsEl.textContent = getInitials(full);
         initialsEl.style.display = "flex";
       }
     }
   }
 
+  // Get latest profile from backend and normalize
   async function fetchProfileFromApi() {
     const token = getToken();
     if (!token) throw new Error("Not logged in.");
@@ -96,11 +98,16 @@
     if (typeof window.PetCareMapApiUser === "function") {
       apiUser = window.PetCareMapApiUser(apiUser);
     } else {
-      const fullName = apiUser.full_name || apiUser.name || "";
+      const first = apiUser.first_name || "";
+      const last = apiUser.last_name || "";
+      const full = apiUser.full_name || `${first} ${last}`.trim();
+
       apiUser = {
         id: apiUser.id,
-        name: fullName,
-        full_name: fullName,
+        name: full,
+        full_name: full,
+        first_name: first || null,
+        last_name: last || null,
         email: apiUser.email || "",
         role: apiUser.role || "client",
         phone: apiUser.phone || "",
@@ -114,9 +121,12 @@
     return apiUser;
   }
 
-  async function saveProfileToApi(fullName, phone) {
+  // Save first/last + full_name + phone
+  async function saveProfileToApi(firstName, lastName, phone) {
     const token = getToken();
     if (!token) throw new Error("Not logged in.");
+
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
     const res = await fetch(`${getApiBase()}/profile`, {
       method: "PUT",
@@ -125,6 +135,8 @@
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName,
         full_name: fullName,
         phone
       })
@@ -140,11 +152,16 @@
     if (typeof window.PetCareMapApiUser === "function") {
       apiUser = window.PetCareMapApiUser(apiUser);
     } else {
-      const fullName2 = apiUser.full_name || apiUser.name || "";
+      const f = apiUser.first_name || "";
+      const l = apiUser.last_name || "";
+      const full = apiUser.full_name || `${f} ${l}`.trim();
+
       apiUser = {
         id: apiUser.id,
-        name: fullName2,
-        full_name: fullName2,
+        name: full,
+        full_name: full,
+        first_name: f || null,
+        last_name: l || null,
         email: apiUser.email || "",
         role: apiUser.role || "client",
         phone: apiUser.phone || "",
@@ -189,7 +206,13 @@
     if (!root) return;
 
     const user = getCurrentUser();
-    const fullName = user.full_name || user.name || "Guest user";
+    const firstName = user.first_name || "";
+    const lastName = user.last_name || "";
+    const fullName =
+      user.full_name ||
+      `${firstName} ${lastName}`.trim() ||
+      user.name ||
+      "Guest user";
     const role = (user.role || "guest").toUpperCase();
     const phone = user.phone || "";
     const email = user.email || "";
@@ -232,12 +255,21 @@
               <form id="profileForm" class="auth-form">
                 <div class="profile-form-grid">
                   <label>
-                    <span>Full name</span>
+                    <span>First name</span>
                     <input
                       type="text"
-                      id="profileNameInput"
+                      id="profileFirstNameInput"
                       class="input"
-                      value="${fullName}"
+                      value="${firstName}"
+                    />
+                  </label>
+                  <label>
+                    <span>Last name</span>
+                    <input
+                      type="text"
+                      id="profileLastNameInput"
+                      class="input"
+                      value="${lastName}"
                     />
                   </label>
                   <label>
@@ -325,7 +357,8 @@
     const form = root.querySelector("#profileForm");
     const saveBtn = root.querySelector("#profileSaveBtn");
 
-    const nameInput = root.querySelector("#profileNameInput");
+    const firstNameInput = root.querySelector("#profileFirstNameInput");
+    const lastNameInput = root.querySelector("#profileLastNameInput");
     const phoneInput = root.querySelector("#profilePhoneInput");
 
     const summaryName = root.querySelector("#profileSummaryName");
@@ -380,7 +413,8 @@
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
-        const newName = (nameInput.value || "").trim() || fullName;
+        const newFirst = (firstNameInput.value || "").trim();
+        const newLast = (lastNameInput.value || "").trim();
         const newPhone = (phoneInput.value || "").trim();
 
         saveBtn.disabled = true;
@@ -388,10 +422,17 @@
         saveBtn.textContent = "Saving...";
 
         try {
-          const updatedUser = await saveProfileToApi(newName, newPhone);
+          const updatedUser = await saveProfileToApi(
+            newFirst,
+            newLast,
+            newPhone
+          );
 
-          summaryName.textContent =
-            updatedUser.full_name || updatedUser.name || newName;
+          const displayFull =
+            updatedUser.full_name ||
+            `${updatedUser.first_name || ""} ${updatedUser.last_name || ""}`.trim();
+
+          summaryName.textContent = displayFull || "—";
           summaryPhone.textContent = updatedUser.phone || "—";
 
           saveBtn.textContent = "Saved";

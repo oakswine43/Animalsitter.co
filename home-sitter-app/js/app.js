@@ -1,4 +1,4 @@
-// js/app.js
+// home-sitter-app/js/app.js
 // ============================
 // Core app shell + navigation
 // ============================
@@ -50,13 +50,20 @@ function normalizeAvatarUrl(url) {
 
 /**
  * Shared mapper:
- * Backend returns: id, full_name, email, role, phone, photo_url, avatar_url, is_active
+ * Backend returns: id, full_name, first_name, last_name,
+ * email, role, phone, photo_url, avatar_url, is_active
  */
 if (!window.PetCareMapApiUser) {
   window.PetCareMapApiUser = function (apiUser) {
     if (!apiUser) return null;
 
-    const fullName = apiUser.full_name || apiUser.name || "";
+    const first = apiUser.first_name || "";
+    const last = apiUser.last_name || "";
+    const full =
+      apiUser.full_name ||
+      `${first} ${last}`.trim() ||
+      apiUser.name ||
+      "";
 
     const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
     const rawPhoto = apiUser.photo_url || apiUser.avatar_url || null;
@@ -66,8 +73,10 @@ if (!window.PetCareMapApiUser) {
 
     return {
       id: apiUser.id,
-      name: fullName,
-      full_name: fullName,
+      name: full,
+      full_name: full,
+      first_name: first || null,
+      last_name: last || null,
       email: apiUser.email || "",
       role: apiUser.role || "client",
       phone: apiUser.phone || "",
@@ -219,7 +228,6 @@ async function restoreSession() {
   if (!token) return;
 
   try {
-    // Call /profile instead of /auth/me so we get avatar_url/photo_url every time
     const res = await fetch(`${API_BASE}/profile`, {
       headers: { Authorization: `Bearer ${token}` }
     });

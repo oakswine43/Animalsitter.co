@@ -10,11 +10,19 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const JWT_EXPIRES_IN = "7d";
 
+// Map DB row -> clean user object
 function mapDbUser(row) {
   if (!row) return null;
+
+  const first = row.first_name || "";
+  const last = row.last_name || "";
+  const full = row.full_name || `${first} ${last}`.trim();
+
   return {
     id: row.id,
-    full_name: row.full_name,
+    full_name: full,
+    first_name: first || null,
+    last_name: last || null,
     email: row.email,
     role: row.role,
     phone: row.phone,
@@ -26,9 +34,17 @@ function mapDbUser(row) {
 // POST /auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { full_name, email, password, role = "client", phone } = req.body || {};
+    const {
+      full_name,
+      first_name,
+      last_name,
+      email,
+      password,
+      role = "client",
+      phone
+    } = req.body || {};
 
-    if (!full_name || !email || !password) {
+    if ((!full_name && !first_name) || !email || !password) {
       return res
         .status(400)
         .json({ error: "Name, email and password are required." });
@@ -49,18 +65,61 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ error: "Email is already registered." });
     }
 
+    // Derive first / last / full if needed
+    let fName = first_name;
+    let lName = last_name;
+    let fullNameFinal = full_name;
+
+    if (!fName && fullNameFinal) {
+      const parts = fullNameFinal.trim().split(/\s+/);
+      fName = parts[0];
+      lName = parts.length > 1 ? parts.slice(1).join(" ") : null;
+    }
+
+    if (!fullNameFinal && fName) {
+      fullNameFinal = [fName, lName].filter(Boolean).join(" ");
+    }
+
     const password_hash = await bcrypt.hash(password, 10);
 
     const [result] = await pool.query(
-      `INSERT INTO users (full_name, email, password_hash, role, phone, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())`,
-      [full_name, email, password_hash, role, phone || null]
+      `INSERT INTO users (
+         full_name,
+         first_name,
+         last_name,
+         email,
+         password_hash,
+         role,
+         phone,
+         is_active,
+         created_at,
+         updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      [
+        fullNameFinal,
+        fName || null,
+        lName || null,
+        email,
+        password_hash,
+        role,
+        phone || null
+      ]
     );
 
     const newUserId = result.insertId;
 
     const [userRows] = await pool.query(
-      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+      `SELECT
+         id,
+         full_name,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -94,7 +153,17 @@ router.post("/login", async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, role, phone, is_active, avatar_url, password_hash
+      `SELECT
+         id,
+         full_name,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url,
+         password_hash
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -127,13 +196,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GET /auth/me  (used by restoreSession)
+// GET /auth/me  (used by restoreSession in some flows)
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+      `SELECT
+         id,
+         full_name,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -152,14 +230,29 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ PUT /auth/me  (update profile in DB)
+// PUT /auth/me  (update profile in DB)
 router.put("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { full_name, phone, avatar_url } = req.body || {};
+    const {
+      full_name,
+      first_name,
+      last_name,
+      phone,
+      avatar_url
+    } = req.body || {};
 
     const [rows] = await pool.query(
-      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+      `SELECT
+         id,
+         full_name,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -172,14 +265,22 @@ router.put("/me", authMiddleware, async (req, res) => {
 
     const current = rows[0];
 
-    const newFullName =
+    let fName = typeof first_name === "string" ? first_name.trim() : current.first_name;
+    let lName = typeof last_name === "string" ? last_name.trim() : current.last_name;
+    let fullNameFinal =
       typeof full_name === "string" && full_name.trim()
         ? full_name.trim()
         : current.full_name;
+
+    if (!fullNameFinal && (fName || lName)) {
+      fullNameFinal = [fName, lName].filter(Boolean).join(" ");
+    }
+
     const newPhone =
       typeof phone === "string" && phone.trim()
         ? phone.trim()
         : current.phone;
+
     const newAvatarUrl =
       typeof avatar_url === "string" && avatar_url.trim()
         ? avatar_url.trim()
@@ -187,13 +288,35 @@ router.put("/me", authMiddleware, async (req, res) => {
 
     await pool.query(
       `UPDATE users
-       SET full_name = ?, phone = ?, avatar_url = ?, updated_at = NOW()
+       SET
+         full_name = ?,
+         first_name = ?,
+         last_name = ?,
+         phone = ?,
+         avatar_url = ?,
+         updated_at = NOW()
        WHERE id = ?`,
-      [newFullName, newPhone || null, newAvatarUrl || null, userId]
+      [
+        fullNameFinal,
+        fName || null,
+        lName || null,
+        newPhone || null,
+        newAvatarUrl || null,
+        userId
+      ]
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, full_name, email, role, phone, is_active, avatar_url
+      `SELECT
+         id,
+         full_name,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -237,7 +360,10 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     const userRow = rows[0];
 
-    const ok = await bcrypt.compare(currentPassword, userRow.password_hash || "");
+    const ok = await bcrypt.compare(
+      currentPassword,
+      userRow.password_hash || ""
+    );
     if (!ok) {
       return res
         .status(401)
