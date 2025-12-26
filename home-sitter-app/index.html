@@ -33,7 +33,6 @@
           <button class="nav-link" data-page="swipePage">Swipe</button>
           <button class="nav-link" data-page="dogsPage">Pets</button>
           <button class="nav-link" data-page="messagesPage">Messages</button>
-          
           <button class="nav-link" data-page="profilePage">Profile</button>
         </nav>
 
@@ -448,26 +447,15 @@
             </div>
           </section>
 
-          <!-- SETTINGS PAGE -->
+          <!-- SETTINGS PAGE (new simpler root for JS-rendered layout) -->
           <section id="settingsPage" class="page">
             <div class="page-header">
               <h1>Settings</h1>
               <p class="page-subtitle">
-                Manage your AnimalSitter account, notifications, and what you offer or book.
+                Manage your AnimalSitter account, preferences, and notifications.
               </p>
             </div>
-            <div class="settings-grid">
-              <div id="settingsMainCard" class="section-card">
-                <h2 id="settingsMainTitle">Account</h2>
-                <div id="settingsMainBody">
-                  <p class="text-muted">
-                    Pick an item on the right to update those settings here—profile, payouts,
-                    notifications, and more.
-                  </p>
-                </div>
-              </div>
-              <div id="settingsRoleCard" class="section-card"></div>
-            </div>
+            <div id="settingsRoot" class="section-card"></div>
           </section>
 
           <!-- SITTER PROFILE PAGE -->
@@ -731,7 +719,8 @@
   <script src="js/pages/messages.js" defer></script>
   <script src="js/pages/settings.js" defer></script>
   <script src="js/pages/sitterProfile.js" defer></script>
-  <script src="js/pages/authpage.js" defer></script>
+  <!-- NOTE: capital P to match authPage.js file -->
+  <script src="js/pages/authPage.js" defer></script>
   <script src="js/pages/profile.js" defer></script>
 </body>
 </html>

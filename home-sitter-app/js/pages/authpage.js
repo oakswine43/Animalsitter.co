@@ -36,6 +36,7 @@
 
   function setTab(tab) {
     const loginActive = tab === "login";
+
     if (loginTabBtn) loginTabBtn.classList.toggle("active", loginActive);
     if (signupTabBtn) signupTabBtn.classList.toggle("active", !loginActive);
 
@@ -43,6 +44,13 @@
     if (signupPanel) signupPanel.style.display = loginActive ? "none" : "block";
 
     showError("");
+
+    // Optional: focus first input for UX
+    if (loginActive && loginEmailInput) {
+      loginEmailInput.focus();
+    } else if (!loginActive && signupNameInput) {
+      signupNameInput.focus();
+    }
   }
 
   // Use the global mapper if available so we keep
@@ -63,6 +71,18 @@
       apiUser.name ||
       "";
 
+    const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
+    const rawPhoto = apiUser.photo_url || apiUser.avatar_url || null;
+
+    // If global normalizeAvatarUrl exists, use it
+    const normalize =
+      typeof window.normalizeAvatarUrl === "function"
+        ? window.normalizeAvatarUrl
+        : (u) => u;
+
+    const avatarUrl = rawAvatar ? normalize(rawAvatar) : null;
+    const photoUrl = rawPhoto ? normalize(rawPhoto) : null;
+
     return {
       id: apiUser.id,
       name: fullName,
@@ -73,8 +93,8 @@
       role: apiUser.role || "client",
       phone: apiUser.phone || "",
       is_active: apiUser.is_active,
-      avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-      photo_url: apiUser.photo_url || apiUser.avatar_url || null
+      avatar_url: avatarUrl,
+      photo_url: photoUrl
     };
   }
 
@@ -110,6 +130,10 @@
     } catch (err) {
       console.warn("Failed to update current user:", err);
     }
+
+    // Clear forms
+    if (loginForm) loginForm.reset();
+    if (signupForm) signupForm.reset();
 
     // Go to dashboard after login/signup
     if (typeof window.setActivePage === "function") {
