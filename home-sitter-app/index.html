@@ -447,15 +447,34 @@
             </div>
           </section>
 
-          <!-- SETTINGS PAGE (new simpler root for JS-rendered layout) -->
+                   <!-- SETTINGS PAGE -->
           <section id="settingsPage" class="page">
             <div class="page-header">
               <h1>Settings</h1>
               <p class="page-subtitle">
-                Manage your AnimalSitter account, preferences, and notifications.
+                Manage your AnimalSitter account, security, and notifications in one place.
               </p>
             </div>
-            <div id="settingsRoot" class="section-card"></div>
+
+            <div class="settings-grid">
+              <!-- Left sidebar -->
+              <aside class="section-card settings-sidebar">
+                <h2 class="settings-sidebar-title">Settings</h2>
+                <ul id="settingsSidebarList" class="settings-sidebar-list">
+                  <!-- Filled by settings.js -->
+                </ul>
+              </aside>
+
+              <!-- Right detail panel -->
+              <div class="section-card settings-detail">
+                <h2 id="settingsDetailTitle">Password &amp; Security</h2>
+                <div id="settingsDetailBody">
+                  <p class="text-muted">
+                    Select an item on the left to view and update its settings.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
 
           <!-- SITTER PROFILE PAGE -->
