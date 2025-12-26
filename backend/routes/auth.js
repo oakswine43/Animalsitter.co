@@ -10,19 +10,21 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const JWT_EXPIRES_IN = "7d";
 
-// Map DB row -> clean user object
 function mapDbUser(row) {
   if (!row) return null;
 
   const first = row.first_name || "";
   const last = row.last_name || "";
-  const full = row.full_name || `${first} ${last}`.trim();
+  const full =
+    row.full_name ||
+    `${first} ${last}`.trim() ||
+    null;
 
   return {
     id: row.id,
-    full_name: full,
     first_name: first || null,
     last_name: last || null,
+    full_name: full,
     email: row.email,
     role: row.role,
     phone: row.phone,
@@ -34,20 +36,28 @@ function mapDbUser(row) {
 // POST /auth/register
 router.post("/register", async (req, res) => {
   try {
-    const {
-      full_name,
+    let {
       first_name,
       last_name,
+      full_name,
       email,
       password,
       role = "client",
       phone
     } = req.body || {};
 
-    if ((!full_name && !first_name) || !email || !password) {
+    first_name = typeof first_name === "string" ? first_name.trim() : "";
+    last_name = typeof last_name === "string" ? last_name.trim() : "";
+    full_name = typeof full_name === "string" ? full_name.trim() : "";
+
+    if (!full_name) {
+      full_name = `${first_name} ${last_name}`.trim();
+    }
+
+    if (!full_name || !email || !password) {
       return res
         .status(400)
-        .json({ error: "Name, email and password are required." });
+        .json({ error: "First/last name or full name, email and password are required." });
     }
 
     if (password.length < 6) {
@@ -56,7 +66,6 @@ router.post("/register", async (req, res) => {
         .json({ error: "Password must be at least 6 characters." });
     }
 
-    // Check if email already exists
     const [existingRows] = await pool.query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
       [email]
@@ -65,61 +74,20 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ error: "Email is already registered." });
     }
 
-    // Derive first / last / full if needed
-    let fName = first_name;
-    let lName = last_name;
-    let fullNameFinal = full_name;
-
-    if (!fName && fullNameFinal) {
-      const parts = fullNameFinal.trim().split(/\s+/);
-      fName = parts[0];
-      lName = parts.length > 1 ? parts.slice(1).join(" ") : null;
-    }
-
-    if (!fullNameFinal && fName) {
-      fullNameFinal = [fName, lName].filter(Boolean).join(" ");
-    }
-
     const password_hash = await bcrypt.hash(password, 10);
 
     const [result] = await pool.query(
-      `INSERT INTO users (
-         full_name,
-         first_name,
-         last_name,
-         email,
-         password_hash,
-         role,
-         phone,
-         is_active,
-         created_at,
-         updated_at
-       )
+      `INSERT INTO users
+         (first_name, last_name, full_name, email, password_hash, role, phone,
+          is_active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
-      [
-        fullNameFinal,
-        fName || null,
-        lName || null,
-        email,
-        password_hash,
-        role,
-        phone || null
-      ]
+      [first_name || null, last_name || null, full_name, email, password_hash, role, phone || null]
     );
 
     const newUserId = result.insertId;
 
     const [userRows] = await pool.query(
-      `SELECT
-         id,
-         full_name,
-         first_name,
-         last_name,
-         email,
-         role,
-         phone,
-         is_active,
-         avatar_url
+      `SELECT id, first_name, last_name, full_name, email, role, phone, is_active, avatar_url
        FROM users
        WHERE id = ?
        LIMIT 1`,
@@ -155,9 +123,9 @@ router.post("/login", async (req, res) => {
     const [rows] = await pool.query(
       `SELECT
          id,
-         full_name,
          first_name,
          last_name,
+         full_name,
          email,
          role,
          phone,
@@ -196,7 +164,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GET /auth/me  (used by restoreSession in some flows)
+// GET /auth/me
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -204,9 +172,9 @@ router.get("/me", authMiddleware, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT
          id,
-         full_name,
          first_name,
          last_name,
+         full_name,
          email,
          role,
          phone,
@@ -230,24 +198,18 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /auth/me  (update profile in DB)
+// PUT /auth/me  (update profile)
 router.put("/me", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const {
-      full_name,
-      first_name,
-      last_name,
-      phone,
-      avatar_url
-    } = req.body || {};
+    let { first_name, last_name, full_name, phone, avatar_url } = req.body || {};
 
     const [rows] = await pool.query(
       `SELECT
          id,
-         full_name,
          first_name,
          last_name,
+         full_name,
          email,
          role,
          phone,
@@ -265,53 +227,45 @@ router.put("/me", authMiddleware, async (req, res) => {
 
     const current = rows[0];
 
-    let fName = typeof first_name === "string" ? first_name.trim() : current.first_name;
-    let lName = typeof last_name === "string" ? last_name.trim() : current.last_name;
-    let fullNameFinal =
+    first_name =
+      typeof first_name === "string" && first_name.trim()
+        ? first_name.trim()
+        : current.first_name;
+
+    last_name =
+      typeof last_name === "string" && last_name.trim()
+        ? last_name.trim()
+        : current.last_name;
+
+    full_name =
       typeof full_name === "string" && full_name.trim()
         ? full_name.trim()
-        : current.full_name;
+        : (current.full_name ||
+           `${first_name || ""} ${last_name || ""}`.trim());
 
-    if (!fullNameFinal && (fName || lName)) {
-      fullNameFinal = [fName, lName].filter(Boolean).join(" ");
-    }
-
-    const newPhone =
+    phone =
       typeof phone === "string" && phone.trim()
         ? phone.trim()
         : current.phone;
 
-    const newAvatarUrl =
+    avatar_url =
       typeof avatar_url === "string" && avatar_url.trim()
         ? avatar_url.trim()
         : current.avatar_url;
 
     await pool.query(
       `UPDATE users
-       SET
-         full_name = ?,
-         first_name = ?,
-         last_name = ?,
-         phone = ?,
-         avatar_url = ?,
-         updated_at = NOW()
+       SET first_name = ?, last_name = ?, full_name = ?, phone = ?, avatar_url = ?, updated_at = NOW()
        WHERE id = ?`,
-      [
-        fullNameFinal,
-        fName || null,
-        lName || null,
-        newPhone || null,
-        newAvatarUrl || null,
-        userId
-      ]
+      [first_name || null, last_name || null, full_name, phone || null, avatar_url || null, userId]
     );
 
     const [updatedRows] = await pool.query(
       `SELECT
          id,
-         full_name,
          first_name,
          last_name,
+         full_name,
          email,
          role,
          phone,
@@ -360,10 +314,7 @@ router.post("/change-password", authMiddleware, async (req, res) => {
 
     const userRow = rows[0];
 
-    const ok = await bcrypt.compare(
-      currentPassword,
-      userRow.password_hash || ""
-    );
+    const ok = await bcrypt.compare(currentPassword, userRow.password_hash || "");
     if (!ok) {
       return res
         .status(401)

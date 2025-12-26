@@ -279,6 +279,8 @@ app.get("/profile", authMiddleware, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT
          id,
+         first_name,
+         last_name,
          full_name,
          email,
          role,
@@ -301,44 +303,17 @@ app.get("/profile", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /profile  -> update basic fields (name, phone, etc.)
+// PUT /profile  -> update basic fields (first/last name, phone, avatar_url)
 app.put("/profile", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { full_name, name, phone, avatar_url } = req.body || {};
-
-    const fields = [];
-    const params = [];
-
-    if (typeof full_name === "string" || typeof name === "string") {
-      fields.push("full_name = ?");
-      params.push((full_name || name).trim());
-    }
-
-    if (typeof phone === "string") {
-      fields.push("phone = ?");
-      params.push(phone.trim());
-    }
-
-    if (typeof avatar_url === "string") {
-      fields.push("avatar_url = ?");
-      params.push(avatar_url.trim());
-    }
-
-    if (!fields.length) {
-      return res.status(400).json({ error: "No changes submitted." });
-    }
-
-    fields.push("updated_at = CURRENT_TIMESTAMP");
-
-    const sql = `UPDATE users SET ${fields.join(", ")} WHERE id = ?`;
-    params.push(userId);
-
-    await pool.query(sql, params);
+    let { first_name, last_name, full_name, phone, avatar_url } = req.body || {};
 
     const [rows] = await pool.query(
       `SELECT
          id,
+         first_name,
+         last_name,
          full_name,
          email,
          role,
@@ -350,57 +325,67 @@ app.put("/profile", authMiddleware, async (req, res) => {
       [userId]
     );
 
-    res.json({ ok: true, user: rows[0] });
+    if (!rows.length) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const current = rows[0];
+
+    first_name =
+      typeof first_name === "string" && first_name.trim()
+        ? first_name.trim()
+        : current.first_name;
+
+    last_name =
+      typeof last_name === "string" && last_name.trim()
+        ? last_name.trim()
+        : current.last_name;
+
+    full_name =
+      typeof full_name === "string" && full_name.trim()
+        ? full_name.trim()
+        : (current.full_name ||
+           `${first_name || ""} ${last_name || ""}`.trim());
+
+    phone =
+      typeof phone === "string" && phone.trim()
+        ? phone.trim()
+        : current.phone;
+
+    avatar_url =
+      typeof avatar_url === "string" && avatar_url.trim()
+        ? avatar_url.trim()
+        : current.avatar_url;
+
+    await pool.query(
+      `UPDATE users
+       SET first_name = ?, last_name = ?, full_name = ?, phone = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [first_name || null, last_name || null, full_name, phone || null, avatar_url || null, userId]
+    );
+
+    const [updatedRows] = await pool.query(
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         full_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE id = ?`,
+      [userId]
+    );
+
+    res.json({ ok: true, user: updatedRows[0] });
   } catch (err) {
     console.error("PROFILE_UPDATE_ERROR:", err);
     res.status(500).json({ error: "Failed to update profile." });
   }
 });
-
-// POST /profile/photo  (multipart/form-data, field name: photo)
-app.post(
-  "/profile/photo",
-  authMiddleware,
-  upload.single("photo"),
-  async (req, res) => {
-    try {
-      const userId = req.user.id;
-
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded." });
-      }
-
-      console.log("PROFILE_PHOTO_UPLOAD for user", userId, req.file);
-
-      const relativePath = `/uploads/${req.file.filename}`;
-
-      await pool.query(
-        `UPDATE users
-         SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [relativePath, userId]
-      );
-
-      const fullUrl = `${req.protocol}://${req.get("host")}${relativePath}`;
-
-      console.log(
-        "PROFILE_PHOTO_SAVED for user",
-        userId,
-        "->",
-        relativePath
-      );
-
-      res.json({
-        ok: true,
-        url: relativePath,
-        fullUrl
-      });
-    } catch (err) {
-      console.error("PROFILE_PHOTO_ERROR:", err);
-      res.status(500).json({ error: "Failed to upload profile photo." });
-    }
-  }
-);
 
 // =====================
 // PUP GALLERY ROUTES

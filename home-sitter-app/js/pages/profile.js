@@ -1,4 +1,4 @@
-// home-sitter-app/js/pages/profile.js
+// js/pages/profile.js
 // Profile page wired to real backend (/profile, /profile/photo)
 
 (function () {
@@ -25,6 +25,8 @@
     }
     return {
       id: null,
+      first_name: "",
+      last_name: "",
       full_name: "Guest user",
       name: "Guest user",
       role: "guest",
@@ -49,9 +51,13 @@
     }
   }
 
-  function getInitials(name) {
-    if (!name) return "🙂";
-    const parts = name.trim().split(/\s+/);
+  function getInitialsFromParts(firstName, lastName, fallbackFull) {
+    const source =
+      (firstName && `${firstName} ${lastName || ""}`.trim()) ||
+      fallbackFull ||
+      "";
+    if (!source) return "🙂";
+    const parts = source.trim().split(/\s+/);
     const first = parts[0]?.[0] || "";
     const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
     return (first + last).toUpperCase();
@@ -71,14 +77,16 @@
       avatarEl.style.backgroundImage = "";
       avatarEl.classList.remove("has-photo");
       if (initialsEl) {
-        const full = user.full_name || user.name || "";
-        initialsEl.textContent = getInitials(full);
+        initialsEl.textContent = getInitialsFromParts(
+          user.first_name,
+          user.last_name,
+          user.full_name || user.name
+        );
         initialsEl.style.display = "flex";
       }
     }
   }
 
-  // Get latest profile from backend and normalize
   async function fetchProfileFromApi() {
     const token = getToken();
     if (!token) throw new Error("Not logged in.");
@@ -97,36 +105,17 @@
     let apiUser = data.user;
     if (typeof window.PetCareMapApiUser === "function") {
       apiUser = window.PetCareMapApiUser(apiUser);
-    } else {
-      const first = apiUser.first_name || "";
-      const last = apiUser.last_name || "";
-      const full = apiUser.full_name || `${first} ${last}`.trim();
-
-      apiUser = {
-        id: apiUser.id,
-        name: full,
-        full_name: full,
-        first_name: first || null,
-        last_name: last || null,
-        email: apiUser.email || "",
-        role: apiUser.role || "client",
-        phone: apiUser.phone || "",
-        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
-        is_active: apiUser.is_active
-      };
     }
 
     setCurrentUser(apiUser);
     return apiUser;
   }
 
-  // Save first/last + full_name + phone
   async function saveProfileToApi(firstName, lastName, phone) {
     const token = getToken();
     if (!token) throw new Error("Not logged in.");
 
-    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+    const fullName = `${firstName || ""} ${lastName || ""}`.trim();
 
     const res = await fetch(`${getApiBase()}/profile`, {
       method: "PUT",
@@ -151,24 +140,6 @@
     let apiUser = data.user;
     if (typeof window.PetCareMapApiUser === "function") {
       apiUser = window.PetCareMapApiUser(apiUser);
-    } else {
-      const f = apiUser.first_name || "";
-      const l = apiUser.last_name || "";
-      const full = apiUser.full_name || `${f} ${l}`.trim();
-
-      apiUser = {
-        id: apiUser.id,
-        name: full,
-        full_name: full,
-        first_name: f || null,
-        last_name: l || null,
-        email: apiUser.email || "",
-        role: apiUser.role || "client",
-        phone: apiUser.phone || "",
-        avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
-        photo_url: apiUser.photo_url || apiUser.avatar_url || null,
-        is_active: apiUser.is_active
-      };
     }
 
     setCurrentUser(apiUser);
@@ -196,7 +167,6 @@
       throw new Error(data.error || "Failed to upload profile photo.");
     }
 
-    // After upload, re-fetch profile so user.avatar_url matches DB
     const updatedUser = await fetchProfileFromApi();
     return { upload: data, user: updatedUser };
   }
@@ -206,12 +176,12 @@
     if (!root) return;
 
     const user = getCurrentUser();
+
     const firstName = user.first_name || "";
     const lastName = user.last_name || "";
     const fullName =
       user.full_name ||
       `${firstName} ${lastName}`.trim() ||
-      user.name ||
       "Guest user";
     const role = (user.role || "guest").toUpperCase();
     const phone = user.phone || "";
@@ -232,7 +202,9 @@
             <!-- LEFT: avatar / photo -->
             <div class="profile-photo-column">
               <div class="avatar-large" id="profileAvatar">
-                <span class="avatar-initials">${getInitials(fullName)}</span>
+                <span class="avatar-initials">
+                  ${getInitialsFromParts(firstName, lastName, fullName)}
+                </span>
                 <div class="avatar-camera-pill">
                   <span>📷</span>
                   <span>Change</span>
@@ -364,7 +336,6 @@
     const summaryName = root.querySelector("#profileSummaryName");
     const summaryPhone = root.querySelector("#profileSummaryPhone");
 
-    // Apply existing avatar (from DB) if present
     applyAvatarFromUser(avatar, user);
 
     function openPhotoPicker() {
@@ -387,7 +358,6 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
-        // Local preview immediately
         const reader = new FileReader();
         reader.onload = function (ev) {
           const dataUrl = ev.target.result;
@@ -400,7 +370,6 @@
 
         try {
           const { user: updatedUser } = await uploadPhoto(file);
-          // Make sure avatar state is synced with DB and normalized
           applyAvatarFromUser(avatar, updatedUser);
         } catch (err) {
           console.error("Photo upload error:", err);
@@ -422,17 +391,13 @@
         saveBtn.textContent = "Saving...";
 
         try {
-          const updatedUser = await saveProfileToApi(
-            newFirst,
-            newLast,
-            newPhone
-          );
+          const updatedUser = await saveProfileToApi(newFirst, newLast, newPhone);
 
-          const displayFull =
+          const updatedFull =
             updatedUser.full_name ||
             `${updatedUser.first_name || ""} ${updatedUser.last_name || ""}`.trim();
 
-          summaryName.textContent = displayFull || "—";
+          summaryName.textContent = updatedFull || "—";
           summaryPhone.textContent = updatedUser.phone || "—";
 
           saveBtn.textContent = "Saved";
