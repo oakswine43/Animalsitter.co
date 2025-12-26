@@ -1,33 +1,33 @@
- // js/pages/settings.js
-// Settings page: left sidebar list, right-side detail panel.
-// Layout is similar to desktop app settings (like the screenshot).
+// js/pages/settings.js
+// Settings page: left sidebar with grouped items, right detail panel.
 
 (function () {
-  // ----- Config: sidebar items + views -----
-
-  const SETTINGS_ITEMS = [
+  // Sidebar structure
+  const SETTINGS_SECTIONS = [
     {
-      key: "password_security",
-      label: "Password & Security",
-      section: "Settings",
+      key: "settings",
+      label: "Settings",
+      items: [
+        { key: "notifications", label: "Notifications" },
+        { key: "system_updates", label: "System updates", badge: "4" },
+        { key: "network_devices", label: "Network" },
+        { key: "password_security", label: "Password & Security" },
+        { key: "verification", label: "Verification check" }
+      ]
     },
     {
-      key: "notifications",
-      label: "Notifications",
-      section: "Settings",
+      key: "addresses",
+      label: "Addresses",
+      items: [] // future items
     },
     {
-      key: "system_updates",
-      label: "System updates",
-      section: "Settings",
-    },
-    {
-      key: "network_devices",
-      label: "Network & devices",
-      section: "Settings",
-    },
+      key: "personal_info",
+      label: "Personal info",
+      items: [] // future items
+    }
   ];
 
+  // Right-side views
   const SETTINGS_VIEWS = {
     password_security: {
       title: "Password & Security",
@@ -74,7 +74,7 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-      `,
+      `
     },
 
     notifications: {
@@ -122,7 +122,7 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-      `,
+      `
     },
 
     system_updates: {
@@ -157,7 +157,7 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-      `,
+      `
     },
 
     network_devices: {
@@ -184,50 +184,76 @@
           <div class="settings-toggle-main">
             <div class="settings-toggle-title">Sign out of other devices</div>
             <div class="settings-toggle-subtitle">
-              For security, you can sign out everywhere else with one click (demo).
+              For security, sign out everywhere else with one click (demo).
             </div>
           </div>
           <button type="button" class="btn-small-outline">
             Sign out other sessions
           </button>
         </div>
-      `,
+      `
     },
+
+    verification: {
+      title: "Verification check",
+      body: `
+        <p class="text-muted">
+          In a real app, this is where you’d see ID verification and background check status.
+        </p>
+      `
+    }
   };
 
-  // ----- Rendering helpers -----
+  // ---------- Rendering helpers ----------
 
   function renderSidebar(activeKey) {
-    const listEl = document.getElementById("settingsSidebarList");
-    if (!listEl) return;
+    const container = document.getElementById("settingsSidebarList");
+    if (!container) return;
 
-    listEl.innerHTML = "";
+    container.innerHTML = "";
 
-    SETTINGS_ITEMS.forEach((item) => {
-      const li = document.createElement("li");
-      li.className = "settings-sidebar-item";
+    SETTINGS_SECTIONS.forEach((section) => {
+      const group = document.createElement("div");
+      group.className = "settings-sidebar-group";
 
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "settings-sidebar-link";
-      if (item.key === activeKey) {
-        btn.classList.add("active");
+      const heading = document.createElement("div");
+      heading.className = "settings-sidebar-group-title";
+      heading.textContent = section.label;
+      group.appendChild(heading);
+
+      if (section.items && section.items.length) {
+        section.items.forEach((item) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "settings-sidebar-link";
+          btn.setAttribute("data-settings-view", item.key);
+          btn.textContent = item.label;
+
+          if (item.badge) {
+            const badge = document.createElement("span");
+            badge.className = "settings-sidebar-link-badge";
+            badge.textContent = item.badge;
+            btn.appendChild(badge);
+          }
+
+          if (item.key === activeKey) {
+            btn.classList.add("active");
+          }
+
+          group.appendChild(btn);
+        });
       }
-      btn.textContent = item.label;
-      btn.setAttribute("data-settings-view", item.key);
 
-      li.appendChild(btn);
-      listEl.appendChild(li);
+      container.appendChild(group);
     });
   }
 
   function renderView(key) {
-    const view = SETTINGS_VIEWS[key] || null;
     const titleEl = document.getElementById("settingsDetailTitle");
     const bodyEl = document.getElementById("settingsDetailBody");
-
     if (!titleEl || !bodyEl) return;
 
+    const view = SETTINGS_VIEWS[key];
     if (!view) {
       titleEl.textContent = "Settings";
       bodyEl.innerHTML = `
@@ -242,7 +268,7 @@
     bodyEl.innerHTML = view.body;
   }
 
-  // ----- Page init -----
+  // ---------- Page init ----------
 
   window.initSettingsPage = function () {
     const defaultKey = "password_security";
@@ -250,10 +276,10 @@
     renderSidebar(defaultKey);
     renderView(defaultKey);
 
-    const listEl = document.getElementById("settingsSidebarList");
-    if (!listEl) return;
+    const container = document.getElementById("settingsSidebarList");
+    if (!container) return;
 
-    listEl.addEventListener("click", function (e) {
+    container.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-settings-view]");
       if (!btn) return;
 
