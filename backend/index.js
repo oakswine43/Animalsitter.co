@@ -317,44 +317,7 @@ app.put("/profile", authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { first_name, last_name, full_name, phone } = req.body || {};
 
-    const fields = [];
-    const params = [];
-
-    if (typeof first_name === "string") {
-      fields.push("first_name = ?");
-      params.push(first_name.trim());
-    }
-
-    if (typeof last_name === "string") {
-      fields.push("last_name = ?");
-      params.push(last_name.trim());
-    }
-
-    // Optional: if only full_name is sent, split it
-    if (!first_name && !last_name && typeof full_name === "string") {
-      const parts = full_name.trim().split(/\s+/);
-      const fName = parts[0] || "";
-      const lName = parts.slice(1).join(" ");
-      fields.push("first_name = ?", "last_name = ?");
-      params.push(fName, lName);
-    }
-
-    if (typeof phone === "string") {
-      fields.push("phone = ?");
-      params.push(phone.trim());
-    }
-
-    if (!fields.length) {
-      return res.status(400).json({ error: "No changes submitted." });
-    }
-
-    fields.push("updated_at = CURRENT_TIMESTAMP");
-
-    const sql = `UPDATE users SET ${fields.join(", ")} WHERE id = ?`;
-    params.push(userId);
-
-    await pool.query(sql, params);
-
+    // 1) Load current values
     const [rows] = await pool.query(
       `SELECT
          id,
@@ -366,7 +329,8 @@ app.put("/profile", authMiddleware, async (req, res) => {
          is_active,
          avatar_url
        FROM users
-       WHERE id = ?`,
+       WHERE id = ?
+       LIMIT 1`,
       [userId]
     );
 
@@ -374,18 +338,88 @@ app.put("/profile", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const row = rows[0];
-    const full_name2 = `${row.first_name || ""} ${row.last_name || ""}`.trim();
+    const current = rows[0];
+
+    // 2) Decide new values
+    let newFirst = current.first_name || "";
+    let newLast = current.last_name || "";
+
+    if (typeof first_name === "string") {
+      newFirst = first_name.trim();
+    }
+    if (typeof last_name === "string") {
+      newLast = last_name.trim();
+    }
+
+    // Optional legacy support for full_name only
+    if (!first_name && !last_name && typeof full_name === "string") {
+      const parts = full_name.trim().split(/\s+/);
+      newFirst = parts[0] || "";
+      newLast = parts.slice(1).join(" ");
+    }
+
+    let newPhone = current.phone || null;
+    if (typeof phone === "string") {
+      const p = phone.trim();
+      newPhone = p || null;
+    }
+
+    // 3) If nothing changed, just return current
+    if (
+      newFirst === (current.first_name || "") &&
+      newLast === (current.last_name || "") &&
+      (newPhone || null) === (current.phone || null)
+    ) {
+      const full_name_response =
+        `${current.first_name || ""} ${current.last_name || ""}`.trim();
+
+      return res.json({
+        ok: true,
+        user: {
+          ...current,
+          full_name: full_name_response
+        }
+      });
+    }
+
+    // 4) Simple fixed-parameter UPDATE
+    await pool.query(
+      `UPDATE users
+       SET first_name = ?, last_name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [newFirst, newLast, newPhone, userId]
+    );
+
+    // 5) Re-load updated row
+    const [updatedRows] = await pool.query(
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [userId]
+    );
+
+    const updated = updatedRows[0];
+    const full_name_response =
+      `${updated.first_name || ""} ${updated.last_name || ""}`.trim();
 
     res.json({
       ok: true,
       user: {
-        ...row,
-        full_name: full_name2
+        ...updated,
+        full_name: full_name_response
       }
     });
   } catch (err) {
-    console.error("PROFILE_UPDATE_ERROR:", err);
+    console.error("PROFILE_UPDATE_ERROR:", err.message, err);
     res.status(500).json({ error: "Failed to update profile." });
   }
 });
