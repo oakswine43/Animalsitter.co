@@ -57,13 +57,25 @@ if (!window.PetCareMapApiUser) {
   window.PetCareMapApiUser = function (apiUser) {
     if (!apiUser) return null;
 
-    const first = apiUser.first_name || "";
-    const last = apiUser.last_name || "";
-    const full =
+    const firstNameRaw = apiUser.first_name || "";
+    const lastNameRaw = apiUser.last_name || "";
+
+    // Start with whatever full_name the backend gives us
+    let fullName =
       apiUser.full_name ||
-      `${first} ${last}`.trim() ||
+      `${firstNameRaw} ${lastNameRaw}`.trim() ||
       apiUser.name ||
       "";
+
+    // Ensure we always have first/last by splitting fullName if needed
+    let first = firstNameRaw;
+    let last = lastNameRaw;
+
+    if (!first && fullName) {
+      const parts = fullName.split(/\s+/);
+      first = parts[0] || "";
+      last = parts.slice(1).join(" ");
+    }
 
     const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
     const rawPhoto = apiUser.photo_url || apiUser.avatar_url || null;
@@ -73,8 +85,8 @@ if (!window.PetCareMapApiUser) {
 
     return {
       id: apiUser.id,
-      name: full,
-      full_name: full,
+      name: fullName,
+      full_name: fullName,
       first_name: first || null,
       last_name: last || null,
       email: apiUser.email || "",

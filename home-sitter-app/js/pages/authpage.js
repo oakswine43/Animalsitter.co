@@ -45,20 +45,36 @@
     showError("");
   }
 
+  // Use the global mapper if available so we keep
+  // first_name, last_name and avatar_url in sync with the rest of the app.
   function mapUser(apiUser) {
     if (!apiUser) return null;
 
-    const fullName = apiUser.full_name || apiUser.name || "";
+    if (typeof window.PetCareMapApiUser === "function") {
+      return window.PetCareMapApiUser(apiUser);
+    }
 
-    // Normalized user object for the frontend
+    // Fallback mapper (if for some reason PetCareMapApiUser isn't loaded)
+    const first = apiUser.first_name || "";
+    const last = apiUser.last_name || "";
+    const fullName =
+      apiUser.full_name ||
+      `${first} ${last}`.trim() ||
+      apiUser.name ||
+      "";
+
     return {
       id: apiUser.id,
       name: fullName,
       full_name: fullName,
+      first_name: first || null,
+      last_name: last || null,
       email: apiUser.email || "",
       role: apiUser.role || "client",
       phone: apiUser.phone || "",
-      is_active: apiUser.is_active
+      is_active: apiUser.is_active,
+      avatar_url: apiUser.avatar_url || apiUser.photo_url || null,
+      photo_url: apiUser.photo_url || apiUser.avatar_url || null
     };
   }
 
@@ -73,10 +89,12 @@
       return;
     }
 
+    // Save JWT
     try {
       localStorage.setItem(TOKEN_KEY, token);
     } catch (_) {}
 
+    // Normalize user (keeps avatar_url, first_name, last_name, etc.)
     const user = mapUser(apiUser);
 
     try {
@@ -158,9 +176,17 @@
         return;
       }
 
+      // Split full name into first/last so it works with the new DB schema.
+      const parts = full_name.split(/\s+/);
+      const first_name = parts[0] || "";
+      const last_name = parts.slice(1).join(" ");
+
       try {
+        // Send BOTH full_name and first/last so backend can use whichever it expects
         const data = await apiPost("/auth/register", {
           full_name,
+          first_name,
+          last_name,
           email,
           password,
           role
