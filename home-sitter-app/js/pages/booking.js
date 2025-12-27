@@ -1,11 +1,12 @@
 // js/pages/booking.js
-// Handles the booking modal + full booking confirmation page with To-Do checklist
+// Handles the booking modal + payment + full booking confirmation page
 // Now wired to Stripe + backend /bookings so sitters & clients can see real bookings.
 
 (function () {
+  // Global booking state
   window.PetCareBooking = {
-    preview: null, // used in modal
-    booking: null  // confirmed booking
+    preview: null, // used in modal before payment
+    booking: null  // confirmed booking used on confirmation page
   };
 
   const API_BASE =
@@ -318,7 +319,11 @@
       });
 
       const piData = await piRes.json().catch(() => ({}));
-      console.log("[Booking] create-payment-intent response", piRes.status, piData);
+      console.log(
+        "[Booking] create-payment-intent response",
+        piRes.status,
+        piData
+      );
 
       if (!piRes.ok || !piData.clientSecret) {
         throw new Error(piData.error || "Failed to start payment.");
@@ -375,7 +380,11 @@
       try {
         bkData = raw ? JSON.parse(raw) : {};
       } catch (parseErr) {
-        console.error("[Booking] Failed to parse /bookings JSON:", parseErr, raw);
+        console.error(
+          "[Booking] Failed to parse /bookings JSON:",
+          parseErr,
+          raw
+        );
       }
 
       console.log("[Booking] /bookings response", bkRes.status, bkData);
@@ -388,9 +397,8 @@
         );
       }
 
-      // backend may return booking in different shapes
-      const backendBooking =
-        bkData.booking || bkData.data || bkData;
+      // backend may return booking in different shapes – normalize
+      const backendBooking = bkData.booking || bkData.data || bkData;
 
       const totalPrice =
         backendBooking.total_price ??
@@ -456,8 +464,9 @@
       window.PetCareBooking.booking = bookingObj;
       closeBookingModal();
 
+      // Go to confirmation page with To-Do checklist
       if (typeof window.setActivePage === "function") {
-        window.setActivePage("bookingPage");
+        window.setActivePage("bookingConfirmPage");
       }
     } catch (err) {
       console.error("Booking payment error:", err);
@@ -651,9 +660,9 @@
     }
   }
 
-  // Public init for booking page
-  window.initBookingPage = function () {
-    const root = document.getElementById("bookingPageRoot");
+  // Public init for booking confirmation page
+  window.initBookingConfirmPage = function () {
+    const root = document.getElementById("bookingConfirmRoot");
     if (!root) return;
     renderBookingChecklist(root);
   };
