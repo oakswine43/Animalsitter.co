@@ -11,6 +11,64 @@
   const API_BASE =
     window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
 
+  // -----------------------------------
+  // Stripe frontend setup (card element)
+  // -----------------------------------
+  // IMPORTANT: set your publishable key, e.g. in a script tag:
+  //   <script>window.STRIPE_PUBLISHABLE_KEY = "pk_test_123...";</script>
+  const STRIPE_PUBLISHABLE_KEY =
+    window.STRIPE_PUBLISHABLE_KEY || "pk_test_REPLACE_ME";
+
+  let stripeCardElement = null;
+
+  function mountStripeCardElement() {
+    // Already mounted
+    if (stripeCardElement) return;
+
+    if (!window.Stripe) {
+      console.warn("[Booking] Stripe.js not loaded on page.");
+      return;
+    }
+
+    if (
+      !STRIPE_PUBLISHABLE_KEY ||
+      STRIPE_PUBLISHABLE_KEY === "pk_test_REPLACE_ME"
+    ) {
+      console.warn(
+        "[Booking] Set window.STRIPE_PUBLISHABLE_KEY to your real publishable key."
+      );
+      return;
+    }
+
+    // Create global Stripe instance if needed
+    if (!window.stripe) {
+      window.stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+    }
+
+    const elements = window.stripe.elements();
+    stripeCardElement = elements.create("card", {
+      hidePostalCode: false
+    });
+
+    const mountNode = document.getElementById("stripe-card-element");
+    if (!mountNode) {
+      console.warn("[Booking] #stripe-card-element not found in DOM.");
+      return;
+    }
+
+    stripeCardElement.mount(mountNode);
+
+    // Expose for confirmBookingFromModal()
+    window.getStripeCardElement = () => stripeCardElement;
+  }
+
+  // Called by ensureStripeCardMounted()
+  window.mountStripeCardElement = mountStripeCardElement;
+
+  // ----------------------
+  // Helpers & auth headers
+  // ----------------------
+
   // Small util to parse a price like "$40" -> 40
   function parsePrice(str) {
     if (!str) return 0;
@@ -49,6 +107,10 @@
     if (!window.mountStripeCardElement) return;
     window.mountStripeCardElement();
   }
+
+  // ----------------------
+  // Booking modal
+  // ----------------------
 
   // Open modal for a given sitter
   window.openBookingModal = function (sitterId) {
@@ -204,7 +266,9 @@
     if (modal) modal.style.display = "none";
   }
 
+  // -------------------------------------------------
   // Confirm booking + process Stripe payment + POST /bookings
+  // -------------------------------------------------
   async function confirmBookingFromModal() {
     const preview = window.PetCareBooking.preview;
     if (!preview) {
@@ -371,6 +435,10 @@
       }
     }
   }
+
+  // -------------------------
+  // Booking confirmation page
+  // -------------------------
 
   // Render the “Before Your Booking Starts” To-Do checklist
   function renderBookingChecklist(root) {
