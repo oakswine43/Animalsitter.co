@@ -733,6 +733,128 @@
     </main>
   </div>
 
+        <!-- ===================== BOOKING MODAL (overlay) ===================== -->
+      <div id="bookingModal" class="booking-modal" style="display:none;">
+        <div class="booking-modal-backdrop"></div>
+
+        <div class="booking-modal-card section-card">
+          <!-- Header row -->
+          <div class="booking-modal-header">
+            <div>
+              <h2>Confirm your booking</h2>
+              <p class="small text-muted">
+                Review the sitter, service, and total price before you confirm.
+              </p>
+            </div>
+            <button id="bookingModalClose" class="icon-btn" type="button">
+              ✕
+            </button>
+          </div>
+
+          <!-- Sitter + service summary -->
+          <div class="booking-modal-main">
+            <div class="booking-modal-sitter">
+              <div id="bookingSitterAvatar" class="avatar-circle"></div>
+              <div>
+                <div id="bookingSitterName" class="card-title">Sitter name</div>
+                <div id="bookingSitterSubtitle" class="card-subtitle small">
+                  Rating · distance
+                </div>
+                <div id="bookingSitterBadges" class="chip-row small"></div>
+              </div>
+            </div>
+
+            <div class="booking-modal-service section-card">
+              <div class="booking-service-header">
+                <div>
+                  <div class="small text-muted">Service</div>
+                  <div id="bookingServiceName" class="card-title">
+                    In-Home Sitting
+                  </div>
+                </div>
+                <div class="booking-price-total">
+                  <div class="small text-muted">Total</div>
+                  <div id="bookingTotalPrice" class="stat-value">$0.00</div>
+                </div>
+              </div>
+
+              <div class="booking-price-breakdown">
+                <div class="booking-line">
+                  <span id="bookingLine1Label">Base service</span>
+                  <span id="bookingLine1Price">$0.00</span>
+                </div>
+                <div class="booking-line">
+                  <span id="bookingLine2Label">Extra dog</span>
+                  <span id="bookingLine2Price">$0.00</span>
+                </div>
+                <div class="booking-line">
+                  <span>Service fee</span>
+                  <span id="bookingLine3Price">$0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client + pet info (demo text filled by JS) -->
+          <div class="booking-modal-details">
+            <div class="section-card">
+              <h3 class="small-heading">Your info</h3>
+              <p class="small">
+                <strong id="bookingClientName">Your name</strong><br />
+                <span id="bookingClientEmail">you@example.com</span>
+              </p>
+            </div>
+
+            <div class="section-card">
+              <h3 class="small-heading">Your pet</h3>
+              <p class="small">
+                <strong id="bookingPetNames">Your dog(s) – demo</strong><br />
+                <span id="bookingPetBreed">Breed / size – demo</span><br />
+                <span id="bookingPetFeeding">Feeding: Not set (demo)</span><br />
+                <span id="bookingPetBehavior">Behavior: Not set (demo)</span><br />
+                <span id="bookingPetMedication">Medication: Not set (demo)</span><br />
+                <span id="bookingPetWalks">Walk schedule: Not set (demo)</span>
+              </p>
+            </div>
+
+            <div class="section-card">
+              <h3 class="small-heading">Sitter policies</h3>
+              <div id="bookingPolicies" class="small text-muted">
+                <!-- Filled by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer buttons -->
+          <div class="booking-modal-footer">
+            <button
+              id="bookingModalCancelBtn"
+              type="button"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="bookingModalEditBtn"
+              type="button"
+              class="btn-secondary"
+            >
+              Edit details
+            </button>
+
+            <button
+              id="bookingModalConfirmBtn"
+              type="button"
+              class="btn-primary"
+            >
+              Confirm booking
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- ===================== END BOOKING MODAL ===================== -->
+
   <!-- ============= SCRIPTS ============= -->
 
   <!-- Stripe.js from Stripe CDN (must be before js/stripe.js) -->

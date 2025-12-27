@@ -190,6 +190,8 @@
 
   // Attach message + book handlers on sitter profile page
   function attachHeaderActions(root, sitter) {
+    if (!root || !sitter) return;
+
     // Message buttons (top-right + bottom)
     const msgButtons = root.querySelectorAll(".btn-header-message");
     msgButtons.forEach((msgBtn) => {
@@ -218,6 +220,13 @@
           state.setSelectedSitterId(sitter.id);
         }
 
+        // ✅ Prefer the booking MODAL if available
+        if (typeof window.openBookingModal === "function") {
+          window.openBookingModal(sitter.id);
+          return;
+        }
+
+        // 🔁 Fallback: full booking page
         if (typeof window.setActivePage === "function") {
           window.setActivePage("bookingPage");
         } else {
@@ -746,7 +755,9 @@
     `;
 
     // Simple green highlight when checklist items are checked
-    const checkboxes = root.querySelectorAll(".booking-todo-list input[type='checkbox']");
+    const checkboxes = root.querySelectorAll(
+      ".booking-todo-list input[type='checkbox']"
+    );
     checkboxes.forEach((cb) => {
       cb.addEventListener("change", function () {
         const li = this.closest(".todo-item");
@@ -759,12 +770,11 @@
       });
     });
   };
-  // ==========================================================
-  // NEW (non-breaking): Kodecolor-style sitter profile renderer
-  // Uses profileShared.js if present.
-  // Falls back to your current renderSitterProfile().
-  // ==========================================================
 
+  // ==========================================================
+  // OPTIONAL: Kodecolor-style sitter profile renderer
+  // (not used unless you call it)
+  // ==========================================================
   function renderSitterProfileKode(root, sitter) {
     if (!root) return;
 
@@ -779,7 +789,7 @@
       ...sitter,
       role: sitter.role || "sitter",
       full_name: sitter.full_name || sitter.name,
-      rating: sitter.rating || sitter.avg_rating || 0
+      rating: sitter.rating || sitter.avg_rating || 0,
     };
 
     // Clear and render the "clean profile"
@@ -789,7 +799,7 @@
       const view = window.PetCareBuildProfileView(normalized, {
         brandName: "PetCare Portal",
         mode: "public",
-        showMessageButton: true
+        showMessageButton: true,
       });
       root.appendChild(view);
     } else {
@@ -842,66 +852,7 @@
     const sitter = sitterId ? state.getSitterById(sitterId) : null;
 
     renderSitterProfile(root, sitter);
+    // If you ever want to use the Kode-style renderer instead:
+    // renderSitterProfileKode(root, sitter);
   };
 })();
-// ============================
-// ADD-ONLY: Sitter profile click safety net
-// Place at the very bottom of js/pages/sitterProfile.js
-// ============================
-
-(function ensureSitterProfileDelegation() {
-  function wire() {
-    const root = document.getElementById("sitterProfileRoot");
-    if (!root || root.__sitterDelegated) return;
-
-    root.__sitterDelegated = true;
-
-    root.addEventListener("click", function (e) {
-      const msgBtn = e.target.closest(".btn-header-message");
-      const bookBtn = e.target.closest(".btn-header-book");
-
-      if (!msgBtn && !bookBtn) return;
-
-      const state = window.PetCareState;
-      const sitterId =
-        state?.getSelectedSitterId?.() ||
-        e.target.closest("[data-sitter-id]")?.getAttribute("data-sitter-id");
-
-      const sitter =
-        sitterId && state?.getSitterById
-          ? state.getSitterById(sitterId)
-          : null;
-
-      if (msgBtn) {
-        if (!sitter) {
-          alert("Sitter not found for messaging.");
-          return;
-        }
-
-        window.__activeChatTarget = {
-          type: "sitter",
-          id: sitter.id,
-          name: sitter.name
-        };
-
-        window.setActivePage?.("messagesPage");
-        return;
-      }
-
-      if (bookBtn) {
-        if (!sitter) {
-          alert("Sitter not found for booking.");
-          return;
-        }
-
-        state?.setSelectedSitterId?.(sitter.id);
-        window.setActivePage?.("bookingPage");
-        window.initBookingPage?.();
-      }
-    });
-  }
-
-  document.addEventListener("DOMContentLoaded", wire);
-  window.__wireSitterProfileClicks = wire;
-})();
-
