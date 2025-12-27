@@ -766,6 +766,147 @@ window.PetCareState = (function () {
     }
   }
 
+  // ==========================
+  // BACKEND BOOKING HELPERS
+  // ==========================
+
+  function mapApiBooking(row) {
+    if (!row) return null;
+
+    const price =
+      row.price_total != null
+        ? Number(row.price_total)
+        : row.total_price != null
+        ? Number(row.total_price)
+        : 0;
+
+    const start =
+      row.start_datetime || row.start_time || row.start || null;
+    const end = row.end_datetime || row.end_time || row.end || null;
+
+    return {
+      // normalized fields for the frontend
+      id: row.id || row.booking_id || null,
+      status: row.status || "requested",
+
+      clientId:
+        row.client_id != null ? row.client_id : row.clientId || null,
+      sitterId:
+        row.sitter_id != null ? row.sitter_id : row.sitterId || null,
+
+      serviceType: row.service_type || row.serviceType || "Pet sitting",
+
+      startTime: start,
+      endTime: end,
+
+      location: row.location || "",
+      notes: row.notes || "",
+
+      priceTotal: Number.isFinite(price) ? price : 0,
+      currency: row.currency || "USD",
+
+      createdAt: row.created_at || row.createdAt || null,
+
+      // keep raw row just in case we need more data in the UI later
+      _raw: row
+    };
+  }
+
+  function findAuthTokenFromStorage() {
+    // Try a few common keys so we don't have to guess perfectly.
+    const candidates = [
+      "petcare_jwt",
+      "petcare_token",
+      "authToken",
+      "token"
+    ];
+    for (const key of candidates) {
+      const val = localStorage.getItem(key);
+      if (val && typeof val === "string") return val;
+    }
+    return null;
+  }
+
+  async function refreshBookingsFromApi(explicitToken) {
+    if (!API_BASE) {
+      console.warn(
+        "[PetCareState] API_BASE missing – using local demo bookings only."
+      );
+      return state.bookings.slice();
+    }
+
+    const token = explicitToken || findAuthTokenFromStorage();
+    if (!token) {
+      console.warn(
+        "[PetCareState] refreshBookingsFromApi: no JWT token found in storage."
+      );
+      return state.bookings.slice();
+    }
+
+    try {
+      const resp = await fetch(`${API_BASE}/bookings`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        credentials: "include"
+      });
+
+      if (!resp.ok) {
+        throw new Error("HTTP " + resp.status);
+      }
+
+      const data = await resp.json();
+
+      // Backend shape: { ok: true, bookings: [...] } is ideal, but
+      // we also handle just an array coming back.
+      const rows = Array.isArray(data)
+        ? data
+        : Array.isArray(data.bookings)
+        ? data.bookings
+        : [];
+
+      const mapped = rows
+        .map(mapApiBooking)
+        .filter((b) => b && b.id != null);
+
+      // Replace local bookings with server truth
+      state.bookings = mapped;
+      saveToStorage();
+
+      return state.bookings.slice();
+    } catch (err) {
+      console.warn("[PetCareState] refreshBookingsFromApi failed:", err);
+      return state.bookings.slice();
+    }
+  }
+
+  function getBookingsForCurrentUser() {
+    init();
+    const user = getCurrentUser();
+    if (!user || !user.id || user.role === "guest") return [];
+
+    const myId = String(user.id);
+
+    if (user.role === "sitter") {
+      return state.bookings.filter((b) => {
+        const sitterId = b.sitterId != null ? b.sitterId : b.sitter_id;
+        return sitterId != null && String(sitterId) === myId;
+      });
+    }
+
+    if (user.role === "client") {
+      return state.bookings.filter((b) => {
+        const clientId = b.clientId != null ? b.clientId : b.client_id;
+        return clientId != null && String(clientId) === myId;
+      });
+    }
+
+    // Admin / employee: see all bookings
+    return state.bookings.slice();
+  }
+
   // --- Auth helpers ---
 
   function init() {
@@ -1024,6 +1165,7 @@ window.PetCareState = (function () {
     getSitters,
     getSitterById,
     getBookings,
+    getBookingsForCurrentUser,
     getMessages,
     getPets,
     createBooking,
@@ -1040,9 +1182,10 @@ window.PetCareState = (function () {
     setSelectedSitterId,
     getSelectedSitter,
 
-    // Backend sitter sync
+    // Backend sync helpers
     refreshSittersFromApi,
-    upsertSitterProfileFromApiUser
+    upsertSitterProfileFromApiUser,
+    refreshBookingsFromApi
   };
 })();
 

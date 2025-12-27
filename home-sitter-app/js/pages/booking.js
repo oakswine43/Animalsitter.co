@@ -1,6 +1,6 @@
 // js/pages/booking.js
 // Handles the booking modal + full booking confirmation page with To-Do checklist
-// Now wired to Stripe for test payments.
+// Now wired to Stripe + backend /bookings so sitters & clients can see real bookings.
 
 (function () {
   window.PetCareBooking = {
@@ -8,7 +8,8 @@
     booking: null  // confirmed booking
   };
 
-  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "";
+  const API_BASE =
+    window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
 
   // Small util to parse a price like "$40" -> 40
   function parsePrice(str) {
@@ -18,7 +19,29 @@
   }
 
   function formatCurrency(amount) {
-    return "$" + amount.toFixed(2);
+    return "$" + Number(amount || 0).toFixed(2);
+  }
+
+  function getToken() {
+    try {
+      return localStorage.getItem("petcare_token");
+    } catch {
+      return null;
+    }
+  }
+
+  function buildAuthJsonHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  function toMySqlDateTime(d) {
+    // "YYYY-MM-DD HH:MM:SS"
+    return d.toISOString().slice(0, 19).replace("T", " ");
   }
 
   // Ensure Stripe card element is mounted
@@ -115,15 +138,18 @@
     }
 
     if (svcNameEl) svcNameEl.textContent = primaryService.name || "Service";
-    if (line1LabelEl) line1LabelEl.textContent = primaryService.name || "Base service";
+    if (line1LabelEl)
+      line1LabelEl.textContent = primaryService.name || "Base service";
     if (line1PriceEl) line1PriceEl.textContent = primaryService.price || "$0";
     if (line2LabelEl) line2LabelEl.textContent = "Extra dog (demo)";
-    if (line2PriceEl) line2PriceEl.textContent = extraDog
-      ? formatCurrency(extraDog)
-      : "$0.00";
-    if (line3PriceEl) line3PriceEl.textContent = serviceFee
-      ? formatCurrency(serviceFee)
-      : "$2.00";
+    if (line2PriceEl)
+      line2PriceEl.textContent = extraDog
+        ? formatCurrency(extraDog)
+        : "$0.00";
+    if (line3PriceEl)
+      line3PriceEl.textContent = serviceFee
+        ? formatCurrency(serviceFee)
+        : "$2.00";
     if (totalPriceEl) totalPriceEl.textContent = formatCurrency(total);
 
     if (clientNameEl) clientNameEl.textContent = user.name || "Client";
@@ -133,15 +159,23 @@
       const p = sitter.policies || {};
       policiesEl.innerHTML = `
         <ul style="padding-left:18px;">
-          <li><strong>Cancellation:</strong> ${p.cancellation || "Not specified"}</li>
-          <li><strong>Meet &amp; greet:</strong> ${p.meetAndGreet || "Recommended"}</li>
-          <li><strong>Aggressive dog policy:</strong> ${p.aggressiveDogs || "Not specified"}</li>
-          <li><strong>Extra fees:</strong> ${p.extraFees || "Not specified"}</li>
+          <li><strong>Cancellation:</strong> ${
+            p.cancellation || "Not specified"
+          }</li>
+          <li><strong>Meet &amp; greet:</strong> ${
+            p.meetAndGreet || "Recommended"
+          }</li>
+          <li><strong>Aggressive dog policy:</strong> ${
+            p.aggressiveDogs || "Not specified"
+          }</li>
+          <li><strong>Extra fees:</strong> ${
+            p.extraFees || "Not specified"
+          }</li>
         </ul>
       `;
     }
 
-    // Pet info demo placeholders (you can later pull from PetCareState.getPets)
+    // Pet info demo placeholders (later you can pull from PetCareState.getPets)
     const petNamesEl = document.getElementById("bookingPetNames");
     const petBreedEl = document.getElementById("bookingPetBreed");
     const petFeedingEl = document.getElementById("bookingPetFeeding");
@@ -153,8 +187,10 @@
     if (petBreedEl) petBreedEl.textContent = "Breed / size – demo";
     if (petFeedingEl) petFeedingEl.textContent = "Feeding: Not set (demo)";
     if (petBehaviorEl) petBehaviorEl.textContent = "Behavior: Not set (demo)";
-    if (petMedicationEl) petMedicationEl.textContent = "Medication: Not set (demo)";
-    if (petWalksEl) petWalksEl.textContent = "Walk schedule: Not set (demo)";
+    if (petMedicationEl)
+      petMedicationEl.textContent = "Medication: Not set (demo)";
+    if (petWalksEl)
+      petWalksEl.textContent = "Walk schedule: Not set (demo)";
 
     // Show modal
     modal.style.display = "flex";
@@ -168,7 +204,7 @@
     if (modal) modal.style.display = "none";
   }
 
-  // Confirm booking + process Stripe payment
+  // Confirm booking + process Stripe payment + POST /bookings
   async function confirmBookingFromModal() {
     const preview = window.PetCareBooking.preview;
     if (!preview) {
@@ -190,7 +226,8 @@
 
     if (!window.stripe || !cardElement) {
       if (errorEl) {
-        errorEl.textContent = "Payment form not ready. Please refresh the page.";
+        errorEl.textContent =
+          "Payment form not ready. Please refresh the page.";
       }
       return;
     }
@@ -206,26 +243,27 @@
       const total = preview.pricing.total;
       const amountCents = Math.round(total * 100);
 
-      const res = await fetch(`${API_BASE}/stripe/create-payment-intent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          amount: amountCents,
-          currency: "usd",
-          description: `Booking with ${preview.sitter.name}`
-        })
-      });
+      const piRes = await fetch(
+        `${API_BASE}/stripe/create-payment-intent`,
+        {
+          method: "POST",
+          headers: buildAuthJsonHeaders(),
+          body: JSON.stringify({
+            amount: amountCents,
+            currency: "usd",
+            description: `Booking with ${preview.sitter.name}`
+          })
+        }
+      );
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.clientSecret) {
-        throw new Error(data.error || "Failed to start payment.");
+      const piData = await piRes.json().catch(() => ({}));
+      if (!piRes.ok || !piData.clientSecret) {
+        throw new Error(piData.error || "Failed to start payment.");
       }
 
-      const clientSecret = data.clientSecret;
+      const clientSecret = piData.clientSecret;
 
-      // 2) Confirm the card payment
+      // 2) Confirm the card payment (Stripe.js)
       const { error, paymentIntent } = await window.stripe.confirmCardPayment(
         clientSecret,
         {
@@ -247,25 +285,71 @@
         throw new Error("Payment did not complete.");
       }
 
-      // 3) Payment success – create local booking (you can later POST /bookings)
+      // 3) Payment success – create REAL booking in backend
+      const now = new Date();
+      const end = new Date(now.getTime() + 60 * 60 * 1000); // +1 hour
+
+      const bkRes = await fetch(`${API_BASE}/bookings`, {
+        method: "POST",
+        headers: buildAuthJsonHeaders(),
+        body: JSON.stringify({
+          client_id: preview.client.id,
+          sitter_id: preview.sitter.id,
+          pet_id: null,
+          service_type: preview.service.name || "Pet sitting",
+          start_time: toMySqlDateTime(now),
+          end_time: toMySqlDateTime(end),
+          location: "",
+          price_total: preview.pricing.total,
+          notes: `Stripe paymentIntent ${paymentIntent.id}`
+        })
+      });
+
+      const bkData = await bkRes.json().catch(() => ({}));
+      if (!bkRes.ok || !bkData.ok) {
+        throw new Error(
+          bkData.error || "Payment succeeded but booking failed."
+        );
+      }
+
+      // 4) Build local booking object for state + booking page
       const bookingObj = {
-        id: "b-" + Date.now(),
-        clientId: preview.client.id,
+        id: bkData.booking_id || "b-" + Date.now(),
+        clientId: bkData.client_id || preview.client.id,
+        sitterId: bkData.sitter_id || preview.sitter.id,
         clientName: preview.client.name,
-        sitterId: preview.sitter.id,
         sitterName: preview.sitter.name,
-        serviceName: preview.service.name,
-        requestedDate: "Soon (demo)", // hook up a real date picker later
+        serviceName: bkData.service_type || preview.service.name,
+        requestedDate: new Date().toLocaleString(),
         status: "Confirmed & Paid",
         details:
-          "Stripe test payment succeeded. Total: " +
-          formatCurrency(preview.pricing.total),
+          "Total: " +
+          formatCurrency(bkData.total_price || preview.pricing.total) +
+          (bkData.platform_fee != null
+            ? ` • Platform fee: ${formatCurrency(
+                bkData.platform_fee
+              )} • Sitter payout: ${formatCurrency(
+                bkData.sitter_payout || 0
+              )}`
+            : ""),
         paymentIntentId: paymentIntent.id,
-        totalPaid: preview.pricing.total
+        totalPaid: bkData.total_price || preview.pricing.total,
+        commissionRate: bkData.commission_rate,
+        platformFee: bkData.platform_fee,
+        sitterPayout: bkData.sitter_payout
       };
 
       if (typeof S.createBooking === "function") {
         S.createBooking(bookingObj);
+      }
+
+      // Optionally sync with backend bookings
+      if (typeof S.refreshBookingsFromApi === "function") {
+        try {
+          await S.refreshBookingsFromApi();
+        } catch (e) {
+          console.warn("refreshBookingsFromApi failed:", e);
+        }
       }
 
       window.PetCareBooking.booking = bookingObj;
@@ -277,7 +361,8 @@
     } catch (err) {
       console.error("Booking payment error:", err);
       if (errorEl) {
-        errorEl.textContent = err.message || "Payment error, please try again.";
+        errorEl.textContent =
+          err.message || "Payment error, please try again.";
       }
     } finally {
       if (btn) {
@@ -309,7 +394,8 @@
       {
         id: "todo-instructions",
         title: "Add dog instructions",
-        details: "Feeding schedule, walking schedule, routines, and bedtime habits."
+        details:
+          "Feeding schedule, walking schedule, routines, and bedtime habits."
       },
       {
         id: "todo-vet-records",
@@ -329,12 +415,14 @@
       {
         id: "todo-medication",
         title: "Add medication info (if needed)",
-        details: "Medication name, dosage, times, and how to give it."
+        details:
+          "Medication name, dosage, times, and how to give it."
       },
       {
         id: "todo-behavior",
         title: "Tell your sitter about any behavior notes",
-        details: "Aggression triggers, anxiety, reactions to dogs/children, separation issues."
+        details:
+          "Aggression triggers, anxiety, reactions to dogs/children, separation issues."
       },
       {
         id: "todo-location-share",
@@ -376,7 +464,9 @@
             <p style="font-size:13px;">
               <strong>Sitter:</strong> ${sitterName}<br/>
               <strong>Status:</strong> ${booking.status}<br/>
-              <strong>When:</strong> ${booking.requestedDate}<br/>
+              <strong>When:</strong> ${
+                booking.requestedDate || "Not set"
+              }<br/>
               <strong>Notes:</strong> ${booking.details}
             </p>
           </div>
@@ -475,17 +565,16 @@
 
     if (confirmBtn) {
       confirmBtn.addEventListener("click", function () {
-        // async handler
         confirmBookingFromModal();
       });
     }
 
     if (editBtn) {
       editBtn.addEventListener("click", function () {
-        // For demo, just close and show a message.
+        // For now, just close and show a message.
         closeBookingModal();
         alert(
-          "Edit flow not implemented in this demo. In a real app, this would let you change times, pets, etc."
+          "Edit flow not implemented yet. In a future version this can change times, pets, etc."
         );
       });
     }

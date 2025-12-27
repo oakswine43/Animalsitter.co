@@ -755,10 +755,10 @@ app.post("/payments/create-checkout-session", async (req, res) => {
       process.env.FRONTEND_BASE_URL ||
       "http://localhost:5500/home-sitter-app";
 
-    const successUrl =
+    const successUrlFinal =
       success_url ||
       `${frontendBase}/index.html?checkout=success`;
-    const cancelUrl =
+    const cancelUrlFinal =
       cancel_url || `${frontendBase}/index.html?checkout=cancel`;
 
     const session = await stripe.checkout.sessions.create({
@@ -785,8 +785,8 @@ app.post("/payments/create-checkout-session", async (req, res) => {
         client_id: String(client_id),
         service_type
       },
-      success_url: successUrl,
-      cancel_url: cancelUrl
+      success_url: successUrlFinal,
+      cancel_url: cancelUrlFinal
     });
 
     res.json({
@@ -813,6 +813,90 @@ function makeReceiptNumber(bookingId) {
   const padded = String(bookingId).padStart(5, "0");
   return `MR-${year}-${padded}`;
 }
+
+// NEW: GET /bookings - returns bookings for the current user
+app.get("/bookings", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role || "client";
+
+    let whereClause = "";
+    let params = [];
+
+    if (role === "sitter") {
+      whereClause = "WHERE b.sitter_id = ?";
+      params = [userId];
+    } else if (role === "client") {
+      whereClause = "WHERE b.client_id = ?";
+      params = [userId];
+    } else {
+      // admin/employee can see all bookings
+      whereClause = "";
+      params = [];
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        b.id,
+        b.client_id,
+        b.sitter_id,
+        b.pet_id,
+        b.service_type,
+        b.status,
+        b.start_time,
+        b.end_time,
+        b.total_price,
+        b.location,
+        b.notes,
+        b.start_time AS created_at,
+        c.first_name AS client_first_name,
+        c.last_name AS client_last_name,
+        s.first_name AS sitter_first_name,
+        s.last_name AS sitter_last_name
+      FROM bookings b
+      LEFT JOIN users c ON b.client_id = c.id
+      LEFT JOIN users s ON b.sitter_id = s.id
+      ${whereClause}
+      ORDER BY b.start_time DESC, b.id DESC
+      `,
+      params
+    );
+
+    const bookings = rows.map((row) => {
+      const clientName = `${row.client_first_name || ""} ${
+        row.client_last_name || ""
+      }`.trim();
+      const sitterName = `${row.sitter_first_name || ""} ${
+        row.sitter_last_name || ""
+      }`.trim();
+
+      return {
+        id: row.id,
+        client_id: row.client_id,
+        sitter_id: row.sitter_id,
+        pet_id: row.pet_id,
+        service_type: row.service_type,
+        status: row.status,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        total_price: row.total_price,
+        location: row.location,
+        notes: row.notes,
+        created_at: row.created_at,
+        client_name: clientName,
+        sitter_name: sitterName
+      };
+    });
+
+    res.json({ ok: true, bookings });
+  } catch (err) {
+    console.error("BOOKINGS_LIST_ERROR:", err);
+    res
+      .status(500)
+      .json({ ok: false, error: "Failed to load bookings for user." });
+  }
+});
 
 app.post("/bookings", async (req, res) => {
   try {
