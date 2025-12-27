@@ -87,6 +87,8 @@
     }
   }
 
+  // ----- API helpers -----
+
   async function fetchProfileFromApi() {
     const token = getToken();
     if (!token) throw new Error("Not logged in.");
@@ -167,9 +169,12 @@
       throw new Error(data.error || "Failed to upload profile photo.");
     }
 
+    // Pull fresh user (with avatar_url) from backend
     const updatedUser = await fetchProfileFromApi();
     return { upload: data, user: updatedUser };
   }
+
+  // ----- Render + wiring -----
 
   function renderProfilePage() {
     const root = document.getElementById("profileRoot");
@@ -358,6 +363,7 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
+        // Instant preview
         const reader = new FileReader();
         reader.onload = function (ev) {
           const dataUrl = ev.target.result;
@@ -424,14 +430,17 @@
     }
   }
 
+  // Expose for app.js
   window.renderProfilePage = renderProfilePage;
-  window.initProfilePage = function () {
+
+  // When you navigate to Profile, sync from backend first
+  window.initProfilePage = async function () {
+    try {
+      await fetchProfileFromApi();
+    } catch (err) {
+      console.warn("initProfilePage: could not fetch profile", err);
+      // If this fails (e.g., guest), we still render whatever we have
+    }
     renderProfilePage();
   };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", renderProfilePage);
-  } else {
-    renderProfilePage();
-  }
 })();

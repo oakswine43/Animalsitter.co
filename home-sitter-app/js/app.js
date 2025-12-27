@@ -52,52 +52,82 @@ function normalizeAvatarUrl(url) {
  * Shared mapper:
  * Backend returns: id, full_name, first_name, last_name,
  * email, role, phone, photo_url, avatar_url, is_active
+ *
+ * This version:
+ *  - PRESERVES existing avatar if the API doesn’t send one
+ *  - Normalizes any relative /uploads/... path to a full URL
  */
-if (!window.PetCareMapApiUser) {
-  window.PetCareMapApiUser = function (apiUser) {
-    if (!apiUser) return null;
+window.PetCareMapApiUser = function (apiUser) {
+  if (!apiUser) return null;
 
-    const firstNameRaw = apiUser.first_name || "";
-    const lastNameRaw = apiUser.last_name || "";
+  // Whatever user is already in state (may be guest / old session)
+  const prev =
+    window.PetCareState &&
+    typeof window.PetCareState.getCurrentUser === "function"
+      ? window.PetCareState.getCurrentUser() || {}
+      : {};
 
-    // Start with whatever full_name the backend gives us
-    let fullName =
-      apiUser.full_name ||
-      `${firstNameRaw} ${lastNameRaw}`.trim() ||
-      apiUser.name ||
-      "";
+  // Only reuse avatar if it’s the *same* user
+  const sameUser =
+    prev && prev.id && apiUser.id && prev.id === apiUser.id;
 
-    // Ensure we always have first/last by splitting fullName if needed
-    let first = firstNameRaw;
-    let last = lastNameRaw;
+  const first =
+    apiUser.first_name ||
+    apiUser.firstName ||
+    apiUser.given_name ||
+    "";
+  const last =
+    apiUser.last_name ||
+    apiUser.lastName ||
+    apiUser.family_name ||
+    "";
 
-    if (!first && fullName) {
-      const parts = fullName.split(/\s+/);
-      first = parts[0] || "";
-      last = parts.slice(1).join(" ");
-    }
+  const fullName =
+    apiUser.full_name ||
+    apiUser.name ||
+    `${first} ${last}`.trim() ||
+    prev.full_name ||
+    prev.name ||
+    "";
 
-    const rawAvatar = apiUser.avatar_url || apiUser.photo_url || null;
-    const rawPhoto = apiUser.photo_url || apiUser.avatar_url || null;
+  const avatarFromApi = apiUser.avatar_url || apiUser.photo_url || null;
+  const avatarFromPrev =
+    sameUser && (prev.avatar_url || prev.photo_url)
+      ? prev.avatar_url || prev.photo_url
+      : null;
 
-    const avatarUrl = normalizeAvatarUrl(rawAvatar);
-    const photoUrl = normalizeAvatarUrl(rawPhoto);
+  const rawAvatar = avatarFromApi || avatarFromPrev || null;
 
-    return {
-      id: apiUser.id,
-      name: fullName,
-      full_name: fullName,
-      first_name: first || null,
-      last_name: last || null,
-      email: apiUser.email || "",
-      role: apiUser.role || "client",
-      phone: apiUser.phone || "",
-      is_active: apiUser.is_active,
-      avatar_url: avatarUrl,
-      photo_url: photoUrl
-    };
+  const avatarUrl = normalizeAvatarUrl(rawAvatar);
+  const photoUrl = normalizeAvatarUrl(
+    apiUser.photo_url ||
+      apiUser.avatar_url ||
+      avatarFromPrev ||
+      rawAvatar
+  );
+
+  return {
+    // keep any previous fields so we don’t drop data
+    ...prev,
+
+    id: apiUser.id ?? prev.id ?? null,
+    email: apiUser.email || prev.email || "",
+    role: apiUser.role || prev.role || "client",
+    phone: apiUser.phone || prev.phone || "",
+    is_active:
+      typeof apiUser.is_active === "boolean"
+        ? apiUser.is_active
+        : prev.is_active ?? true,
+
+    full_name: fullName,
+    name: fullName,
+    first_name: first || prev.first_name || null,
+    last_name: last || prev.last_name || null,
+
+    avatar_url: avatarUrl,
+    photo_url: photoUrl
   };
-}
+};
 
 // -----------------------------
 // Header user chip
@@ -233,7 +263,7 @@ function setupNav() {
 
 // -----------------------------
 // Restore session from JWT
-// NOW USES /profile so we always get avatar_url from DB
+// Uses /profile so we always get latest user info
 // -----------------------------
 async function restoreSession() {
   const token = localStorage.getItem("petcare_token");

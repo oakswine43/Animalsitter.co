@@ -932,3 +932,66 @@ window.PetCareState = (function () {
     getSelectedSitter
   };
 })();
+
+/**
+ * Global user mapper used across the app.
+ * Normalizes API user objects and PRESERVES avatar/photo when the backend
+ * response doesn’t include one, so the profile picture doesn’t “disappear”.
+ */
+window.PetCareMapApiUser = function (apiUser) {
+  if (!apiUser) return null;
+
+  // Previous user in state (if any)
+  const prev =
+    window.PetCareState &&
+    typeof window.PetCareState.getCurrentUser === "function"
+      ? window.PetCareState.getCurrentUser() || {}
+      : {};
+
+  // If IDs don’t match, don’t reuse the old avatar (user actually changed)
+  const sameUser =
+    prev && prev.id && apiUser.id && prev.id === apiUser.id;
+
+  const first =
+    apiUser.first_name || apiUser.firstName || apiUser.given_name || "";
+  const last =
+    apiUser.last_name || apiUser.lastName || apiUser.family_name || "";
+
+  const fullName =
+    apiUser.full_name ||
+    apiUser.name ||
+    `${first} ${last}`.trim() ||
+    prev.full_name ||
+    prev.name ||
+    "";
+
+  const avatarFromApi = apiUser.avatar_url || apiUser.photo_url || null;
+  const avatarFromPrev =
+    sameUser && (prev.avatar_url || prev.photo_url)
+      ? prev.avatar_url || prev.photo_url
+      : null;
+
+  const finalAvatar = avatarFromApi || avatarFromPrev || null;
+
+  return {
+    // keep any existing fields so we don’t accidentally drop data
+    ...prev,
+
+    id: apiUser.id ?? prev.id ?? null,
+    email: apiUser.email || prev.email || "",
+    role: apiUser.role || prev.role || "client",
+    phone: apiUser.phone || prev.phone || "",
+    is_active:
+      typeof apiUser.is_active === "boolean"
+        ? apiUser.is_active
+        : prev.is_active ?? true,
+
+    full_name: fullName,
+    name: fullName,
+    first_name: first || prev.first_name || null,
+    last_name: last || prev.last_name || null,
+
+    avatar_url: finalAvatar,
+    photo_url: finalAvatar
+  };
+};
