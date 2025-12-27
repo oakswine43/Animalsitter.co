@@ -1,293 +1,267 @@
-// js/pages/settings.js
-// Settings page: left sidebar with grouped items, right detail panel.
+// home-sitter-app/js/pages/settings.js
+// Settings page: left sidebar menu + detail panel on the right
 
 (function () {
-  // Sidebar structure
-  const SETTINGS_SECTIONS = [
-    {
-      key: "settings",
-      label: "Settings",
-      items: [
-        { key: "notifications", label: "Notifications" },
-        { key: "system_updates", label: "System updates", badge: "4" },
-        { key: "network_devices", label: "Network" },
-        { key: "password_security", label: "Password & Security" },
-        { key: "verification", label: "Verification check" }
-      ]
-    },
-    {
-      key: "addresses",
-      label: "Addresses",
-      items: [] // future items
-    },
-    {
-      key: "personal_info",
-      label: "Personal info",
-      items: [] // future items
-    }
-  ];
+  function getState() {
+    return window.PetCareState || null;
+  }
 
-  // Right-side views
+  // --------- DETAIL VIEWS (RIGHT PANEL) ---------
   const SETTINGS_VIEWS = {
     password_security: {
       title: "Password & Security",
+      subtitle: "Control how you sign in and keep your AnimalSitter account safe.",
       body: `
-        <p class="text-muted" style="margin-bottom:12px;">
-          Manage how you sign in and keep your AnimalSitter account secure.
-        </p>
-
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Login alerts</div>
-            <div class="settings-toggle-subtitle">
-              Get an email whenever someone signs in from a new device.
+        <div class="settings-detail-list">
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Account password</div>
+              <div class="settings-row-subtitle">
+                Change your password to keep your account secure.
+              </div>
             </div>
+            <button type="button" class="btn-small-outline">Change</button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Two-factor authentication</div>
-            <div class="settings-toggle-subtitle">
-              Add an extra step at login using a code from your phone (demo only).
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Two-factor authentication</div>
+              <div class="settings-row-subtitle">
+                Add a one-time code from your phone each time you sign in.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Remember this device</div>
-            <div class="settings-toggle-subtitle">
-              Reduce how often we ask for your password on trusted devices.
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Login alerts</div>
+              <div class="settings-row-subtitle">
+                Get an email when we notice a new device or location.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
-      `
+      `,
     },
 
     notifications: {
       title: "Notifications",
+      subtitle: "Choose how you hear about bookings, messages, and updates.",
       body: `
-        <p class="text-muted" style="margin-bottom:12px;">
-          Choose how you’d like to hear about bookings, messages, and updates.
-        </p>
-
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Booking updates</div>
-            <div class="settings-toggle-subtitle">
-              Requests, confirmations, and changes to upcoming stays.
+        <div class="settings-detail-list">
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Booking updates</div>
+              <div class="settings-row-subtitle">
+                New requests, changes, and cancellations.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Messages</div>
-            <div class="settings-toggle-subtitle">
-              New messages from sitters and pet parents.
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Messages</div>
+              <div class="settings-row-subtitle">
+                New messages from sitters and pet parents.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Product tips & news</div>
-            <div class="settings-toggle-subtitle">
-              Occasional tips, feature announcements, and promotions.
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Product news</div>
+              <div class="settings-row-subtitle">
+                Tips, feature updates, and occasional promos.
+              </div>
             </div>
+            <button type="button" class="toggle-switch" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
-      `
+      `,
     },
 
     system_updates: {
       title: "System updates",
+      subtitle: "Stay informed about important changes to the AnimalSitter app.",
       body: `
-        <p class="text-muted" style="margin-bottom:12px;">
-          Control when we notify you about app and policy changes.
-        </p>
-
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Important updates</div>
-            <div class="settings-toggle-subtitle">
-              Changes that may affect your bookings, payments, or security.
+        <div class="settings-detail-list">
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Critical updates</div>
+              <div class="settings-row-subtitle">
+                Required updates and security notices. Always on.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" disabled>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Feature previews</div>
-            <div class="settings-toggle-subtitle">
-              Hear about new tools for sitters and pet parents before they launch.
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">New features</div>
+              <div class="settings-row-subtitle">
+                Learn when we launch something new for sitters and pet parents.
+              </div>
             </div>
+            <button type="button" class="toggle-switch" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" />
-            <span class="toggle-slider"></span>
-          </label>
         </div>
-      `
+      `,
     },
 
-    network_devices: {
-      title: "Network & devices",
+    network: {
+      title: "Network",
+      subtitle: "Basic connection settings for the AnimalSitter web app (demo only).",
       body: `
-        <p class="text-muted" style="margin-bottom:12px;">
-          See where you’re signed in and manage trusted devices (demo only).
-        </p>
-
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">This device</div>
-            <div class="settings-toggle-subtitle">
-              MacBook · Knoxville, TN · Active session
+        <div class="settings-detail-list">
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Use secure connection (HTTPS)</div>
+              <div class="settings-row-subtitle">
+                Required to protect your data in transit.
+              </div>
             </div>
+            <button type="button" class="toggle-switch toggle-on" disabled>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <label class="toggle">
-            <input type="checkbox" checked />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
 
-        <div class="settings-toggle-card">
-          <div class="settings-toggle-main">
-            <div class="settings-toggle-title">Sign out of other devices</div>
-            <div class="settings-toggle-subtitle">
-              For security, sign out everywhere else with one click (demo).
+          <div class="settings-detail-row">
+            <div>
+              <div class="settings-row-title">Background data</div>
+              <div class="settings-row-subtitle">
+                Allow AnimalSitter to refresh data in the background.
+              </div>
             </div>
+            <button type="button" class="toggle-switch" data-demo-toggle>
+              <span class="toggle-thumb"></span>
+            </button>
           </div>
-          <button type="button" class="btn-small-outline">
-            Sign out other sessions
-          </button>
         </div>
-      `
+      `,
     },
-
-    verification: {
-      title: "Verification check",
-      body: `
-        <p class="text-muted">
-          In a real app, this is where you’d see ID verification and background check status.
-        </p>
-      `
-    }
   };
 
-  // ---------- Rendering helpers ----------
+  // --------- RENDER HELPERS ---------
 
-  function renderSidebar(activeKey) {
-    const container = document.getElementById("settingsSidebarList");
-    if (!container) return;
+  function renderMainView(viewKey) {
+    const titleEl = document.getElementById("settingsMainTitle");
+    const subtitleEl = document.getElementById("settingsMainSubtitle");
+    const bodyEl = document.getElementById("settingsMainBody");
 
-    container.innerHTML = "";
+    if (!titleEl || !subtitleEl || !bodyEl) return;
 
-    SETTINGS_SECTIONS.forEach((section) => {
-      const group = document.createElement("div");
-      group.className = "settings-sidebar-group";
+    const view = SETTINGS_VIEWS[viewKey];
 
-      const heading = document.createElement("div");
-      heading.className = "settings-sidebar-group-title";
-      heading.textContent = section.label;
-      group.appendChild(heading);
-
-      if (section.items && section.items.length) {
-        section.items.forEach((item) => {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "settings-sidebar-link";
-          btn.setAttribute("data-settings-view", item.key);
-          btn.textContent = item.label;
-
-          if (item.badge) {
-            const badge = document.createElement("span");
-            badge.className = "settings-sidebar-link-badge";
-            badge.textContent = item.badge;
-            btn.appendChild(badge);
-          }
-
-          if (item.key === activeKey) {
-            btn.classList.add("active");
-          }
-
-          group.appendChild(btn);
-        });
-      }
-
-      container.appendChild(group);
-    });
-  }
-
-  function renderView(key) {
-    const titleEl = document.getElementById("settingsDetailTitle");
-    const bodyEl = document.getElementById("settingsDetailBody");
-    if (!titleEl || !bodyEl) return;
-
-    const view = SETTINGS_VIEWS[key];
     if (!view) {
-      titleEl.textContent = "Settings";
-      bodyEl.innerHTML = `
-        <p class="text-muted">
-          Select an item on the left to view and update its settings.
-        </p>
-      `;
+      titleEl.textContent = "Password & Security";
+      subtitleEl.textContent = "Select an item on the left to view and update its settings.";
+      bodyEl.innerHTML = "";
       return;
     }
 
     titleEl.textContent = view.title;
-    bodyEl.innerHTML = view.body;
+    subtitleEl.textContent = view.subtitle || "";
+    bodyEl.innerHTML = view.body || "";
   }
 
-  // ---------- Page init ----------
+  function buildSidebar(activeViewKey) {
+    const sidebar = document.getElementById("settingsSidebar");
+    if (!sidebar) return;
+
+    // Simple single group for now (like screenshot)
+    const items = [
+      { key: "password_security", label: "Password & Security" },
+      { key: "notifications", label: "Notifications" },
+      { key: "system_updates", label: "System updates" },
+      { key: "network", label: "Network" },
+    ];
+
+    sidebar.innerHTML = `
+      <div class="settings-sidebar-header">
+        <span class="settings-sidebar-title">Settings</span>
+      </div>
+      <ul class="settings-nav-list">
+        ${items
+          .map(
+            (item) => `
+          <li
+            class="settings-nav-item ${
+              item.key === activeViewKey ? "is-active" : ""
+            }"
+            data-settings-view="${item.key}"
+          >
+            <span class="settings-nav-label">${item.label}</span>
+          </li>
+        `
+          )
+          .join("")}
+      </ul>
+    `;
+
+    sidebar.addEventListener("click", function (e) {
+      const item = e.target.closest("[data-settings-view]");
+      if (!item) return;
+
+      const viewKey = item.getAttribute("data-settings-view");
+      const navItems = sidebar.querySelectorAll(".settings-nav-item");
+      navItems.forEach((el) => el.classList.remove("is-active"));
+      item.classList.add("is-active");
+
+      renderMainView(viewKey);
+    });
+  }
+
+  function updateSettingsUserLabel() {
+    const el = document.getElementById("settingsUserLabel");
+    if (!el) return;
+
+    const state = getState();
+    const user =
+      state && typeof state.getCurrentUser === "function"
+        ? state.getCurrentUser()
+        : null;
+
+    const name =
+      (user && (user.name || user.full_name || user.email)) || "Guest";
+    el.textContent = `Customer: ${name}`;
+  }
+
+  function wireToggleDemoHandlers() {
+    const mainCard = document.getElementById("settingsMainCard");
+    if (!mainCard) return;
+
+    mainCard.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-demo-toggle]");
+      if (!btn || btn.disabled) return;
+      btn.classList.toggle("toggle-on");
+    });
+  }
+
+  // --------- PAGE INIT ---------
 
   window.initSettingsPage = function () {
-    const defaultKey = "password_security";
-
-    renderSidebar(defaultKey);
-    renderView(defaultKey);
-
-    const container = document.getElementById("settingsSidebarList");
-    if (!container) return;
-
-    container.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-settings-view]");
-      if (!btn) return;
-
-      const key = btn.getAttribute("data-settings-view");
-      if (!key) return;
-
-      renderSidebar(key);
-      renderView(key);
-    });
+    const defaultView = "password_security";
+    buildSidebar(defaultView);
+    renderMainView(defaultView);
+    updateSettingsUserLabel();
+    wireToggleDemoHandlers();
   };
 })();

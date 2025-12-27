@@ -447,8 +447,16 @@
             </div>
           </section>
 
-                   <!-- SETTINGS PAGE -->
+                             <!-- SETTINGS PAGE -->
           <section id="settingsPage" class="page">
+            <!-- mini header bar like app name + customer -->
+            <div class="settings-page-bar">
+              <div class="settings-app-label">AnimalSitter</div>
+              <div class="settings-user-label" id="settingsUserLabel">
+                Customer: Guest
+              </div>
+            </div>
+
             <div class="page-header">
               <h1>Settings</h1>
               <p class="page-subtitle">
@@ -456,24 +464,22 @@
               </p>
             </div>
 
-            <div class="settings-grid">
-              <!-- Left sidebar -->
-              <aside class="section-card settings-sidebar">
-                <h2 class="settings-sidebar-title">Settings</h2>
-                <ul id="settingsSidebarList" class="settings-sidebar-list">
-                  <!-- Filled by settings.js -->
-                </ul>
+            <div class="settings-layout">
+              <!-- LEFT: sidebar -->
+              <aside id="settingsSidebar" class="settings-sidebar section-card">
+                <!-- filled by settings.js -->
               </aside>
 
-              <!-- Right detail panel -->
-              <div class="section-card settings-detail">
-                <h2 id="settingsDetailTitle">Password &amp; Security</h2>
-                <div id="settingsDetailBody">
-                  <p class="text-muted">
+              <!-- RIGHT: detail panel -->
+              <section id="settingsMainCard" class="settings-main section-card">
+                <div class="settings-main-header">
+                  <h2 id="settingsMainTitle">Password &amp; Security</h2>
+                  <p id="settingsMainSubtitle" class="text-muted small">
                     Select an item on the left to view and update its settings.
                   </p>
                 </div>
-              </div>
+                <div id="settingsMainBody"></div>
+              </section>
             </div>
           </section>
 
