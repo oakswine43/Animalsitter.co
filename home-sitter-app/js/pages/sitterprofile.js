@@ -220,13 +220,13 @@
           state.setSelectedSitterId(sitter.id);
         }
 
-        // ✅ Prefer the booking MODAL if available
+        // Prefer the booking MODAL if available
         if (typeof window.openBookingModal === "function") {
           window.openBookingModal(sitter.id);
           return;
         }
 
-        // 🔁 Fallback: full booking page
+        // Fallback: full booking page
         if (typeof window.setActivePage === "function") {
           window.setActivePage("bookingPage");
         } else {
@@ -537,7 +537,7 @@
         return;
       }
 
-      // Collect form values (same ids as before)
+      // Collect form values
       const bookingData = {
         service: document.getElementById("bookingService").value,
         date: document.getElementById("bookingDate").value,
@@ -754,7 +754,6 @@
       </div>
     `;
 
-    // Simple green highlight when checklist items are checked
     const checkboxes = root.querySelectorAll(
       ".booking-todo-list input[type='checkbox']"
     );
@@ -779,12 +778,10 @@
     if (!root) return;
 
     if (!sitter) {
-      // Keep your existing empty-state behavior
       renderSitterProfile(root, sitter);
       return;
     }
 
-    // Normalize sitter shape for the shared renderer
     const normalized = {
       ...sitter,
       role: sitter.role || "sitter",
@@ -792,7 +789,6 @@
       rating: sitter.rating || sitter.avg_rating || 0,
     };
 
-    // Clear and render the "clean profile"
     root.innerHTML = "";
 
     if (typeof window.PetCareBuildProfileView === "function") {
@@ -803,12 +799,10 @@
       });
       root.appendChild(view);
     } else {
-      // If shared renderer not loaded for any reason, fallback
       renderSitterProfile(root, sitter);
       return;
     }
 
-    // Add your existing booking/message buttons so attachHeaderActions still works
     const firstName = sitter.name ? sitter.name.split(" ")[0] : "this sitter";
 
     const actionsCard = document.createElement("div");
@@ -827,12 +821,11 @@
     `;
     root.appendChild(actionsCard);
 
-    // Reuse your existing handlers
     attachHeaderActions(root, sitter);
   }
 
   // ====================================
-  // Page initializers – called by app.js
+  // Page initializer – called by app.js
   // ====================================
   window.initSitterProfilePage = function () {
     const root = document.getElementById("sitterProfileRoot");
@@ -851,8 +844,92 @@
       (state.getSelectedSitterId && state.getSelectedSitterId()) || null;
     const sitter = sitterId ? state.getSitterById(sitterId) : null;
 
+    // Use the standard renderer by default
     renderSitterProfile(root, sitter);
-    // If you ever want to use the Kode-style renderer instead:
-    // renderSitterProfileKode(root, sitter);
   };
+})();
+
+// ============================
+// Sitter profile click safety net
+// (handles "Book sitter" and "Message sitter" buttons,
+// even if they come from the shared profile renderer)
+// ============================
+
+(function ensureSitterProfileDelegation() {
+  function isBookButton(el) {
+    if (!el) return false;
+    if (el.classList && el.classList.contains("btn-header-book")) return true;
+
+    const text = (el.textContent || "").toLowerCase().trim();
+    return (
+      text.includes("book sitter") ||
+      text.includes("book now") ||
+      text.startsWith("book ")
+    );
+  }
+
+  function isMessageButton(el) {
+    if (!el) return false;
+    if (el.classList && el.classList.contains("btn-header-message")) return true;
+
+    const text = (el.textContent || "").toLowerCase();
+    return text.includes("message");
+  }
+
+  function wire() {
+    const root = document.getElementById("sitterProfileRoot");
+    if (!root || root.__sitterDelegated) return;
+
+    root.__sitterDelegated = true;
+
+    root.addEventListener("click", function (e) {
+      const clicked = e.target.closest("button, a");
+      if (!clicked) return;
+
+      const bookClicked = isBookButton(clicked);
+      const msgClicked = isMessageButton(clicked);
+
+      if (!bookClicked && !msgClicked) return;
+
+      const state = window.PetCareState;
+      const sitterId =
+        state?.getSelectedSitterId?.() ||
+        clicked.closest("[data-sitter-id]")?.getAttribute("data-sitter-id");
+
+      const sitter =
+        sitterId && state?.getSitterById
+          ? state.getSitterById(sitterId)
+          : null;
+
+      if (msgClicked) {
+        if (!sitter) {
+          alert("Sitter not found for messaging.");
+          return;
+        }
+
+        window.__activeChatTarget = {
+          type: "sitter",
+          id: sitter.id,
+          name: sitter.name,
+        };
+
+        window.setActivePage?.("messagesPage");
+        return;
+      }
+
+      if (bookClicked) {
+        if (!sitter) {
+          alert("Sitter not found for booking.");
+          return;
+        }
+
+        state?.setSelectedSitterId?.(sitter.id);
+        window.setActivePage?.("bookingPage");
+        window.initBookingPage?.();
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", wire);
+  window.__wireSitterProfileClicks = wire;
 })();
