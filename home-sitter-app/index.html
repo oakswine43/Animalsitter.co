@@ -493,38 +493,181 @@
           </section>
 
           <!-- BOOKING PAGE -->
-          <section id="bookingPage" class="page">
-            <div class="page-header">
-              <button class="btn-small" data-page-jump="sitterProfilePage">← Back to profile</button>
-              <h1 style="margin-top:8px;">Book this sitter</h1>
-              <p class="page-subtitle">
-                Share your pet’s routine, schedule, and any special instructions so your sitter can give great care.
-              </p>
-            </div>
-            <div class="dashboard-layout">
-              <div class="dashboard-card">
-                <div class="booking-sitter-summary section-card">
-                  <div class="booking-sitter-main">
-                    <div id="bookingSitterAvatar" class="avatar-circle"></div>
-                    <div>
-                      <div id="bookingSitterName" class="card-title">Sitter name</div>
-                      <div class="card-subtitle">
-                        <span id="bookingSitterRating">★ New</span>
-                        <span> · </span>
-                        <span id="bookingSitterDistance">Nearby</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+<section id="bookingPage" class="page">
+  <div class="page-header">
+    <button class="btn-small" data-page-jump="sitterProfilePage">← Back to profile</button>
+    <h1 style="margin-top:8px;">Book this sitter</h1>
+    <p class="page-subtitle">
+      Share your pet’s routine, schedule, and any special instructions so your sitter can give great care.
+    </p>
+  </div>
 
-                <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
-                  <div class="section-card">
-                    <p class="text-muted">Booking form is initialized by JS.</p>
-                  </div>
-                </form>
-              </div>
+  <div class="dashboard-layout">
+    <!-- LEFT: main booking form -->
+    <div class="dashboard-card">
+      <!-- sitter summary (filled by JS) -->
+      <div class="booking-sitter-summary section-card">
+        <div class="booking-sitter-main">
+          <div id="bookingSitterAvatar" class="avatar-circle"></div>
+          <div>
+            <div id="bookingSitterName" class="card-title">Sitter name</div>
+            <div class="card-subtitle">
+              <span id="bookingSitterRating">★ New</span>
+              <span> · </span>
+              <span id="bookingSitterDistance">Nearby</span>
             </div>
-          </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- this form is what initBookingPage() in sitterProfile.js uses -->
+      <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
+        <!-- Booking details -->
+        <div class="section-card">
+          <h3>Booking details</h3>
+          <div class="profile-form-grid">
+            <label>
+              <span>Service</span>
+              <select id="bookingService" class="input">
+                <option value="Overnight sitting">Overnight sitting</option>
+                <option value="Drop-in visit">Drop-in visit</option>
+                <option value="Dog walking">Dog walking</option>
+                <option value="Doggy daycare">Doggy daycare</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Date</span>
+              <input type="date" id="bookingDate" class="input" />
+            </label>
+
+            <label>
+              <span>Start time</span>
+              <input type="time" id="bookingStart" class="input" />
+            </label>
+
+            <label>
+              <span>End time</span>
+              <input type="time" id="bookingEnd" class="input" />
+            </label>
+
+            <label>
+              <span>Location</span>
+              <input
+                type="text"
+                id="bookingLocation"
+                class="input"
+                placeholder="Your home, sitter’s home, etc."
+              />
+            </label>
+          </div>
+        </div>
+
+        <!-- Pet details -->
+        <div class="section-card">
+          <h3>Pet details</h3>
+          <div class="profile-form-grid">
+            <label>
+              <span>Pets</span>
+              <input
+                type="text"
+                id="bookingPets"
+                class="input"
+                placeholder="e.g., Milo (2 y/o lab), Daisy (5 y/o beagle)"
+              />
+            </label>
+
+            <label>
+              <span>Breed / size</span>
+              <input
+                type="text"
+                id="bookingBreed"
+                class="input"
+                placeholder="Lab mix, 65 lb"
+              />
+            </label>
+          </div>
+          <label style="display:block; margin-top:8px;">
+            <span>Notes for your sitter</span>
+            <textarea
+              id="bookingPetNotes"
+              class="input"
+              rows="3"
+              placeholder="Feeding, walks, quirks, meds, bedtime routine..."
+            ></textarea>
+          </label>
+        </div>
+
+        <!-- Your info -->
+        <div class="section-card">
+          <h3>Your info</h3>
+          <div class="profile-form-grid">
+            <label>
+              <span>Phone</span>
+              <input
+                type="tel"
+                id="bookingClientPhone"
+                class="input"
+                placeholder="000-000-0000"
+              />
+            </label>
+
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                id="bookingClientEmail"
+                class="input"
+                placeholder="you@example.com"
+              />
+            </label>
+
+            <label>
+              <span>Address</span>
+              <input
+                type="text"
+                id="bookingClientAddress"
+                class="input"
+                placeholder="Street, city, state"
+              />
+            </label>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section-card">
+          <button type="submit" class="btn-primary">
+            Request booking
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            data-page-jump="sitterProfilePage"
+            style="margin-left:8px;"
+          >
+            Back to sitter
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- RIGHT: simple checklist (static for now) -->
+    <div class="dashboard-card">
+      <div class="section-card">
+        <h3>Before your booking starts</h3>
+        <p class="text-muted" style="font-size:13px;">
+          These are the same items you’ll see again on the confirmation page.
+        </p>
+        <ul style="font-size:13px; padding-left:18px; margin-top:4px;">
+          <li>Add feeding &amp; walk instructions</li>
+          <li>Share any meds or special needs</li>
+          <li>Add emergency contact info</li>
+          <li>Explain how your sitter gets in (door code, key, etc.)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
 
           <!-- BOOKING CONFIRM PAGE -->
           <section id="bookingConfirmPage" class="page">
