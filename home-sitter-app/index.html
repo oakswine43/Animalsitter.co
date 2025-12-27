@@ -447,7 +447,7 @@
             </div>
           </section>
 
-                             <!-- SETTINGS PAGE -->
+          <!-- SETTINGS PAGE -->
           <section id="settingsPage" class="page">
             <!-- mini header bar like app name + customer -->
             <div class="settings-page-bar">
@@ -733,10 +733,19 @@
     </main>
   </div>
 
-  <!-- SCRIPTS -->
+  <!-- ============= SCRIPTS ============= -->
+
+  <!-- Stripe.js from Stripe CDN (must be before js/stripe.js) -->
+  <script src="https://js.stripe.com/v3/"></script>
+
+  <!-- Your frontend Stripe config (uses publishable key) -->
+  <script src="js/stripe.js" defer></script>
+
+  <!-- Core app scripts -->
   <script src="js/state.js" defer></script>
   <script src="js/app.js" defer></script>
 
+  <!-- Page scripts -->
   <script src="js/pages/home.js" defer></script>
   <script src="js/pages/dashboard.js" defer></script>
   <script src="js/pages/swipe.js" defer></script>
@@ -744,8 +753,18 @@
   <script src="js/pages/messages.js" defer></script>
   <script src="js/pages/settings.js" defer></script>
   <script src="js/pages/sitterProfile.js" defer></script>
-  <!-- NOTE: capital P to match authPage.js file -->
   <script src="js/pages/authPage.js" defer></script>
   <script src="js/pages/profile.js" defer></script>
+  <script src="js/pages/booking.js" defer></script>
+
+  <!-- Initialize Stripe once DOM + deferred scripts are ready -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.initStripe) {
+        window.initStripe();
+      }
+    });
+  </script>
+
 </body>
 </html>

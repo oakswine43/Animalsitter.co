@@ -1,33 +1,23 @@
 {
-  "name": "backend",
+  "name": "animalsitter-backend",
   "version": "1.0.0",
-  "description": "PetCare Portal backend API",
+  "description": "Backend API for AnimalSitter (Express + MySQL + Stripe)",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"No tests yet\""
+    "dev": "nodemon index.js"
   },
-  "keywords": [
-    "petcare",
-    "dogs",
-    "sitter",
-    "express",
-    "mysql"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.0.2",
-    "mysql2": "^3.16.0"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "stripe": "^16.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.0"
   }
 }

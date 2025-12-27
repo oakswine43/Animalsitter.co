@@ -1,11 +1,14 @@
 // js/pages/booking.js
 // Handles the booking modal + full booking confirmation page with To-Do checklist
+// Now wired to Stripe for test payments.
 
 (function () {
   window.PetCareBooking = {
-    preview: null,   // used in modal
-    booking: null    // confirmed booking
+    preview: null, // used in modal
+    booking: null  // confirmed booking
   };
+
+  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "";
 
   // Small util to parse a price like "$40" -> 40
   function parsePrice(str) {
@@ -16,6 +19,12 @@
 
   function formatCurrency(amount) {
     return "$" + amount.toFixed(2);
+  }
+
+  // Ensure Stripe card element is mounted
+  function ensureStripeCardMounted() {
+    if (!window.mountStripeCardElement) return;
+    window.mountStripeCardElement();
   }
 
   // Open modal for a given sitter
@@ -86,7 +95,9 @@
     if (nameEl) nameEl.textContent = sitter.name;
     if (subtitleEl) {
       const dist = sitter.distance ? ` • Within ${sitter.distance} of you` : "";
-      subtitleEl.textContent = `⭐ ${sitter.rating || "New"} (${sitter.reviewsCount || 0} reviews)${dist}`;
+      subtitleEl.textContent = `⭐ ${sitter.rating || "New"} (${
+        sitter.reviewsCount || 0
+      } reviews)${dist}`;
     }
     if (avatarEl) {
       avatarEl.style.backgroundImage = sitter.avatar
@@ -106,8 +117,13 @@
     if (svcNameEl) svcNameEl.textContent = primaryService.name || "Service";
     if (line1LabelEl) line1LabelEl.textContent = primaryService.name || "Base service";
     if (line1PriceEl) line1PriceEl.textContent = primaryService.price || "$0";
-    if (line2PriceEl) line2PriceEl.textContent = extraDog ? formatCurrency(extraDog) : "$0.00";
-    if (line3PriceEl) line3PriceEl.textContent = serviceFee ? formatCurrency(serviceFee) : "$2.00";
+    if (line2LabelEl) line2LabelEl.textContent = "Extra dog (demo)";
+    if (line2PriceEl) line2PriceEl.textContent = extraDog
+      ? formatCurrency(extraDog)
+      : "$0.00";
+    if (line3PriceEl) line3PriceEl.textContent = serviceFee
+      ? formatCurrency(serviceFee)
+      : "$2.00";
     if (totalPriceEl) totalPriceEl.textContent = formatCurrency(total);
 
     if (clientNameEl) clientNameEl.textContent = user.name || "Client";
@@ -126,20 +142,25 @@
     }
 
     // Pet info demo placeholders (you can later pull from PetCareState.getPets)
-    document.getElementById("bookingPetNames").textContent = "Your dog(s) – demo";
-    document.getElementById("bookingPetBreed").textContent = "Breed / size – demo";
+    const petNamesEl = document.getElementById("bookingPetNames");
+    const petBreedEl = document.getElementById("bookingPetBreed");
+    const petFeedingEl = document.getElementById("bookingPetFeeding");
+    const petBehaviorEl = document.getElementById("bookingPetBehavior");
+    const petMedicationEl = document.getElementById("bookingPetMedication");
+    const petWalksEl = document.getElementById("bookingPetWalks");
 
-    document.getElementById("bookingPetFeeding").textContent =
-      "Feeding: Not set (demo)";
-    document.getElementById("bookingPetBehavior").textContent =
-      "Behavior: Not set (demo)";
-    document.getElementById("bookingPetMedication").textContent =
-      "Medication: Not set (demo)";
-    document.getElementById("bookingPetWalks").textContent =
-      "Walk schedule: Not set (demo)";
+    if (petNamesEl) petNamesEl.textContent = "Your dog(s) – demo";
+    if (petBreedEl) petBreedEl.textContent = "Breed / size – demo";
+    if (petFeedingEl) petFeedingEl.textContent = "Feeding: Not set (demo)";
+    if (petBehaviorEl) petBehaviorEl.textContent = "Behavior: Not set (demo)";
+    if (petMedicationEl) petMedicationEl.textContent = "Medication: Not set (demo)";
+    if (petWalksEl) petWalksEl.textContent = "Walk schedule: Not set (demo)";
 
     // Show modal
     modal.style.display = "flex";
+
+    // Mount Stripe card input
+    ensureStripeCardMounted();
   };
 
   function closeBookingModal() {
@@ -147,41 +168,122 @@
     if (modal) modal.style.display = "none";
   }
 
-  function confirmBookingFromModal() {
+  // Confirm booking + process Stripe payment
+  async function confirmBookingFromModal() {
     const preview = window.PetCareBooking.preview;
     if (!preview) {
       closeBookingModal();
       return;
     }
+
     const S = window.PetCareState;
     if (!S) {
       closeBookingModal();
       return;
     }
 
-    const bookingObj = {
-      id: "b-" + Date.now(),
-      clientId: preview.client.id,
-      clientName: preview.client.name,
-      sitterId: preview.sitter.id,
-      sitterName: preview.sitter.name,
-      serviceName: preview.service.name,
-      requestedDate: "Soon (demo)", // you can wire an actual date picker later
-      status: "Confirmed",
-      details:
-        "Booking created from booking modal (demo). Total: " +
-        formatCurrency(preview.pricing.total)
-    };
+    const btn = document.getElementById("bookingModalConfirmBtn");
+    const errorEl = document.getElementById("card-errors");
+    const cardElement = window.getStripeCardElement
+      ? window.getStripeCardElement()
+      : null;
 
-    if (typeof S.createBooking === "function") {
-      S.createBooking(bookingObj);
+    if (!window.stripe || !cardElement) {
+      if (errorEl) {
+        errorEl.textContent = "Payment form not ready. Please refresh the page.";
+      }
+      return;
     }
 
-    window.PetCareBooking.booking = bookingObj;
-    closeBookingModal();
+    try {
+      if (errorEl) errorEl.textContent = "";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Processing...";
+      }
 
-    if (typeof window.setActivePage === "function") {
-      window.setActivePage("bookingPage");
+      // 1) Create PaymentIntent on backend (amount in cents)
+      const total = preview.pricing.total;
+      const amountCents = Math.round(total * 100);
+
+      const res = await fetch(`${API_BASE}/stripe/create-payment-intent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          amount: amountCents,
+          currency: "usd",
+          description: `Booking with ${preview.sitter.name}`
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.clientSecret) {
+        throw new Error(data.error || "Failed to start payment.");
+      }
+
+      const clientSecret = data.clientSecret;
+
+      // 2) Confirm the card payment
+      const { error, paymentIntent } = await window.stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: preview.client.name || undefined,
+              email: preview.client.email || undefined
+            }
+          }
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message || "Payment failed.");
+      }
+
+      if (!paymentIntent || paymentIntent.status !== "succeeded") {
+        throw new Error("Payment did not complete.");
+      }
+
+      // 3) Payment success – create local booking (you can later POST /bookings)
+      const bookingObj = {
+        id: "b-" + Date.now(),
+        clientId: preview.client.id,
+        clientName: preview.client.name,
+        sitterId: preview.sitter.id,
+        sitterName: preview.sitter.name,
+        serviceName: preview.service.name,
+        requestedDate: "Soon (demo)", // hook up a real date picker later
+        status: "Confirmed & Paid",
+        details:
+          "Stripe test payment succeeded. Total: " +
+          formatCurrency(preview.pricing.total),
+        paymentIntentId: paymentIntent.id,
+        totalPaid: preview.pricing.total
+      };
+
+      if (typeof S.createBooking === "function") {
+        S.createBooking(bookingObj);
+      }
+
+      window.PetCareBooking.booking = bookingObj;
+      closeBookingModal();
+
+      if (typeof window.setActivePage === "function") {
+        window.setActivePage("bookingPage");
+      }
+    } catch (err) {
+      console.error("Booking payment error:", err);
+      if (errorEl) {
+        errorEl.textContent = err.message || "Payment error, please try again.";
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Confirm & Pay";
+      }
     }
   }
 
@@ -242,7 +344,7 @@
       {
         id: "todo-dog-photo",
         title: "Upload your dog's photo",
-        details: "Helps ${sitterName} recognize your dog quickly."
+        details: `Helps ${sitterName} recognize your dog quickly.`
       },
       {
         id: "todo-meet-greet",
@@ -373,6 +475,7 @@
 
     if (confirmBtn) {
       confirmBtn.addEventListener("click", function () {
+        // async handler
         confirmBookingFromModal();
       });
     }
