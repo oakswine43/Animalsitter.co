@@ -143,6 +143,7 @@ window.PetCareState = (function () {
   // --- Storage ---
 
   const STORAGE_KEY = "petcare_state_v1";
+  const API_BASE = window.API_BASE || "";
 
   function saveToStorage() {
     try {
@@ -203,6 +204,10 @@ window.PetCareState = (function () {
       selectedSitterId: null
     }
   };
+
+  // ==========================
+  // DEMO DATA SEED
+  // ==========================
 
   // Seed sample data so UI has something to show
   function seedDemoData() {
@@ -660,6 +665,107 @@ window.PetCareState = (function () {
     state.pets = [];
   }
 
+  // ==========================
+  // BACKEND SITTER HELPERS
+  // ==========================
+
+  function normalizeAvatarUrl(raw) {
+    if (!raw) return null;
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    if (!API_BASE) return raw;
+    return `${API_BASE}${raw}`;
+  }
+
+  function upsertSitterProfileFromApiUser(apiUser) {
+    if (!apiUser || apiUser.id == null) return;
+
+    const idKey = String(apiUser.id);
+    const idx = state.sitterProfiles.findIndex(
+      (s) => String(s.id) === idKey
+    );
+
+    const first =
+      apiUser.first_name || apiUser.firstName || apiUser.given_name || "";
+    const last =
+      apiUser.last_name || apiUser.lastName || apiUser.family_name || "";
+    const fullName =
+      apiUser.full_name ||
+      apiUser.name ||
+      `${first} ${last}`.trim() ||
+      "New sitter";
+
+    const baseProfile = {
+      id: apiUser.id,
+      name: fullName,
+      city: apiUser.city || "Unknown city",
+      distance: apiUser.distance || "Nearby",
+      rating:
+        typeof apiUser.rating === "number" ? apiUser.rating : 5.0,
+      reviewsCount: apiUser.reviewsCount || 0,
+      tagline:
+        apiUser.tagline || "New sitter – bio coming soon!",
+      avatar: normalizeAvatarUrl(apiUser.avatar_url),
+
+      // optional fields if we ever send them from the API
+      experienceYears: apiUser.experienceYears || apiUser.experience || null,
+      availability: apiUser.availability || "Availability not set yet.",
+      serviceRadius: apiUser.serviceRadius || "",
+      skills: apiUser.skills || [],
+      services: apiUser.services || [],
+      reviews: apiUser.reviews || [],
+      gallery: apiUser.gallery || [],
+      homeSetup: apiUser.homeSetup || null,
+      policies: apiUser.policies || null,
+      availabilityCalendarNote:
+        apiUser.availabilityCalendarNote || "",
+      badges: apiUser.badges || [],
+      prompts: apiUser.prompts || {},
+      compatibilityScore: apiUser.compatibilityScore || null
+    };
+
+    if (idx >= 0) {
+      state.sitterProfiles[idx] = {
+        ...state.sitterProfiles[idx],
+        ...baseProfile
+      };
+    } else {
+      state.sitterProfiles.push(baseProfile);
+    }
+  }
+
+  async function refreshSittersFromApi() {
+    // Use backend to pull REAL sitters and merge them with demo sitters
+    if (!API_BASE) {
+      console.warn(
+        "[PetCareState] API_BASE missing – using local demo sitters only."
+      );
+      return state.sitterProfiles.slice();
+    }
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/sitters`, {
+        credentials: "include"
+      });
+      if (!resp.ok) {
+        throw new Error("HTTP " + resp.status);
+      }
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.sitters)) {
+        return state.sitterProfiles.slice();
+      }
+
+      data.sitters.forEach((apiUser) => {
+        upsertSitterProfileFromApiUser(apiUser);
+      });
+
+      saveToStorage();
+      return state.sitterProfiles.slice();
+    } catch (err) {
+      console.warn("[PetCareState] refreshSittersFromApi failed:", err);
+      return state.sitterProfiles.slice();
+    }
+  }
+
   // --- Auth helpers ---
 
   function init() {
@@ -794,7 +900,10 @@ window.PetCareState = (function () {
 
   function getSitterById(id) {
     init();
-    return state.sitterProfiles.find((s) => s.id === id) || null;
+    return (
+      state.sitterProfiles.find((s) => String(s.id) === String(id)) ||
+      null
+    );
   }
 
   function getBookings() {
@@ -929,7 +1038,11 @@ window.PetCareState = (function () {
 
     // Sitter profile helpers
     setSelectedSitterId,
-    getSelectedSitter
+    getSelectedSitter,
+
+    // Backend sitter sync
+    refreshSittersFromApi,
+    upsertSitterProfileFromApiUser
   };
 })();
 

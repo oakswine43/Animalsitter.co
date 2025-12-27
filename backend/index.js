@@ -39,6 +39,9 @@ if (stripeSecretKey) {
 
 const app = express();
 
+// expose stripe on app.locals for any routes that want it
+app.locals.stripe = stripe;
+
 // =====================
 // Core middleware
 // =====================
@@ -395,51 +398,6 @@ app.put("/profile", authMiddleware, async (req, res) => {
       newPhone = p || null;
     }
 
-    // =====================
-// STRIPE: create PaymentIntent (test mode)
-// =====================
-app.post("/stripe/create-payment-intent", async (req, res) => {
-  // We put the Stripe instance on app.locals earlier
-  const stripe = app.locals.stripe;
-
-  if (!stripe) {
-    return res
-      .status(500)
-      .json({ error: "Stripe is not configured on this server." });
-  }
-
-  try {
-    const { amount, currency = "usd", description } = req.body || {};
-
-    // amount must be in CENTS
-    const amountNumber = Number(amount);
-    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
-      return res
-        .status(400)
-        .json({ error: "Amount (in cents) is required and must be > 0." });
-    }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amountNumber),
-      currency,
-      description: description || "PetCare booking",
-      automatic_payment_methods: {
-        enabled: true
-      }
-    });
-
-    return res.json({
-      ok: true,
-      clientSecret: paymentIntent.client_secret
-    });
-  } catch (err) {
-    console.error("STRIPE_PAYMENT_INTENT_ERROR:", err);
-    return res
-      .status(500)
-      .json({ error: "Failed to create payment. Please try again." });
-  }
-});
-
     // If nothing changed, just return current
     if (
       newFirst === (current.first_name || "") &&
@@ -544,6 +502,44 @@ app.post(
     }
   }
 );
+
+// =====================
+// NEW: LIST SITTERS (for client side to discover real sitters)
+// =====================
+app.get("/api/sitters", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE role = 'sitter'`
+    );
+
+    const sitters = rows.map((row) => ({
+      id: row.id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      full_name: `${row.first_name || ""} ${row.last_name || ""}`.trim(),
+      email: row.email,
+      role: row.role,
+      phone: row.phone,
+      is_active: row.is_active,
+      avatar_url: row.avatar_url
+    }));
+
+    res.json({ ok: true, sitters });
+  } catch (err) {
+    console.error("SITTERS_LIST_ERROR:", err);
+    res.status(500).json({ ok: false, error: "Failed to load sitters." });
+  }
+});
 
 // =====================
 // PUP GALLERY ROUTES
@@ -678,6 +674,47 @@ app.post("/gallery/posts/:id/comments", async (req, res) => {
     res
       .status(500)
       .json({ ok: false, error: "Failed to add comment." });
+  }
+});
+
+// =====================
+// STRIPE: create PaymentIntent (test mode)
+// =====================
+app.post("/stripe/create-payment-intent", async (req, res) => {
+  if (!stripe) {
+    return res
+      .status(500)
+      .json({ error: "Stripe is not configured on this server." });
+  }
+
+  try {
+    const { amount, currency = "usd", description } = req.body || {};
+
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Amount (in cents) is required and must be > 0." });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amountNumber),
+      currency,
+      description: description || "PetCare booking",
+      automatic_payment_methods: {
+        enabled: true
+      }
+    });
+
+    return res.json({
+      ok: true,
+      clientSecret: paymentIntent.client_secret
+    });
+  } catch (err) {
+    console.error("STRIPE_PAYMENT_INTENT_ERROR:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to create payment. Please try again." });
   }
 });
 
