@@ -307,20 +307,19 @@
       const total = preview.pricing.total;
       const amountCents = Math.round(total * 100);
 
-      const piRes = await fetch(
-        `${API_BASE}/stripe/create-payment-intent`,
-        {
-          method: "POST",
-          headers: buildAuthJsonHeaders(),
-          body: JSON.stringify({
-            amount: amountCents,
-            currency: "usd",
-            description: `Booking with ${preview.sitter.name}`
-          })
-        }
-      );
+      const piRes = await fetch(`${API_BASE}/stripe/create-payment-intent`, {
+        method: "POST",
+        headers: buildAuthJsonHeaders(),
+        body: JSON.stringify({
+          amount: amountCents,
+          currency: "usd",
+          description: `Booking with ${preview.sitter.name}`
+        })
+      });
 
       const piData = await piRes.json().catch(() => ({}));
+      console.log("[Booking] create-payment-intent response", piRes.status, piData);
+
       if (!piRes.ok || !piData.clientSecret) {
         throw new Error(piData.error || "Failed to start payment.");
       }
@@ -349,6 +348,8 @@
         throw new Error("Payment did not complete.");
       }
 
+      console.log("[Booking] PaymentIntent succeeded", paymentIntent.id);
+
       // 3) Payment success – create REAL booking in backend
       const now = new Date();
       const end = new Date(now.getTime() + 60 * 60 * 1000); // +1 hour
@@ -369,38 +370,74 @@
         })
       });
 
-      const bkData = await bkRes.json().catch(() => ({}));
-      if (!bkRes.ok || !bkData.ok) {
+      const raw = await bkRes.text();
+      let bkData = {};
+      try {
+        bkData = raw ? JSON.parse(raw) : {};
+      } catch (parseErr) {
+        console.error("[Booking] Failed to parse /bookings JSON:", parseErr, raw);
+      }
+
+      console.log("[Booking] /bookings response", bkRes.status, bkData);
+
+      if (!bkRes.ok || bkData.ok === false) {
         throw new Error(
-          bkData.error || "Payment succeeded but booking failed."
+          bkData.error ||
+            bkData.message ||
+            `Payment succeeded but booking failed (status ${bkRes.status}).`
         );
       }
 
-      // 4) Build local booking object for state + booking page
+      // backend may return booking in different shapes
+      const backendBooking =
+        bkData.booking || bkData.data || bkData;
+
+      const totalPrice =
+        backendBooking.total_price ??
+        bkData.total_price ??
+        preview.pricing.total;
+
       const bookingObj = {
-        id: bkData.booking_id || "b-" + Date.now(),
-        clientId: bkData.client_id || preview.client.id,
-        sitterId: bkData.sitter_id || preview.sitter.id,
+        id:
+          backendBooking.id ||
+          bkData.booking_id ||
+          "b-" + Date.now(),
+        clientId:
+          backendBooking.client_id ||
+          bkData.client_id ||
+          preview.client.id,
+        sitterId:
+          backendBooking.sitter_id ||
+          bkData.sitter_id ||
+          preview.sitter.id,
         clientName: preview.client.name,
         sitterName: preview.sitter.name,
-        serviceName: bkData.service_type || preview.service.name,
+        serviceName:
+          backendBooking.service_type ||
+          bkData.service_type ||
+          preview.service.name,
         requestedDate: new Date().toLocaleString(),
         status: "Confirmed & Paid",
         details:
           "Total: " +
-          formatCurrency(bkData.total_price || preview.pricing.total) +
-          (bkData.platform_fee != null
+          formatCurrency(totalPrice) +
+          ((backendBooking.platform_fee ?? bkData.platform_fee) != null
             ? ` • Platform fee: ${formatCurrency(
-                bkData.platform_fee
+                backendBooking.platform_fee ?? bkData.platform_fee
               )} • Sitter payout: ${formatCurrency(
-                bkData.sitter_payout || 0
+                backendBooking.sitter_payout ??
+                  bkData.sitter_payout ??
+                  0
               )}`
             : ""),
         paymentIntentId: paymentIntent.id,
-        totalPaid: bkData.total_price || preview.pricing.total,
-        commissionRate: bkData.commission_rate,
-        platformFee: bkData.platform_fee,
-        sitterPayout: bkData.sitter_payout
+        totalPaid: totalPrice,
+        commissionRate:
+          backendBooking.commission_rate ?? bkData.commission_rate,
+        platformFee:
+          backendBooking.platform_fee ?? bkData.platform_fee,
+        sitterPayout:
+          backendBooking.sitter_payout ?? bkData.sitter_payout
       };
 
       if (typeof S.createBooking === "function") {
