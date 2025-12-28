@@ -1,7 +1,8 @@
 // js/pages/booking.js
 // Booking page + confirmation modal + Stripe payment
-// FIX: Booking page payment section was missing because booking UI is often rendered/overwritten by JS.
-// This file now INJECTS the payment UI into the booking page form automatically and mounts Stripe there.
+// FIX: Booking page payment section existed but Stripe Card input sometimes didn't render.
+// Causes: Stripe script blocked/not ready yet, SPA re-render removes iframe, container height = 0.
+// Solution: Inject page payment UI, force visible container sizing, and RETRY mounting until Stripe is ready.
 
 (function () {
   window.PetCareBooking = window.PetCareBooking || { preview: null, booking: null };
@@ -60,6 +61,7 @@
     const lower = raw.toLowerCase().trim();
     if (["overnight", "walk", "dropin", "daycare"].includes(lower)) return lower;
 
+    // Accept friendly labels too:
     if (lower.includes("walk")) return "walk";
     if (lower.includes("drop")) return "dropin";
     if (lower.includes("daycare")) return "daycare";
@@ -77,39 +79,50 @@
   let cardElPage = null;
   let cardElModal = null;
 
+  function stripeConfigValid() {
+    return (
+      !!window.Stripe &&
+      !!STRIPE_PUBLISHABLE_KEY &&
+      !String(STRIPE_PUBLISHABLE_KEY).includes("REPLACE_ME")
+    );
+  }
+
   function ensureStripe() {
     if (stripe && elements) return true;
 
-    if (!window.Stripe) {
-      console.warn("[Booking] Stripe.js not loaded.");
-      return false;
-    }
-    if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes("REPLACE_ME")) {
-      console.warn("[Booking] Missing Stripe publishable key.");
-      return false;
-    }
+    if (!window.Stripe) return false;
+    if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes("REPLACE_ME")) return false;
 
     stripe = window.Stripe(STRIPE_PUBLISHABLE_KEY);
     elements = stripe.elements();
     return true;
   }
 
-  function setError(targetSelector, msg) {
-    const el = $(targetSelector);
+  function setError(sel, msg) {
+    const el = $(sel);
     if (el) el.textContent = msg || "";
   }
 
-  function mountCardIfNeeded(mountSelector, errorSelector, which) {
-    if (!ensureStripe()) return;
+  function applyCardContainerStyles(el) {
+    if (!el) return;
+    // Force visible box even before Stripe mounts
+    el.style.minHeight = el.style.minHeight || "44px";
+    el.style.border = el.style.border || "1px solid rgba(0,0,0,0.15)";
+    el.style.borderRadius = el.style.borderRadius || "12px";
+    el.style.padding = el.style.padding || "12px";
+    el.style.background = el.style.background || "#fff";
+  }
 
+  function mountCardIfNeeded(mountSelector, errorSelector, which) {
     const mountPoint = $(mountSelector);
-    if (!mountPoint) return;
+    if (!mountPoint) return false;
+
+    applyCardContainerStyles(mountPoint);
 
     // Already mounted?
-    if (mountPoint.querySelector(".StripeElement")) return;
+    if (mountPoint.querySelector(".StripeElement")) return true;
 
-    // Ensure the container has height
-    if (!mountPoint.style.minHeight) mountPoint.style.minHeight = "44px";
+    if (!ensureStripe()) return false;
 
     const card = elements.create("card", { hidePostalCode: true });
     card.mount(mountPoint);
@@ -125,38 +138,90 @@
 
     if (which === "page") cardElPage = card;
     if (which === "modal") cardElModal = card;
+
+    return true;
   }
 
-  function mountPagePayment() {
-    // Booking page card element
-    mountCardIfNeeded("#stripe-card-element-page", "#card-errors-page", "page");
-  }
+  // Retry-mount helper (important for SPA + slow/blocked Stripe)
+  function retryMount({ mountSelector, errorSelector, which, label }) {
+    const mountPoint = $(mountSelector);
+    if (mountPoint) applyCardContainerStyles(mountPoint);
 
-  function mountModalPayment() {
-    // Modal card element
-    mountCardIfNeeded("#bookingModal #stripe-card-element", "#bookingModal #card-errors", "modal");
+    let tries = 0;
+    const maxTries = 40; // 40 * 250ms = 10s
+
+    const timer = setInterval(() => {
+      tries++;
+
+      const mp = $(mountSelector);
+      if (!mp) {
+        clearInterval(timer);
+        return;
+      }
+
+      // If it got mounted, stop retrying
+      if (mp.querySelector(".StripeElement")) {
+        clearInterval(timer);
+        return;
+      }
+
+      // If Stripe is ready, try mounting
+      if (stripeConfigValid()) {
+        try {
+          const ok = mountCardIfNeeded(mountSelector, errorSelector, which);
+          if (ok && mp.querySelector(".StripeElement")) {
+            clearInterval(timer);
+            return;
+          }
+        } catch (e) {
+          console.error(`[Booking] ${label} Stripe mount error:`, e);
+        }
+      }
+
+      // Give up and show a helpful message
+      if (tries >= maxTries) {
+        clearInterval(timer);
+
+        // If still not mounted, likely blocked by Brave shields/extensions
+        if (!mp.querySelector(".StripeElement")) {
+          applyCardContainerStyles(mp);
+          mp.innerHTML = `
+            <div style="font-size:13px; color:#111;">
+              <strong>Stripe card form didn’t load.</strong><br/>
+              This is usually caused by an ad-blocker / Brave Shields blocking Stripe, or Stripe not loading.
+              <div style="margin-top:8px; color:#444;">
+                Try: disable Brave Shields for this site (or allow scripts from <em>js.stripe.com</em>), then refresh.
+              </div>
+            </div>
+          `;
+        }
+      }
+    }, 250);
   }
 
   // -------------------------------------------------------
-  // IMPORTANT FIX: Inject booking-page Payment UI if missing
+  // Inject booking-page Payment UI if missing
   // -------------------------------------------------------
   function ensureBookingPagePaymentUI() {
     const form = $("#bookingPageForm");
     if (!form) return;
 
-    // If payment UI already exists, just mount Stripe and exit
+    // Already exists?
     if ($("#stripe-card-element-page") && $("#bookingPayNowBtn")) {
-      // mount after a tick (sometimes page is toggled visible after render)
-      setTimeout(() => mountPagePayment(), 50);
+      retryMount({
+        mountSelector: "#stripe-card-element-page",
+        errorSelector: "#card-errors-page",
+        which: "page",
+        label: "Page"
+      });
       return;
     }
 
-    // Find the last "actions" card (the card that contains buttons)
     const cards = Array.from(form.querySelectorAll(".section-card"));
     const actionsCard =
       cards.find((c) => c.querySelector("button[type='submit']")) || cards[cards.length - 1];
 
-    // 1) Create payment card if it doesn't exist
+    // Payment card
     if (!$("#stripe-card-element-page")) {
       const payCard = document.createElement("div");
       payCard.className = "section-card";
@@ -166,22 +231,24 @@
         <p class="small text-muted">Enter your card details below (Stripe test mode).</p>
         <div id="stripe-card-element-page" class="stripe-card-element"></div>
         <div id="card-errors-page" class="card-errors small text-muted"></div>
+        <div class="small text-muted" style="margin-top:8px;">
+          Tip: You can also click “Request booking” to review everything in the confirmation modal.
+        </div>
       `;
 
-      // Insert payment card right before the actions card
       if (actionsCard && actionsCard.parentNode) {
         actionsCard.parentNode.insertBefore(payCard, actionsCard);
       } else {
         form.appendChild(payCard);
       }
+
+      applyCardContainerStyles($("#stripe-card-element-page"));
     }
 
-    // 2) Ensure "Confirm & Pay" button exists on booking page
+    // Ensure Confirm & Pay exists
     if (!$("#bookingPayNowBtn")) {
       if (actionsCard) {
         const submitBtn = actionsCard.querySelector("button[type='submit']");
-        const backBtn = actionsCard.querySelector("button.btn-secondary, button[data-page-jump]");
-
         const payBtn = document.createElement("button");
         payBtn.type = "button";
         payBtn.id = "bookingPayNowBtn";
@@ -189,24 +256,50 @@
         payBtn.style.marginLeft = "8px";
         payBtn.textContent = "Confirm & Pay";
 
-        // Put it next to Request booking
-        if (submitBtn && submitBtn.parentNode) {
-          submitBtn.insertAdjacentElement("afterend", payBtn);
-        } else if (backBtn && backBtn.parentNode) {
-          backBtn.parentNode.insertBefore(payBtn, backBtn);
-        } else {
-          actionsCard.appendChild(payBtn);
-        }
+        if (submitBtn) submitBtn.insertAdjacentElement("afterend", payBtn);
+        else actionsCard.appendChild(payBtn);
       }
     }
 
-    // Mount Stripe after DOM insertion
-    setTimeout(() => mountPagePayment(), 50);
+    // Try mounting (with retries)
+    retryMount({
+      mountSelector: "#stripe-card-element-page",
+      errorSelector: "#card-errors-page",
+      which: "page",
+      label: "Page"
+    });
   }
 
-  // -----------------------------------
-  // Booking form -> preview (modal flow)
-  // -----------------------------------
+  // ---------------------------
+  // Modal open/close
+  // ---------------------------
+  function openModal() {
+    const modal = $("#bookingModal");
+    if (!modal) return;
+    modal.style.display = "block";
+
+    // Retry mount inside modal too
+    retryMount({
+      mountSelector: "#bookingModal #stripe-card-element",
+      errorSelector: "#bookingModal #card-errors",
+      which: "modal",
+      label: "Modal"
+    });
+  }
+
+  function closeModal() {
+    const modal = $("#bookingModal");
+    if (!modal) return;
+    modal.style.display = "none";
+  }
+
+  function setBtnLoading(btnSel, loading, idleText) {
+    const btn = $(btnSel);
+    if (!btn) return;
+    btn.disabled = !!loading;
+    btn.textContent = loading ? "Processing..." : idleText;
+  }
+
   function readBookingFormPreview() {
     const serviceVal = ($("#bookingService")?.value || "").trim();
     const date = ($("#bookingDate")?.value || "").trim();
@@ -238,37 +331,30 @@
   }
 
   // ---------------------------
-  // Modal open/close
-  // ---------------------------
-  function openModal() {
-    const modal = $("#bookingModal");
-    if (!modal) return;
-    modal.style.display = "block";
-    requestAnimationFrame(() => {
-      mountModalPayment();
-    });
-  }
-
-  function closeModal() {
-    const modal = $("#bookingModal");
-    if (!modal) return;
-    modal.style.display = "none";
-  }
-
-  function setBtnLoading(btnSel, loading, idleText) {
-    const btn = $(btnSel);
-    if (!btn) return;
-    btn.disabled = !!loading;
-    btn.textContent = loading ? "Processing..." : idleText;
-  }
-
-  // ---------------------------
-  // Core pay + create booking
+  // Pay + create booking
   // ---------------------------
   async function payAndCreateBooking(source) {
     try {
       if (source === "page") setError("#card-errors-page", "");
       if (source === "modal") setError("#bookingModal #card-errors", "");
+
+      // Ensure Stripe UI is mounted BEFORE we attempt payment
+      if (source === "page") {
+        ensureBookingPagePaymentUI();
+        retryMount({
+          mountSelector: "#stripe-card-element-page",
+          errorSelector: "#card-errors-page",
+          which: "page",
+          label: "Page"
+        });
+      } else {
+        retryMount({
+          mountSelector: "#bookingModal #stripe-card-element",
+          errorSelector: "#bookingModal #card-errors",
+          which: "modal",
+          label: "Modal"
+        });
+      }
 
       const previewExisting = window.PetCareBooking?.preview || {};
       const fromForm = readBookingFormPreview();
@@ -280,23 +366,24 @@
       }
       preview.service_type = normalized;
 
-      // Demo price fallback if not wired yet
       if (!preview.price_total && !preview.total_price) preview.price_total = 20;
 
       const total = Number(preview.price_total ?? preview.total_price ?? 0);
       if (!Number.isFinite(total) || total <= 0) throw new Error("Invalid price_total.");
 
-      // Make sure Stripe is mounted where we're paying
-      if (source === "page") {
-        ensureBookingPagePaymentUI();
-        mountPagePayment();
-      }
-      if (source === "modal") {
-        mountModalPayment();
+      // Make sure Stripe objects exist
+      if (!ensureStripe()) {
+        throw new Error(
+          "Stripe is not available. If you’re using Brave, disable Shields for this site and refresh."
+        );
       }
 
       const cardToUse = source === "page" ? cardElPage : cardElModal;
-      if (!stripe || !cardToUse) throw new Error("Payment form is not ready. Refresh and try again.");
+      if (!cardToUse) {
+        throw new Error(
+          "Card input didn’t load. Disable ad-block/Brave Shields for this site, then refresh and try again."
+        );
+      }
 
       // 1) Create payment intent
       const amountCents = Math.round(total * 100);
@@ -383,14 +470,12 @@
   // Bind UI
   // ---------------------------
   function bindEvents() {
-    // Always ensure booking page payment UI exists
     ensureBookingPagePaymentUI();
 
-    // Re-check when the booking page becomes visible (your app swaps pages)
+    // Re-check when booking page becomes active (SPA navigation)
     const appSection = $("#appSection");
     if (appSection) {
       const mo = new MutationObserver(() => {
-        // When bookingPage gets 'active', re-inject and mount
         const bookingPage = $("#bookingPage");
         if (bookingPage && bookingPage.classList.contains("active")) {
           ensureBookingPagePaymentUI();
@@ -399,7 +484,7 @@
       mo.observe(appSection, { subtree: true, attributes: true, attributeFilter: ["class", "style"] });
     }
 
-    // Modal events
+    // Modal buttons
     $("#bookingModalClose")?.addEventListener("click", closeModal);
     $("#bookingModalCancelBtn")?.addEventListener("click", closeModal);
     $("#bookingModalEditBtn")?.addEventListener("click", closeModal);
@@ -414,7 +499,7 @@
       }
     });
 
-    // Request booking -> opens modal
+    // Request booking -> opens modal (still supported)
     $("#bookingPageForm")?.addEventListener("submit", (e) => {
       e.preventDefault();
       const merged = { ...(window.PetCareBooking.preview || {}), ...readBookingFormPreview() };
@@ -424,7 +509,7 @@
       openModal();
     });
 
-    // Booking page "Confirm & Pay"
+    // Booking page Confirm & Pay
     document.addEventListener("click", async (e) => {
       const t = e.target;
       if (!t) return;
