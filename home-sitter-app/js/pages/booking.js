@@ -1,130 +1,103 @@
 // js/pages/booking.js
-// Handles booking modal + confirmation flow
-// FIX: service_type is ALWAYS forced to one of: overnight | walk | dropin | daycare
-// Robust: detects service_type from preview OR booking form select OR modal text on confirm click
-// Also robust to duplicate IDs in your HTML.
+// Handles the booking modal + booking confirmation flow
+// FIX: robust service_type normalization so it always becomes:
+// overnight | walk | dropin | daycare
+// Also: scopes DOM queries to the modal to avoid duplicate-id problems.
 
 (function () {
-  window.PetCareBooking = window.PetCareBooking || {
-    preview: null,
-    booking: null
-  };
+  window.PetCareBooking = window.PetCareBooking || { preview: null, booking: null };
 
-  const API_BASE =
-    window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
+  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
+  const STRIPE_PUBLISHABLE_KEY = window.STRIPE_PUBLISHABLE_KEY || "pk_test_REPLACE_ME";
 
-  // ----------------------------
-  // DOM helpers
-  // ----------------------------
+  // ---------------------------
+  // Helpers
+  // ---------------------------
   function $(sel, root = document) {
     return root.querySelector(sel);
   }
-  function $all(sel, root = document) {
-    return Array.from(root.querySelectorAll(sel));
+
+  function getAuthToken() {
+    // Support multiple token keys since your project evolved
+    return (
+      localStorage.getItem("token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("jwt") ||
+      localStorage.getItem("petcare_token") ||
+      ""
+    );
   }
 
-  // Your HTML has duplicate IDs in multiple sections (page + modal),
-  // so we always update ALL matches.
-  function setTextByIdAll(id, text) {
-    const safe = String(text ?? "");
-    $all(`#${CSS.escape(id)}`).forEach((el) => (el.textContent = safe));
-  }
-  function setHTMLByIdAll(id, html) {
-    $all(`#${CSS.escape(id)}`).forEach((el) => (el.innerHTML = html));
-  }
+  async function apiFetch(path, opts = {}) {
+    const token = getAuthToken();
+    const headers = Object.assign(
+      { "Content-Type": "application/json" },
+      opts.headers || {}
+    );
+    if (token) headers.Authorization = `Bearer ${token}`;
 
-  function money(n) {
-    const num = Number(n);
-    if (!Number.isFinite(num)) return "$0.00";
-    return `$${num.toFixed(2)}`;
-  }
-
-  async function apiJson(path, options = {}) {
-    const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      }
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: opts.method || "GET",
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
     });
 
     let data = null;
     try {
       data = await res.json();
-    } catch (e) {}
+    } catch (_) {}
 
     if (!res.ok) {
-      const msg =
-        (data && (data.error || data.message)) ||
-        `Request failed (${res.status})`;
+      const msg = (data && (data.error || data.message)) || `Request failed (${res.status})`;
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
       throw err;
     }
-
     return data;
   }
 
-  // ----------------------------
-  // SERVICE TYPE NORMALIZATION (core fix)
-  // ----------------------------
-  function normalizeServiceType(input) {
-    const raw = String(input || "").trim();
-    const s = raw.toLowerCase();
-
-    // direct codes
-    if (["overnight", "walk", "dropin", "daycare"].includes(s)) return s;
-
-    // common labels / UI variants
-    const map = new Map([
-      // overnight
-      ["overnight sitting", "overnight"],
-      ["overnight", "overnight"],
-      ["in-home sitting", "overnight"],
-      ["in home sitting", "overnight"],
-      ["pet sitting", "overnight"],
-      ["sitting", "overnight"],
-      ["overnight stay", "overnight"],
-      ["overnight stays", "overnight"],
-
-      // walk
-      ["dog walking", "walk"],
-      ["walking", "walk"],
-      ["walk", "walk"],
-      ["neighborhood walks", "walk"],
-      ["walks", "walk"],
-
-      // dropin
-      ["drop-in visit", "dropin"],
-      ["drop in visit", "dropin"],
-      ["drop-in", "dropin"],
-      ["drop in", "dropin"],
-      ["dropin", "dropin"],
-      ["drop-ins", "dropin"],
-      ["drop ins", "dropin"],
-
-      // daycare
-      ["doggy daycare", "daycare"],
-      ["dog daycare", "daycare"],
-      ["day care", "daycare"],
-      ["daycare", "daycare"],
-      ["daycare service", "daycare"]
-    ]);
-
-    if (map.has(s)) return map.get(s);
-
-    // If UI includes extra words, match by contains
-    for (const [k, v] of map.entries()) {
-      if (s.includes(k)) return v;
-    }
-
-    return "";
+  function money(n) {
+    const num = Number(n || 0);
+    return `$${num.toFixed(2)}`;
   }
 
-  function serviceLabelFromCode(code) {
-    switch (code) {
+  // ---------------------------
+  // service_type normalization (THE FIX)
+  // ---------------------------
+  function normalizeServiceType(input) {
+    const raw = (input ?? "").toString().trim();
+    if (!raw) return null;
+
+    const lower = raw.toLowerCase().trim();
+
+    // Already-correct enum values
+    if (["overnight", "walk", "dropin", "daycare"].includes(lower)) return lower;
+
+    // Common UI labels
+    // IMPORTANT: accept lots of variants so the UI can say whatever
+    const map = [
+      { keys: ["overnight sitting", "overnight", "in-home sitting", "in home sitting", "sitting", "pet sitting"], value: "overnight" },
+      { keys: ["walk", "walking", "dog walk", "dog walking", "neighborhood walks"], value: "walk" },
+      { keys: ["dropin", "drop-in", "drop in", "drop-in visit", "drop in visit", "visit"], value: "dropin" },
+      { keys: ["daycare", "doggy daycare", "dog daycare"], value: "daycare" }
+    ];
+
+    for (const row of map) {
+      if (row.keys.some((k) => lower === k)) return row.value;
+    }
+
+    // Keyword fallback (covers “Walking”, “Boarding”, etc.)
+    if (lower.includes("walk")) return "walk";
+    if (lower.includes("drop")) return "dropin";
+    if (lower.includes("daycare")) return "daycare";
+    if (lower.includes("sit")) return "overnight";
+
+    return null;
+  }
+
+  function serviceLabelFromEnum(enumVal) {
+    switch (enumVal) {
       case "overnight":
         return "Overnight sitting";
       case "walk":
@@ -134,310 +107,284 @@
       case "daycare":
         return "Doggy daycare";
       default:
-        return String(code || "Service");
+        return "Pet care";
     }
   }
 
-  // Detect service type at confirm-time (DOES NOT TRUST preview)
-  function detectServiceTypeNow() {
-    const preview = window.PetCareBooking?.preview || {};
-
-    const candidates = [];
-
-    // from preview (whatever it currently is)
-    candidates.push(preview.service_type);
-    candidates.push(preview.service_label);
-    candidates.push(preview.service);
-
-    // from booking page dropdown value (best source)
-    const sel = $("#bookingService");
-    if (sel) {
-      candidates.push(sel.value);
-      // also include selected option label text
-      const opt = sel.options?.[sel.selectedIndex];
-      if (opt) candidates.push(opt.textContent);
-    }
-
-    // from modal text
-    const modalServiceText = $("#bookingServiceName")?.textContent;
-    candidates.push(modalServiceText);
-
-    // try normalize each candidate
-    for (const c of candidates) {
-      const code = normalizeServiceType(c);
-      if (code) return { code, source: c };
-    }
-
-    return { code: "", source: candidates.filter(Boolean) };
-  }
-
-  // ----------------------------
-  // State lookups
-  // ----------------------------
-  function getCurrentUser() {
-    const s = window.AppState || window.PetCareState || {};
-    return s.currentUser || s.user || s.me || null;
-  }
-
-  function getSelectedSitter() {
-    const p = window.PetCareBooking?.preview || {};
-    if (p.sitter && typeof p.sitter === "object") return p.sitter;
-
-    try {
-      const stored = JSON.parse(localStorage.getItem("selectedSitter") || "null");
-      if (stored && typeof stored === "object") return stored;
-    } catch (e) {}
-
-    const id = Number(localStorage.getItem("selectedSitterId"));
-    if (Number.isFinite(id) && id > 0) return { id };
-
-    return null;
-  }
-
-  // ----------------------------
-  // Stripe Elements
-  // ----------------------------
+  // ---------------------------
+  // Stripe (card element in modal)
+  // ---------------------------
   let stripe = null;
   let elements = null;
-  let card = null;
+  let cardEl = null;
 
-  function ensureStripeMounted() {
+  function ensureStripe() {
+    if (stripe && elements) return;
+
     if (!window.Stripe) {
       console.warn("[Booking] Stripe.js not loaded.");
       return;
     }
-
-    const key = window.STRIPE_PUBLISHABLE_KEY;
-    if (!key) {
-      console.warn("[Booking] STRIPE_PUBLISHABLE_KEY missing.");
+    if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes("REPLACE_ME")) {
+      console.warn("[Booking] STRIPE_PUBLISHABLE_KEY missing/placeholder.");
       return;
     }
 
-    if (!stripe) stripe = window.Stripe(key);
-    if (!elements) elements = stripe.elements();
-
-    if (!card) {
-      card = elements.create("card", { hidePostalCode: true });
-      const mountEl = $("#stripe-card-element");
-      if (mountEl) card.mount(mountEl);
-
-      card.on("change", function (event) {
-        const displayError = $("#card-errors");
-        if (!displayError) return;
-        displayError.textContent = event.error ? event.error.message : "";
-      });
-    }
+    stripe = window.Stripe(STRIPE_PUBLISHABLE_KEY);
+    elements = stripe.elements();
   }
 
-  // ----------------------------
-  // Modal show/hide
-  // ----------------------------
-  function showModal() {
+  function mountCard() {
+    ensureStripe();
+    if (!stripe || !elements) return;
+
     const modal = $("#bookingModal");
-    if (modal) modal.style.display = "block";
+    if (!modal) return;
+
+    const mountPoint = $("#stripe-card-element", modal);
+    if (!mountPoint) return;
+
+    if (cardEl) return; // already mounted
+
+    cardEl = elements.create("card", {
+      hidePostalCode: true
+    });
+    cardEl.mount(mountPoint);
+
+    const errBox = $("#card-errors", modal);
+    if (errBox) errBox.textContent = "";
+
+    cardEl.on("change", (event) => {
+      if (!errBox) return;
+      errBox.textContent = event.error ? event.error.message : "";
+    });
   }
 
-  function hideModal() {
+  // ---------------------------
+  // Modal UI
+  // ---------------------------
+  function openModal() {
     const modal = $("#bookingModal");
-    if (modal) modal.style.display = "none";
+    if (!modal) return;
+    modal.style.display = "block";
+    mountCard();
+  }
+
+  function closeModal() {
+    const modal = $("#bookingModal");
+    if (!modal) return;
+    modal.style.display = "none";
   }
 
   function setModalError(msg) {
-    const el = $("#card-errors");
-    if (el) el.textContent = msg ? String(msg) : "";
+    const modal = $("#bookingModal");
+    if (!modal) return;
+    const errBox = $("#card-errors", modal);
+    if (errBox) errBox.textContent = msg || "";
   }
 
-  // ----------------------------
-  // Read booking page form
-  // ----------------------------
-  function readBookingPageForm() {
-    const form = $("#bookingPageForm");
-    if (!form) return null;
+  function setConfirmButtonLoading(isLoading) {
+    const modal = $("#bookingModal");
+    if (!modal) return;
 
-    const serviceSelect = $("#bookingService");
+    const btn = $("#bookingModalConfirmBtn", modal);
+    if (!btn) return;
+
+    btn.disabled = !!isLoading;
+    btn.textContent = isLoading ? "Processing..." : "Confirm & Pay";
+  }
+
+  // ---------------------------
+  // Build preview from booking page form
+  // ---------------------------
+  function readBookingFormPreview() {
+    const serviceVal = ($("#bookingService")?.value || "").trim();
     const date = ($("#bookingDate")?.value || "").trim();
     const start = ($("#bookingStart")?.value || "").trim();
     const end = ($("#bookingEnd")?.value || "").trim();
-
-    const serviceValue = serviceSelect ? serviceSelect.value : "";
-    const service_type = normalizeServiceType(serviceValue);
-
     const location = ($("#bookingLocation")?.value || "").trim();
+
     const pets = ($("#bookingPets")?.value || "").trim();
     const breed = ($("#bookingBreed")?.value || "").trim();
     const notes = ($("#bookingPetNotes")?.value || "").trim();
 
-    const phone = ($("#bookingClientPhone")?.value || "").trim();
-    const email = ($("#bookingClientEmail")?.value || "").trim();
-    const address = ($("#bookingClientAddress")?.value || "").trim();
+    const clientPhone = ($("#bookingClientPhone")?.value || "").trim();
+    const clientEmail = ($("#bookingClientEmail")?.value || "").trim();
+    const clientAddress = ($("#bookingClientAddress")?.value || "").trim();
 
-    const start_time = date && start ? `${date}T${start}:00` : "";
-    const end_time = date && end ? `${date}T${end}:00` : "";
+    // Create ISO datetimes if date + time exist
+    let startISO = "";
+    let endISO = "";
+    if (date && start) startISO = new Date(`${date}T${start}`).toISOString();
+    if (date && end) endISO = new Date(`${date}T${end}`).toISOString();
 
     return {
-      service_type,
-      service_label: serviceLabelFromCode(service_type),
+      service_type: serviceVal, // we normalize later
       date,
-      start,
-      end,
-      start_time,
-      end_time,
+      start_time: startISO || start || "",
+      end_time: endISO || end || "",
       location,
       pets,
       breed,
       notes,
-      client: { phone, email, address }
+      clientPhone,
+      clientEmail,
+      clientAddress
     };
   }
 
-  // ----------------------------
-  // Pricing (basic fallback)
-  // ----------------------------
-  function computeTotalPrice(preview) {
-    const existing = Number(preview?.price_total ?? preview?.total_price ?? NaN);
-    if (Number.isFinite(existing) && existing > 0) return existing;
+  // ---------------------------
+  // Populate modal UI from preview
+  // ---------------------------
+  function renderModalFromPreview(preview) {
+    const modal = $("#bookingModal");
+    if (!modal) return;
 
-    const base = 25;
-    const feeRate = 0.2;
-    const fee = base * feeRate;
-    return Number((base + fee).toFixed(2));
+    // Sitter fields (scope to modal to avoid duplicate IDs)
+    const sitterNameEl = $("#bookingSitterName", modal);
+    const sitterSubtitleEl = $("#bookingSitterSubtitle", modal);
+    const sitterBadgesEl = $("#bookingSitterBadges", modal);
+
+    const serviceNameEl = $("#bookingServiceName", modal);
+
+    const totalEl = $("#bookingTotalPrice", modal);
+    const line1Label = $("#bookingLine1Label", modal);
+    const line1Price = $("#bookingLine1Price", modal);
+    const line2Label = $("#bookingLine2Label", modal);
+    const line2Price = $("#bookingLine2Price", modal);
+    const line3Price = $("#bookingLine3Price", modal);
+
+    const clientNameEl = $("#bookingClientName", modal);
+    const clientEmailEl = $("#bookingClientEmail", modal);
+
+    // Pet summary
+    const petNamesEl = $("#bookingPetNames", modal);
+    const petBreedEl = $("#bookingPetBreed", modal);
+
+    // Policies
+    const policiesEl = $("#bookingPolicies", modal);
+
+    // Sitter rendering (best-effort)
+    const sitter = preview?.sitter || {};
+    const sitterName = sitter.full_name || [sitter.first_name, sitter.last_name].filter(Boolean).join(" ").trim() || "Sitter";
+    if (sitterNameEl) sitterNameEl.textContent = sitterName;
+
+    const rating = sitter.rating ? `★ ${sitter.rating}` : "★ New";
+    const distance = sitter.distance ? `${sitter.distance}` : "Nearby";
+    if (sitterSubtitleEl) sitterSubtitleEl.textContent = `${rating} · ${distance}`;
+
+    if (sitterBadgesEl) {
+      sitterBadgesEl.innerHTML = "";
+      (sitter.badges || ["Background checked", "Fast replies"]).forEach((b) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = b;
+        sitterBadgesEl.appendChild(chip);
+      });
+    }
+
+    // Service normalization
+    const normalized = normalizeServiceType(preview?.service_type);
+    const finalServiceEnum = normalized || "overnight"; // safe fallback
+    if (serviceNameEl) serviceNameEl.textContent = serviceLabelFromEnum(finalServiceEnum);
+
+    // Pricing (use preview total if provided, else default)
+    const total = Number(preview?.price_total ?? preview?.total_price ?? 0) || 0;
+    const serviceFee = Number((total * 0.1).toFixed(2)); // simple display fee (frontend only)
+    const base = Number((total - serviceFee).toFixed(2));
+
+    if (totalEl) totalEl.textContent = money(total);
+    if (line1Label) line1Label.textContent = "Base service";
+    if (line1Price) line1Price.textContent = money(base);
+    if (line2Label) line2Label.textContent = "Extras";
+    if (line2Price) line2Price.textContent = money(0);
+    if (line3Price) line3Price.textContent = money(serviceFee);
+
+    // Client info
+    const user = window.PetCareState?.user || null;
+    const fullName = user?.full_name || user?.name || "Guest";
+    const email = user?.email || preview?.clientEmail || "you@example.com";
+
+    if (clientNameEl) clientNameEl.textContent = fullName;
+    if (clientEmailEl) clientEmailEl.textContent = email;
+
+    // Pet info
+    if (petNamesEl) petNamesEl.textContent = preview?.pets || "Your dog(s) – demo";
+    if (petBreedEl) petBreedEl.textContent = preview?.breed || "Breed / size – demo";
+
+    // Policies
+    if (policiesEl) {
+      const items = preview?.policies || [
+        "Cancellation: Free cancellation up to 24 hours before start. 50% after that.",
+        "Meet & greet: Meet & greet required for all new dogs.",
+        "Aggressive dog policy: Not able to accept dogs with a history of biting people.",
+        "Extra fees: Holiday bookings +$10/night. Last-minute bookings (<24h) +$5."
+      ];
+      policiesEl.innerHTML = items
+        .map((t) => `<div style="margin-bottom:6px;">• ${t}</div>`)
+        .join("");
+    }
   }
 
-  // ----------------------------
-  // Fill modal and open
-  // ----------------------------
-  function openBookingModal(preview) {
-    const sitter = getSelectedSitter() || {};
-    const sitterName =
-      preview?.sitter_name ||
-      sitter.full_name ||
-      `${sitter.first_name || ""} ${sitter.last_name || ""}`.trim() ||
-      "Sitter";
-
-    setTextByIdAll("bookingSitterName", sitterName);
-    setTextByIdAll("bookingSitterSubtitle", preview?.sitter_subtitle || "Rating · distance");
-
-    // Force service label for display
-    const detected = detectServiceTypeNow();
-    const code = detected.code || preview.service_type || "";
-    const normalized = normalizeServiceType(code) || "";
-    preview.service_type = normalized;
-    preview.service_label = serviceLabelFromCode(normalized);
-
-    setTextByIdAll("bookingServiceName", preview?.service_label || "Service");
-
-    const user = getCurrentUser();
-    const clientName =
-      (user && (user.full_name || `${user.first_name || ""} ${user.last_name || ""}`.trim())) ||
-      "Guest";
-    setTextByIdAll("bookingClientName", clientName);
-
-    const clientEmail = preview?.client?.email || user?.email || "you@example.com";
-    setTextByIdAll("bookingClientEmail", clientEmail);
-
-    setTextByIdAll("bookingPetNames", preview?.pets || "Your dog(s) – demo");
-    setTextByIdAll("bookingPetBreed", preview?.breed || "Breed / size – demo");
-
-    const policiesHtml = `
-      <ul style="margin:0; padding-left:18px;">
-        <li><strong>Cancellation:</strong> Free cancellation up to 24 hours before start. 50% after that.</li>
-        <li><strong>Meet & greet:</strong> Meet & greet required for all new dogs.</li>
-        <li><strong>Aggressive dog policy:</strong> Not able to accept dogs with a history of biting people.</li>
-        <li><strong>Extra fees:</strong> Holiday bookings +$10/night. Last-minute bookings (&lt;24h) +$5.</li>
-      </ul>
-    `;
-    setHTMLByIdAll("bookingPolicies", policiesHtml);
-
-    const total = computeTotalPrice(preview);
-    setTextByIdAll("bookingTotalPrice", money(total));
-
-    const base = Number((total / 1.2).toFixed(2));
-    const fee = Number((total - base).toFixed(2));
-    setTextByIdAll("bookingLine1Label", "Base service");
-    setTextByIdAll("bookingLine1Price", money(base));
-    setTextByIdAll("bookingLine2Label", "Extra pet");
-    setTextByIdAll("bookingLine2Price", money(0));
-    setTextByIdAll("bookingLine3Price", money(fee));
-
-    setModalError("");
-    ensureStripeMounted();
-    showModal();
-  }
-
-  // ----------------------------
-  // Confirm & Pay
-  // ----------------------------
+  // ---------------------------
+  // Confirm + Pay flow
+  // ---------------------------
   async function confirmBookingFromModal() {
     try {
       setModalError("");
+      setConfirmButtonLoading(true);
 
       const preview = window.PetCareBooking?.preview || {};
-      const user = getCurrentUser();
-      const sitter = getSelectedSitter();
+      if (!preview) throw new Error("No booking preview found.");
 
-      // ✅ HARD FIX: detect service type RIGHT NOW
-      const detected = detectServiceTypeNow();
-      let serviceCode = detected.code;
-
-      // If still not found, default safely (so you stop getting blocked)
-      if (!serviceCode) {
-        console.warn("[Booking] Could not detect service_type. Candidates:", detected.source);
-        serviceCode = "overnight"; // safe fallback
+      // Normalize service_type reliably
+      const normalizedService = normalizeServiceType(preview.service_type);
+      if (!normalizedService) {
+        // Don’t hard-fail like before — just give a useful error
+        throw new Error(
+          `Invalid service_type: "${preview.service_type}". Please choose: overnight, walk, dropin, or daycare.`
+        );
       }
 
-      // Force onto preview
-      preview.service_type = serviceCode;
-      preview.service_label = serviceLabelFromCode(serviceCode);
-      window.PetCareBooking.preview = preview;
-
-      // Debug log (so we can see what it’s actually doing in console)
-      console.log("[Booking] service_type final:", preview.service_type, "from:", detected.source);
-
-      const client_id = Number(preview.client_id || user?.id);
-      const sitter_id = Number(preview.sitter_id || sitter?.id);
-
-      if (!client_id || !sitter_id) {
-        throw new Error("Missing client_id or sitter_id. Please log in and select a sitter again.");
+      const total = Number(preview.price_total ?? preview.total_price ?? preview.price ?? 0);
+      if (!Number.isFinite(total) || total <= 0) {
+        throw new Error("Invalid total price. Please try again.");
       }
 
-      if (!preview.start_time || !preview.end_time) {
-        throw new Error("Start/end time missing. Please fill in date + times.");
+      // Stripe must be configured
+      ensureStripe();
+      if (!stripe || !cardEl) {
+        throw new Error("Stripe card form is not ready. Refresh and try again.");
       }
 
-      const total = computeTotalPrice(preview);
-
-      // Stripe
-      ensureStripeMounted();
-      if (!stripe || !card) {
-        throw new Error("Stripe is not ready. Please refresh the page.");
-      }
-
-      // Create payment intent
+      // 1) Create payment intent on backend
       const amountCents = Math.round(total * 100);
-      const pi = await apiJson("/stripe/create-payment-intent", {
+      const intent = await apiFetch("/stripe/create-payment-intent", {
         method: "POST",
-        body: JSON.stringify({
+        body: {
           amount: amountCents,
           currency: "usd",
-          description: `AnimalSitter booking (${preview.service_label})`
-        })
+          description: `AnimalSitter booking (${normalizedService})`
+        }
       });
 
-      const clientSecret = pi?.clientSecret;
-      if (!clientSecret) throw new Error("Payment intent missing client secret.");
+      const clientSecret = intent?.clientSecret;
+      if (!clientSecret) throw new Error("Missing Stripe client secret.");
 
+      // 2) Confirm card payment in Stripe
       const billingName =
-        $("#bookingClientName")?.textContent?.trim() ||
-        user?.full_name ||
+        window.PetCareState?.user?.full_name ||
+        window.PetCareState?.user?.name ||
         "Guest";
+
       const billingEmail =
-        $("#bookingClientEmail")?.textContent?.trim() ||
-        user?.email ||
-        "";
+        window.PetCareState?.user?.email ||
+        preview.clientEmail ||
+        "you@example.com";
 
       const confirmResult = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card,
+          card: cardEl,
           billing_details: {
             name: billingName,
             email: billingEmail
@@ -446,107 +393,133 @@
       });
 
       if (confirmResult.error) {
-        throw new Error(confirmResult.error.message || "Payment failed.");
+        throw new Error(confirmResult.error.message || "Payment failed. Please try again.");
       }
 
-      // ✅ Create booking in DB with forced service_type code
-      const bookingRes = await apiJson("/bookings", {
-        method: "POST",
-        body: JSON.stringify({
-          client_id,
-          sitter_id,
-          pet_id: preview.pet_id || null,
-          service_type: preview.service_type, // ✅ guaranteed code now
-          start_time: preview.start_time,
-          end_time: preview.end_time,
-          location: preview.location || null,
-          price_total: total,
-          notes: preview.notes || null,
-          payment_method: "card",
-          currency: "USD"
-        })
-      });
-
-      window.PetCareBooking.booking = bookingRes;
-
-      hideModal();
-
-      if (typeof window.showPage === "function") {
-        window.showPage("bookingConfirmPage");
+      if (!confirmResult.paymentIntent || confirmResult.paymentIntent.status !== "succeeded") {
+        throw new Error("Payment did not complete. Please try again.");
       }
 
-      if (typeof window.renderBookingConfirm === "function") {
-        window.renderBookingConfirm(bookingRes);
-      } else {
-        const root = $("#bookingConfirmRoot");
-        if (root) {
-          root.innerHTML = `
-            <h2>Booking confirmed ✅</h2>
-            <p><strong>Service:</strong> ${serviceLabelFromCode(preview.service_type)}</p>
-            <p><strong>Total:</strong> ${money(total)}</p>
-            <p><strong>Booking ID:</strong> ${bookingRes.booking_id || bookingRes.id || ""}</p>
-          `;
-        }
+      // 3) Create booking in DB
+      // NOTE: your backend currently requires client_id and sitter_id
+      // We support either the logged-in user ID or preview fields.
+      const clientId =
+        window.PetCareState?.user?.id ||
+        preview.client_id ||
+        preview.clientId;
+
+      const sitterId =
+        preview.sitter_id ||
+        preview.sitterId ||
+        preview?.sitter?.id;
+
+      if (!clientId || !sitterId) {
+        throw new Error("Missing client_id or sitter_id. Make sure you are logged in and selected a sitter.");
+      }
+
+      const bookingPayload = {
+        client_id: clientId,
+        sitter_id: sitterId,
+        pet_id: preview.pet_id || null,
+        service_type: normalizedService,
+        start_time: preview.start_time,
+        end_time: preview.end_time,
+        location: preview.location || null,
+        price_total: total,
+        notes: preview.notes || null,
+        payment_method: "card",
+        currency: "USD",
+        stripe_payment_intent_id: confirmResult.paymentIntent.id
+      };
+
+      const created = await apiFetch("/bookings", { method: "POST", body: bookingPayload });
+
+      window.PetCareBooking.booking = created;
+      closeModal();
+
+      // Optionally jump to confirmation page if your app.js supports it
+      if (window.PetCareApp?.navigate) {
+        window.PetCareApp.navigate("bookingConfirmPage");
+      }
+
+      // If you have a confirmation renderer, let it run
+      if (window.PetCareBooking?.renderConfirmation) {
+        window.PetCareBooking.renderConfirmation(created);
       }
     } catch (err) {
       console.error("Booking payment error:", err);
-      setModalError(err.message || "Booking failed.");
+      setModalError(err.message || "Something went wrong.");
+    } finally {
+      setConfirmButtonLoading(false);
     }
   }
 
-  // ----------------------------
-  // Wire events
-  // ----------------------------
-  function wireBookingEvents() {
-    const form = $("#bookingPageForm");
-    if (form) {
-      form.addEventListener("submit", function (e) {
+  // ---------------------------
+  // Wire up events
+  // ---------------------------
+  function bindEvents() {
+    const modal = $("#bookingModal");
+    if (modal) {
+      // close
+      $("#bookingModalClose", modal)?.addEventListener("click", closeModal);
+      $("#bookingModalCancelBtn", modal)?.addEventListener("click", closeModal);
+
+      // edit
+      $("#bookingModalEditBtn", modal)?.addEventListener("click", () => {
+        // Just close modal so user can edit the booking page form
+        closeModal();
+      });
+
+      // confirm
+      $("#bookingModalConfirmBtn", modal)?.addEventListener("click", confirmBookingFromModal);
+
+      // backdrop click closes
+      $(".booking-modal-backdrop", modal)?.addEventListener("click", closeModal);
+    }
+
+    // Booking page form -> open modal
+    const bookingForm = $("#bookingPageForm");
+    if (bookingForm) {
+      bookingForm.addEventListener("submit", (e) => {
         e.preventDefault();
 
-        const sitter = getSelectedSitter();
-        const user = getCurrentUser();
+        // Build preview from the form + whatever sitterProfile.js put in PetCareBooking.preview
+        const existing = window.PetCareBooking?.preview || {};
+        const fromForm = readBookingFormPreview();
 
-        const data = readBookingPageForm();
-        if (!data) {
-          alert("Booking form not found.");
-          return;
-        }
-
-        // Even if service_type failed here, we still allow modal open,
-        // because confirm step re-detects and forces it again.
-        if (!data.start_time || !data.end_time) {
-          alert("Please select a date and start/end time.");
-          return;
-        }
-
-        window.PetCareBooking.preview = {
-          ...data,
-          client_id: user?.id || null,
-          sitter_id: sitter?.id || null,
-          sitter_name:
-            sitter?.full_name ||
-            `${sitter?.first_name || ""} ${sitter?.last_name || ""}`.trim() ||
-            "Sitter",
-          price_total: window.PetCareBooking?.preview?.price_total || null
+        // IMPORTANT: always store normalized enum or original (we normalize later too)
+        const merged = {
+          ...existing,
+          ...fromForm
         };
 
-        openBookingModal(window.PetCareBooking.preview);
+        // Normalize right now so the modal shows the correct service
+        const normalized = normalizeServiceType(merged.service_type);
+        merged.service_type = normalized || merged.service_type;
+
+        // If you calculate price elsewhere, keep it.
+        // If not present, add a small demo price so Stripe can run.
+        if (!merged.price_total && !merged.total_price) merged.price_total = 20;
+
+        window.PetCareBooking.preview = merged;
+
+        renderModalFromPreview(merged);
+        openModal();
       });
     }
-
-    const closeBtn = $("#bookingModalClose");
-    const cancelBtn = $("#bookingModalCancelBtn");
-    const editBtn = $("#bookingModalEditBtn");
-    const confirmBtn = $("#bookingModalConfirmBtn");
-
-    if (closeBtn) closeBtn.addEventListener("click", hideModal);
-    if (cancelBtn) cancelBtn.addEventListener("click", hideModal);
-    if (editBtn) editBtn.addEventListener("click", hideModal);
-    if (confirmBtn) confirmBtn.addEventListener("click", confirmBookingFromModal);
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    wireBookingEvents();
-    ensureStripeMounted();
+  // Public helpers in case other pages call them
+  window.PetCareBooking.open = function (preview) {
+    if (preview) window.PetCareBooking.preview = preview;
+    renderModalFromPreview(window.PetCareBooking.preview || {});
+    openModal();
+  };
+
+  window.PetCareBooking.close = closeModal;
+
+  // Init
+  document.addEventListener("DOMContentLoaded", () => {
+    bindEvents();
   });
 })();
