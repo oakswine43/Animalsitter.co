@@ -1,45 +1,157 @@
-// home-sitter-app/js/stripe.js
-// Frontend Stripe setup (publishable key only)
+// js/stripe.js
+(function () {
+  const PUBLISHABLE =
+    window.STRIPE_PUBLISHABLE_KEY || "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ";
 
-const STRIPE_PUBLISHABLE_KEY = "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ"; 
-// ^ Replace with your real TEST publishable key from Stripe Dashboard
+  const API_BASE =
+    window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
 
-let stripe = null;
-let stripeElements = null;
-let stripeCardElement = null;
+  const StripeState = {
+    stripe: null,
+    elements: null,
+    card: null,
+    mountedTo: null,
+    isReady: false
+  };
 
-function initStripe() {
-  if (!window.Stripe) {
-    console.error("Stripe.js not loaded");
-    return;
+  function setCardError(msg) {
+    const el =
+      document.getElementById("card-errors") ||
+      document.getElementById("bookingCardErrors") ||
+      document.getElementById("bookingCardErrorsModal");
+    if (el) el.textContent = msg || "";
   }
 
-  if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.startsWith("pk_live")) {
-    console.warn("Using live key or missing publishable key — make sure this is pk_test_ in dev.");
+  function isStripeBlocked() {
+    return typeof window.Stripe !== "function";
   }
 
-  stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
-  stripeElements = stripe.elements();
-  window.stripe = stripe;
+  function ensureStripeInstance() {
+    if (StripeState.stripe) return StripeState.stripe;
 
-  console.log("Stripe initialized (frontend).");
-}
-
-// Create / mount the card element inside #card-element
-function mountStripeCardElement() {
-  if (!stripe || !stripeElements) return;
-
-  if (!stripeCardElement) {
-    stripeCardElement = stripeElements.create("card");
-    const container = document.getElementById("card-element");
-    if (container) {
-      stripeCardElement.mount("#card-element");
+    if (isStripeBlocked()) {
+      return null;
     }
-  }
-}
 
-window.initStripe = initStripe;
-window.mountStripeCardElement = mountStripeCardElement;
-window.getStripeCardElement = function () {
-  return stripeCardElement;
-};
+    StripeState.stripe = window.Stripe(PUBLISHABLE);
+    StripeState.elements = StripeState.stripe.elements();
+    StripeState.card = StripeState.elements.create("card", {
+      hidePostalCode: true
+    });
+
+    StripeState.isReady = true;
+    return StripeState.stripe;
+  }
+
+  function mountCard(containerId) {
+    const stripe = ensureStripeInstance();
+    const container = document.getElementById(containerId);
+
+    if (!container) {
+      return { ok: false, reason: "missing_container" };
+    }
+
+    if (!stripe) {
+      container.innerHTML = `
+        <div class="small text-muted" style="line-height:1.4;">
+          <strong>Stripe card form didn’t load.</strong><br/>
+          This is usually caused by an ad-blocker / Brave Shields blocking Stripe, or Stripe not loading.<br/>
+          Try: disable Brave Shields for this site (or allow scripts from <code>js.stripe.com</code>), then refresh.
+        </div>
+      `;
+      return { ok: false, reason: "stripe_blocked" };
+    }
+
+    // If mounted elsewhere, unmount first (SPA-safe)
+    if (StripeState.card && StripeState.mountedTo && StripeState.mountedTo !== containerId) {
+      try {
+        StripeState.card.unmount();
+      } catch (_) {}
+      StripeState.mountedTo = null;
+    }
+
+    // If already mounted to this container, do nothing
+    if (StripeState.mountedTo === containerId) {
+      return { ok: true };
+    }
+
+    // Clear container and mount
+    container.innerHTML = "";
+    StripeState.card.mount(`#${containerId}`);
+    StripeState.mountedTo = containerId;
+    setCardError("");
+    return { ok: true };
+  }
+
+  function unmountCard() {
+    if (!StripeState.card) return;
+    try {
+      StripeState.card.unmount();
+    } catch (_) {}
+    StripeState.mountedTo = null;
+  }
+
+  async function createPaymentIntent(amountCents, description) {
+    const stripe = ensureStripeInstance();
+    if (!stripe) {
+      throw new Error("Stripe is blocked or not loaded.");
+    }
+
+    const amount = Number(amountCents);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Invalid amount for payment intent.");
+    }
+
+    const res = await fetch(`${API_BASE}/stripe/create-payment-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: Math.round(amount),
+        currency: "usd",
+        description: description || "AnimalSitter booking"
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.clientSecret) {
+      throw new Error(data.error || "Failed to create payment intent.");
+    }
+
+    return data;
+  }
+
+  async function confirmCardPayment(clientSecret) {
+    const stripe = ensureStripeInstance();
+    if (!stripe) {
+      throw new Error("Stripe is blocked or not loaded.");
+    }
+    if (!StripeState.card) {
+      throw new Error("Card element is not mounted.");
+    }
+
+    const result = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card: StripeState.card }
+    });
+
+    if (result.error) {
+      throw new Error(result.error.message || "Payment failed.");
+    }
+
+    return result.paymentIntent;
+  }
+
+  // Public API
+  window.initStripe = function initStripe() {
+    // Don’t force mount here; booking.js will mount when it renders payment blocks.
+    ensureStripeInstance();
+    return StripeState.isReady;
+  };
+
+  window.StripeHelpers = {
+    mountCard,
+    unmountCard,
+    createPaymentIntent,
+    confirmCardPayment,
+    isStripeBlocked: isStripeBlocked
+  };
+})();

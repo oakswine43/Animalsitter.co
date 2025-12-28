@@ -93,7 +93,7 @@ const upload = multer({
 // =====================
 function requireAdminKey(req, res, next) {
   const key = process.env.ADMIN_API_KEY;
-  if (!key) return next();
+  if (!key) return next(); // dev mode
 
   const provided = req.headers["x-admin-key"];
   if (!provided || provided !== key) {
@@ -103,39 +103,99 @@ function requireAdminKey(req, res, next) {
 }
 
 // =====================
-// Small helpers
+// Helpers
 // =====================
 function normalizeServiceType(input) {
-  const raw = (input ?? "").toString().trim();
+  const raw = String(input || "").trim();
   if (!raw) return null;
 
-  const lower = raw.toLowerCase().trim();
+  const v = raw.toLowerCase();
 
-  // Already enum
-  if (["overnight", "walk", "dropin", "daycare"].includes(lower)) return lower;
+  // allow short enums
+  if (["overnight", "walk", "dropin", "daycare"].includes(v)) return v;
 
-  // Exact label matches
-  const labelMap = [
-    { keys: ["overnight sitting", "overnight", "in-home sitting", "in home sitting", "sitting", "pet sitting"], value: "overnight" },
-    { keys: ["walk", "walking", "dog walk", "dog walking"], value: "walk" },
-    { keys: ["drop-in", "drop in", "drop-in visit", "drop in visit", "dropin"], value: "dropin" },
-    { keys: ["daycare", "doggy daycare", "dog daycare"], value: "daycare" }
-  ];
-
-  for (const row of labelMap) {
-    if (row.keys.some((k) => lower === k)) return row.value;
-  }
-
-  // Keyword fallback
-  if (lower.includes("walk")) return "walk";
-  if (lower.includes("drop")) return "dropin";
-  if (lower.includes("daycare")) return "daycare";
-  if (lower.includes("sit")) return "overnight";
+  // allow common labels
+  if (v.includes("overnight")) return "overnight";
+  if (v.includes("drop")) return "dropin";
+  if (v.includes("walk")) return "walk";
+  if (v.includes("daycare") || v.includes("day care")) return "daycare";
 
   return null;
 }
 
-// Helper to generate receipt number like MR-2025-00001
+function toMySqlDateTime(value) {
+  // accepts ISO string or "YYYY-MM-DDTHH:mm"
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// cache table columns so we can safely INSERT even if schema differs
+const TABLE_COL_CACHE = new Map();
+
+async function getTableColumns(tableName) {
+  if (TABLE_COL_CACHE.has(tableName)) return TABLE_COL_CACHE.get(tableName);
+
+  const db =
+    process.env.DB_NAME ||
+    process.env.MYSQLDATABASE ||
+    process.env.MYSQL_DATABASE ||
+    null;
+
+  if (!db) {
+    // fallback: still attempt without filtering
+    const cols = null;
+    TABLE_COL_CACHE.set(tableName, cols);
+    return cols;
+  }
+
+  const [rows] = await pool.query(
+    `
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+    `,
+    [db, tableName]
+  );
+
+  const cols = new Set(rows.map((r) => r.COLUMN_NAME));
+  TABLE_COL_CACHE.set(tableName, cols);
+  return cols;
+}
+
+function filterInsertObjectByColumns(obj, colSet) {
+  if (!colSet) return obj; // no filtering
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (colSet.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+async function safeInsert(table, dataObj) {
+  const colSet = await getTableColumns(table);
+  const filtered = filterInsertObjectByColumns(dataObj, colSet);
+
+  const keys = Object.keys(filtered);
+  if (!keys.length) {
+    throw new Error(`No matching columns found for table ${table}.`);
+  }
+
+  const colsSql = keys.map((k) => `\`${k}\``).join(", ");
+  const placeholders = keys.map(() => "?").join(", ");
+  const values = keys.map((k) => filtered[k]);
+
+  const [result] = await pool.query(
+    `INSERT INTO \`${table}\` (${colsSql}) VALUES (${placeholders})`,
+    values
+  );
+  return result;
+}
+
+// Helper to generate a simple receipt number like MR-2025-00001
 function makeReceiptNumber(bookingId) {
   const year = new Date().getFullYear();
   const padded = String(bookingId).padStart(5, "0");
@@ -164,8 +224,8 @@ app.get("/", (req, res) => {
       "/profile/photo",
       "/gallery/posts",
       "/bookings",
-      "/payments/create-checkout-session",
-      "/stripe/create-payment-intent"
+      "/stripe/create-payment-intent",
+      "/payments/create-checkout-session"
     ]
   });
 });
@@ -190,8 +250,12 @@ app.get("/health", async (req, res) => {
 
 app.get("/debug/db", async (req, res) => {
   try {
-    const [[dbRow]] = await pool.query("SELECT DATABASE() AS dbName, NOW() AS serverTime");
-    const [[userRow]] = await pool.query("SELECT COUNT(*) AS user_count FROM users");
+    const [[dbRow]] = await pool.query(
+      "SELECT DATABASE() AS dbName, NOW() AS serverTime"
+    );
+    const [[userRow]] = await pool.query(
+      "SELECT COUNT(*) AS user_count FROM users"
+    );
 
     return res.json({
       ok: true,
@@ -231,61 +295,84 @@ app.get("/_debug/routes", (req, res) => {
 });
 
 // =====================
-// ADMIN: reset password by user id
+// ADMIN: reset password
 // =====================
-app.post("/admin/users/:id/reset-password", requireAdminKey, async (req, res) => {
-  try {
-    const userId = Number(req.params.id);
-    const { tempPassword } = req.body || {};
+app.post(
+  "/admin/users/:id/reset-password",
+  requireAdminKey,
+  async (req, res) => {
+    try {
+      const userId = Number(req.params.id);
+      const { tempPassword } = req.body || {};
 
-    if (!userId) return res.status(400).json({ error: "Invalid user id." });
-    if (!tempPassword || tempPassword.length < 6) {
-      return res.status(400).json({ error: "Temp password must be at least 6 characters." });
+      if (!userId) {
+        return res.status(400).json({ error: "Invalid user id." });
+      }
+
+      if (!tempPassword || tempPassword.length < 6) {
+        return res.status(400).json({
+          error: "Temp password must be at least 6 characters."
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+      const [result] = await pool.query(
+        `UPDATE users
+           SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [passwordHash, userId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      res.json({ ok: true, userId });
+    } catch (err) {
+      console.error("ADMIN_RESET_ERROR:", err);
+      res.status(500).json({ error: "Server error resetting password." });
     }
-
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-    const [result] = await pool.query(
-      `UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [passwordHash, userId]
-    );
-
-    if (result.affectedRows === 0) return res.status(404).json({ error: "User not found." });
-
-    res.json({ ok: true, userId });
-  } catch (err) {
-    console.error("ADMIN_RESET_ERROR:", err);
-    res.status(500).json({ error: "Server error resetting password." });
   }
-});
+);
 
-// =====================
-// ADMIN: reset password by email
-// =====================
-app.post("/admin/users/reset-by-email", requireAdminKey, async (req, res) => {
-  try {
-    const { email, tempPassword } = req.body || {};
+app.post(
+  "/admin/users/reset-by-email",
+  requireAdminKey,
+  async (req, res) => {
+    try {
+      const { email, tempPassword } = req.body || {};
 
-    if (!email) return res.status(400).json({ error: "Email is required." });
-    if (!tempPassword || tempPassword.length < 6) {
-      return res.status(400).json({ error: "Temp password must be at least 6 characters." });
+      if (!email) {
+        return res.status(400).json({ error: "Email is required." });
+      }
+
+      if (!tempPassword || tempPassword.length < 6) {
+        return res.status(400).json({
+          error: "Temp password must be at least 6 characters."
+        });
+      }
+
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+      const [result] = await pool.query(
+        `UPDATE users
+           SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE email = ?`,
+        [passwordHash, email]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      res.json({ ok: true, email });
+    } catch (err) {
+      console.error("ADMIN_RESET_EMAIL_ERROR:", err);
+      res.status(500).json({ error: "Server error resetting password." });
     }
-
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-    const [result] = await pool.query(
-      `UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?`,
-      [passwordHash, email]
-    );
-
-    if (result.affectedRows === 0) return res.status(404).json({ error: "User not found." });
-
-    res.json({ ok: true, email });
-  } catch (err) {
-    console.error("ADMIN_RESET_EMAIL_ERROR:", err);
-    res.status(500).json({ error: "Server error resetting password." });
   }
-});
+);
 
 // =====================
 // Auth routes
@@ -301,17 +388,34 @@ app.get("/profile", authMiddleware, async (req, res) => {
     console.log("GET /profile for user", userId);
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, last_name, email, role, phone, is_active, avatar_url
-       FROM users WHERE id = ?`,
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE id = ?`,
       [userId]
     );
 
-    if (!rows.length) return res.status(404).json({ error: "User not found." });
+    if (!rows.length) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
     const row = rows[0];
     const full_name = `${row.first_name || ""} ${row.last_name || ""}`.trim();
 
-    res.json({ ok: true, user: { ...row, full_name } });
+    res.json({
+      ok: true,
+      user: {
+        ...row,
+        full_name
+      }
+    });
   } catch (err) {
     console.error("PROFILE_GET_ERROR:", err);
     res.status(500).json({ error: "Failed to load profile." });
@@ -324,12 +428,24 @@ app.put("/profile", authMiddleware, async (req, res) => {
     const { first_name, last_name, full_name, phone } = req.body || {};
 
     const [rows] = await pool.query(
-      `SELECT id, first_name, last_name, email, role, phone, is_active, avatar_url
-       FROM users WHERE id = ? LIMIT 1`,
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
       [userId]
     );
 
-    if (!rows.length) return res.status(404).json({ error: "User not found." });
+    if (!rows.length) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
     const current = rows[0];
 
@@ -346,34 +462,46 @@ app.put("/profile", authMiddleware, async (req, res) => {
     }
 
     let newPhone = current.phone || null;
-    if (typeof phone === "string") newPhone = phone.trim() || null;
-
-    if (
-      newFirst === (current.first_name || "") &&
-      newLast === (current.last_name || "") &&
-      (newPhone || null) === (current.phone || null)
-    ) {
-      const full_name_response = `${current.first_name || ""} ${current.last_name || ""}`.trim();
-      return res.json({ ok: true, user: { ...current, full_name: full_name_response } });
+    if (typeof phone === "string") {
+      const p = phone.trim();
+      newPhone = p || null;
     }
 
     await pool.query(
       `UPDATE users
-       SET first_name = ?, last_name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
+         SET first_name = ?, last_name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [newFirst, newLast, newPhone, userId]
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, first_name, last_name, email, role, phone, is_active, avatar_url
-       FROM users WHERE id = ? LIMIT 1`,
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
       [userId]
     );
 
     const updated = updatedRows[0];
-    const full_name_response = `${updated.first_name || ""} ${updated.last_name || ""}`.trim();
+    const full_name_response = `${updated.first_name || ""} ${
+      updated.last_name || ""
+    }`.trim();
 
-    res.json({ ok: true, user: { ...updated, full_name: full_name_response } });
+    res.json({
+      ok: true,
+      user: {
+        ...updated,
+        full_name: full_name_response
+      }
+    });
   } catch (err) {
     console.error("PROFILE_UPDATE_ERROR:", err.message, err);
     res.status(500).json({ error: "Failed to update profile." });
@@ -383,12 +511,17 @@ app.put("/profile", authMiddleware, async (req, res) => {
 app.post("/profile/photo", authMiddleware, upload.single("photo"), async (req, res) => {
   try {
     const userId = req.user.id;
-    if (!req.file) return res.status(400).json({ error: "No file uploaded." });
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded." });
+    }
 
     const relativePath = `/uploads/${req.file.filename}`;
 
     await pool.query(
-      `UPDATE users SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      `UPDATE users
+         SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
       [relativePath, userId]
     );
 
@@ -396,7 +529,11 @@ app.post("/profile/photo", authMiddleware, upload.single("photo"), async (req, r
 
     console.log("PROFILE_PHOTO_SAVED for user", userId, "->", relativePath);
 
-    res.json({ ok: true, url: relativePath, fullUrl });
+    res.json({
+      ok: true,
+      url: relativePath,
+      fullUrl
+    });
   } catch (err) {
     console.error("PROFILE_PHOTO_ERROR:", err);
     res.status(500).json({ error: "Failed to upload profile photo." });
@@ -404,13 +541,22 @@ app.post("/profile/photo", authMiddleware, upload.single("photo"), async (req, r
 });
 
 // =====================
-// LIST SITTERS
+// SITTERS LIST
 // =====================
 app.get("/api/sitters", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, first_name, last_name, email, role, phone, is_active, avatar_url
-       FROM users WHERE role = 'sitter'`
+      `SELECT
+         id,
+         first_name,
+         last_name,
+         email,
+         role,
+         phone,
+         is_active,
+         avatar_url
+       FROM users
+       WHERE role = 'sitter'`
     );
 
     const sitters = rows.map((row) => ({
@@ -433,12 +579,19 @@ app.get("/api/sitters", async (req, res) => {
 });
 
 // =====================
-// PUP GALLERY ROUTES
+// GALLERY ROUTES
 // =====================
 app.get("/gallery/posts", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, title, author_name, caption, image_url, likes_count, created_at
+      `SELECT
+         id,
+         title,
+         author_name,
+         caption,
+         image_url,
+         likes_count,
+         created_at
        FROM gallery_posts
        ORDER BY created_at DESC
        LIMIT 20`
@@ -454,10 +607,17 @@ app.get("/gallery/posts", async (req, res) => {
 app.get("/gallery/posts/:id/comments", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
 
     const [rows] = await pool.query(
-      `SELECT id, post_id, author_name, body, created_at
+      `SELECT
+         id,
+         post_id,
+         author_name,
+         body,
+         created_at
        FROM gallery_comments
        WHERE post_id = ?
        ORDER BY created_at ASC`,
@@ -474,17 +634,25 @@ app.get("/gallery/posts/:id/comments", async (req, res) => {
 app.post("/gallery/posts/:id/like", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
 
     const [result] = await pool.query(
-      `UPDATE gallery_posts SET likes_count = likes_count + 1 WHERE id = ?`,
+      `UPDATE gallery_posts
+         SET likes_count = likes_count + 1
+       WHERE id = ?`,
       [postId]
     );
 
-    if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: "Post not found." });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, error: "Post not found." });
+    }
 
     const [rows] = await pool.query(
-      `SELECT id, likes_count FROM gallery_posts WHERE id = ?`,
+      `SELECT id, likes_count
+         FROM gallery_posts
+       WHERE id = ?`,
       [postId]
     );
 
@@ -498,17 +666,23 @@ app.post("/gallery/posts/:id/like", async (req, res) => {
 app.post("/gallery/posts/:id/comments", async (req, res) => {
   try {
     const postId = Number(req.params.id);
-    if (!postId) return res.status(400).json({ ok: false, error: "Invalid post id." });
+    if (!postId) {
+      return res.status(400).json({ ok: false, error: "Invalid post id." });
+    }
 
     const { author_name, body } = req.body || {};
     if (!body || !body.trim()) {
-      return res.status(400).json({ ok: false, error: "Comment body is required." });
+      return res.status(400).json({
+        ok: false,
+        error: "Comment body is required."
+      });
     }
 
     const safeAuthor = (author_name || "Guest").trim().slice(0, 120);
 
     await pool.query(
-      `INSERT INTO gallery_comments (post_id, author_name, body) VALUES (?, ?, ?)`,
+      `INSERT INTO gallery_comments (post_id, author_name, body)
+       VALUES (?, ?, ?)`,
       [postId, safeAuthor, body.trim()]
     );
 
@@ -520,11 +694,13 @@ app.post("/gallery/posts/:id/comments", async (req, res) => {
 });
 
 // =====================
-// STRIPE: create PaymentIntent (test mode)
+// STRIPE: PaymentIntent
 // =====================
 app.post("/stripe/create-payment-intent", async (req, res) => {
   if (!stripe) {
-    return res.status(500).json({ error: "Stripe is not configured on this server." });
+    return res
+      .status(500)
+      .json({ error: "Stripe is not configured on this server." });
   }
 
   try {
@@ -532,29 +708,40 @@ app.post("/stripe/create-payment-intent", async (req, res) => {
 
     const amountNumber = Number(amount);
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
-      return res.status(400).json({ error: "Amount (in cents) is required and must be > 0." });
+      return res.status(400).json({
+        error: "Amount (in cents) is required and must be > 0."
+      });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amountNumber),
       currency,
-      description: description || "PetCare booking",
+      description: description || "AnimalSitter booking",
       automatic_payment_methods: { enabled: true }
     });
 
-    return res.json({ ok: true, clientSecret: paymentIntent.client_secret });
+    return res.json({
+      ok: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
   } catch (err) {
     console.error("STRIPE_PAYMENT_INTENT_ERROR:", err);
-    return res.status(500).json({ error: "Failed to create payment. Please try again." });
+    return res
+      .status(500)
+      .json({ error: "Failed to create payment. Please try again." });
   }
 });
 
 // =====================
-// STRIPE CHECKOUT ROUTE
+// STRIPE CHECKOUT
 // =====================
 app.post("/payments/create-checkout-session", async (req, res) => {
   if (!stripe) {
-    return res.status(500).json({ ok: false, error: "Stripe not configured on server." });
+    return res.status(500).json({
+      ok: false,
+      error: "Stripe not configured on server."
+    });
   }
 
   try {
@@ -572,16 +759,20 @@ app.post("/payments/create-checkout-session", async (req, res) => {
     if (!client_id || !sitter_id || !price || price <= 0) {
       return res.status(400).json({
         ok: false,
-        error: "Missing or invalid fields (client_id, sitter_id, price_total)."
+        error:
+          "Missing or invalid fields (client_id, sitter_id, price_total)."
       });
     }
 
     const amountInCents = Math.round(price * 100);
 
-    const frontendBase = process.env.FRONTEND_BASE_URL || "http://localhost:5500/home-sitter-app";
+    const frontendBase =
+      process.env.FRONTEND_BASE_URL || "http://localhost:5500/home-sitter-app";
 
-    const successUrlFinal = success_url || `${frontendBase}/index.html?checkout=success`;
-    const cancelUrlFinal = cancel_url || `${frontendBase}/index.html?checkout=cancel`;
+    const successUrlFinal =
+      success_url || `${frontendBase}/index.html?checkout=success`;
+    const cancelUrlFinal =
+      cancel_url || `${frontendBase}/index.html?checkout=cancel`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -593,29 +784,41 @@ app.post("/payments/create-checkout-session", async (req, res) => {
             unit_amount: amountInCents,
             product_data: {
               name: `AnimalSitter – ${service_type}`,
-              metadata: { sitter_id: String(sitter_id), client_id: String(client_id) }
+              metadata: {
+                sitter_id: String(sitter_id),
+                client_id: String(client_id)
+              }
             }
           },
           quantity: 1
         }
       ],
-      metadata: { sitter_id: String(sitter_id), client_id: String(client_id), service_type },
+      metadata: {
+        sitter_id: String(sitter_id),
+        client_id: String(client_id),
+        service_type
+      },
       success_url: successUrlFinal,
       cancel_url: cancelUrlFinal
     });
 
-    res.json({ ok: true, checkout_session_id: session.id, url: session.url });
+    res.json({
+      ok: true,
+      checkout_session_id: session.id,
+      url: session.url
+    });
   } catch (err) {
     console.error("STRIPE_CHECKOUT_ERROR:", err);
-    res.status(500).json({ ok: false, error: "Failed to create checkout session." });
+    res.status(500).json({
+      ok: false,
+      error: "Failed to create checkout session."
+    });
   }
 });
 
 // =====================
 // BOOKINGS
 // =====================
-
-// GET /bookings - returns bookings for current user
 app.get("/bookings", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -635,21 +838,11 @@ app.get("/bookings", authMiddleware, async (req, res) => {
       params = [];
     }
 
+    // Try a “safe” select: if your schema differs, adjust later
     const [rows] = await pool.query(
       `
       SELECT
-        b.id,
-        b.client_id,
-        b.sitter_id,
-        b.pet_id,
-        b.service_type,
-        b.status,
-        b.start_time,
-        b.end_time,
-        b.total_price,
-        b.location,
-        b.notes,
-        b.start_time AS created_at,
+        b.*,
         c.first_name AS client_first_name,
         c.last_name AS client_last_name,
         s.first_name AS sitter_first_name,
@@ -658,38 +851,34 @@ app.get("/bookings", authMiddleware, async (req, res) => {
       LEFT JOIN users c ON b.client_id = c.id
       LEFT JOIN users s ON b.sitter_id = s.id
       ${whereClause}
-      ORDER BY b.start_time DESC, b.id DESC
+      ORDER BY b.id DESC
       `,
       params
     );
 
-    const bookings = rows.map((row) => ({
-      id: row.id,
-      client_id: row.client_id,
-      sitter_id: row.sitter_id,
-      pet_id: row.pet_id,
-      service_type: row.service_type,
-      status: row.status,
-      start_time: row.start_time,
-      end_time: row.end_time,
-      total_price: row.total_price,
-      location: row.location,
-      notes: row.notes,
-      created_at: row.created_at,
-      client_name: `${row.client_first_name || ""} ${row.client_last_name || ""}`.trim(),
-      sitter_name: `${row.sitter_first_name || ""} ${row.sitter_last_name || ""}`.trim()
-    }));
+    const bookings = rows.map((row) => {
+      const clientName = `${row.client_first_name || ""} ${
+        row.client_last_name || ""
+      }`.trim();
+      const sitterName = `${row.sitter_first_name || ""} ${
+        row.sitter_last_name || ""
+      }`.trim();
+
+      return {
+        ...row,
+        client_name: clientName,
+        sitter_name: sitterName
+      };
+    });
 
     res.json({ ok: true, bookings });
   } catch (err) {
     console.error("BOOKINGS_LIST_ERROR:", err);
-    res.status(500).json({ ok: false, error: "Failed to load bookings for user." });
+    res.status(500).json({ ok: false, error: "Failed to load bookings." });
   }
 });
 
-// POST /bookings - create booking (robust + normalized service_type)
 app.post("/bookings", async (req, res) => {
-  let conn;
   try {
     const {
       client_id,
@@ -703,13 +892,14 @@ app.post("/bookings", async (req, res) => {
       notes,
       payment_method = "card",
       currency = "USD",
-      stripe_payment_intent_id = null
+      payment_intent_id = null
     } = req.body || {};
 
     if (!client_id || !sitter_id || !service_type || !start_time || !end_time) {
       return res.status(400).json({
         ok: false,
-        error: "Missing required fields (client_id, sitter_id, service_type, start_time, end_time)."
+        error:
+          "Missing required fields (client_id, sitter_id, service_type, start_time, end_time)."
       });
     }
 
@@ -717,7 +907,17 @@ app.post("/bookings", async (req, res) => {
     if (!normalizedService) {
       return res.status(400).json({
         ok: false,
-        error: `Invalid service_type: "${service_type}". Use overnight / walk / dropin / daycare.`
+        error:
+          "Invalid service_type. Use overnight / walk / dropin / daycare (or the normal labels like 'Dog walking')."
+      });
+    }
+
+    const startDT = toMySqlDateTime(start_time);
+    const endDT = toMySqlDateTime(end_time);
+    if (!startDT || !endDT) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid start_time or end_time. Use ISO date/time."
       });
     }
 
@@ -729,106 +929,84 @@ app.post("/bookings", async (req, res) => {
     const platformFee = parseFloat((price * COMMISSION_RATE).toFixed(2));
     const sitterPayout = parseFloat((price - platformFee).toFixed(2));
 
-    conn = await pool.getConnection();
-    await conn.beginTransaction();
+    // ---- Insert booking (safe against schema mismatches) ----
+    const bookingInsert = {
+      client_id: Number(client_id),
+      sitter_id: Number(sitter_id),
+      pet_id: pet_id ? Number(pet_id) : null,
+      service_type: normalizedService,
+      status: "accepted",
+      start_time: startDT,
+      end_time: endDT,
+      location: location || null,
+      notes: notes || null,
+      price_total: price,
+      total_price: price,
+      currency: currency || "USD",
+      payment_method: payment_method || "card",
+      payment_intent_id: payment_intent_id || null
+    };
 
-    // Insert booking (minimal columns so it won't break if your schema differs)
-    const [bookingResult] = await conn.query(
-      `INSERT INTO bookings
-         (client_id, sitter_id, pet_id, service_type, status, start_time, end_time, total_price, location, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        client_id,
-        sitter_id,
-        pet_id,
-        normalizedService,
-        "accepted",
-        start_time,
-        end_time,
-        price,
-        location || null,
-        notes || null
-      ]
-    );
-
+    const bookingResult = await safeInsert("bookings", bookingInsert);
     const bookingId = bookingResult.insertId;
-    const receiptNumber = makeReceiptNumber(bookingId);
 
-    // Optional inserts (won't crash your booking if tables don't exist yet)
+    // ---- Optional receipts/transactions (don’t fail booking if missing tables) ----
     try {
-      const [clientRows] = await conn.query("SELECT email FROM users WHERE id = ?", [client_id]);
+      const [clientRows] = await pool.query("SELECT email FROM users WHERE id = ?", [
+        client_id
+      ]);
       const clientEmail = clientRows[0]?.email || null;
 
-      const [sitterRows] = await conn.query("SELECT email FROM users WHERE id = ?", [sitter_id]);
+      const [sitterRows] = await pool.query("SELECT email FROM users WHERE id = ?", [
+        sitter_id
+      ]);
       const sitterEmail = sitterRows[0]?.email || null;
 
-      // mr_transactions
+      const receiptNumber = makeReceiptNumber(bookingId);
+
+      // mr_transactions (safe insert)
       let transactionId = null;
       try {
-        const [txResult] = await conn.query(
-          `INSERT INTO mr_transactions
-             (booking_id, client_id, sitter_id, receipt_number, transaction_type,
-              amount, currency, payment_method, status, description)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            bookingId,
-            client_id,
-            sitter_id,
-            receiptNumber,
-            "CHARGE",
-            price,
-            currency,
-            payment_method,
-            "paid",
-            notes || "Booking charge"
-          ]
-        );
+        const txResult = await safeInsert("mr_transactions", {
+          booking_id: bookingId,
+          client_id: Number(client_id),
+          sitter_id: Number(sitter_id),
+          receipt_number: receiptNumber,
+          transaction_type: "CHARGE",
+          amount: price,
+          currency: currency,
+          payment_method: payment_method,
+          status: "paid",
+          description: notes || "Booking charge",
+          payment_intent_id: payment_intent_id || null
+        });
         transactionId = txResult.insertId;
       } catch (e) {
-        if (String(e?.code || "").includes("ER_NO_SUCH_TABLE")) {
-          console.warn("mr_transactions table missing — skipping.");
-        } else {
-          console.warn("mr_transactions insert failed — skipping:", e.message);
-        }
+        console.warn("mr_transactions insert skipped:", e.message);
       }
 
-      // admin_receipts
+      // admin_receipts (safe insert)
       try {
-        if (transactionId) {
-          await conn.query(
-            `INSERT INTO admin_receipts
-               (transaction_id, receipt_number, transaction_type, amount, currency,
-                payment_status, payment_method, booking_id, service_type, booking_status,
-                client_email, sitter_email)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              transactionId,
-              receiptNumber,
-              "CHARGE",
-              platformFee,
-              currency,
-              "paid",
-              payment_method,
-              bookingId,
-              normalizedService,
-              "accepted",
-              clientEmail,
-              sitterEmail
-            ]
-          );
-        }
+        await safeInsert("admin_receipts", {
+          transaction_id: transactionId,
+          receipt_number: receiptNumber,
+          transaction_type: "CHARGE",
+          amount: platformFee,
+          currency: currency,
+          payment_status: "paid",
+          payment_method: payment_method,
+          booking_id: bookingId,
+          service_type: normalizedService,
+          booking_status: "accepted",
+          client_email: clientEmail,
+          sitter_email: sitterEmail
+        });
       } catch (e) {
-        if (String(e?.code || "").includes("ER_NO_SUCH_TABLE")) {
-          console.warn("admin_receipts table missing — skipping.");
-        } else {
-          console.warn("admin_receipts insert failed — skipping:", e.message);
-        }
+        console.warn("admin_receipts insert skipped:", e.message);
       }
     } catch (e) {
-      console.warn("Optional receipt/email work failed — skipping:", e.message);
+      console.warn("Receipt pipeline skipped:", e.message);
     }
-
-    await conn.commit();
 
     res.status(201).json({
       ok: true,
@@ -840,18 +1018,11 @@ app.post("/bookings", async (req, res) => {
       commission_rate: COMMISSION_RATE,
       platform_fee: platformFee,
       sitter_payout: sitterPayout,
-      stripe_payment_intent_id
+      payment_intent_id: payment_intent_id || null
     });
   } catch (err) {
     console.error("BOOKING_CREATE_ERROR:", err);
-    try {
-      if (conn) await conn.rollback();
-    } catch (_) {}
     res.status(500).json({ ok: false, error: "Failed to create booking." });
-  } finally {
-    try {
-      if (conn) conn.release();
-    } catch (_) {}
   }
 });
 
@@ -861,7 +1032,11 @@ app.post("/bookings", async (req, res) => {
 app.use((req, res, next) => {
   if (res.headersSent) return next();
   console.warn("404 Not Found:", req.method, req.url);
-  res.status(404).json({ ok: false, error: "Not found", path: req.url });
+  res.status(404).json({
+    ok: false,
+    error: "Not found",
+    path: req.url
+  });
 });
 
 app.use((err, req, res, next) => {
@@ -869,7 +1044,10 @@ app.use((err, req, res, next) => {
 
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({ ok: false, error: "Image is too large. Max size is 8MB." });
+      return res.status(400).json({
+        ok: false,
+        error: "Image is too large. Max size is 8MB."
+      });
     }
     return res.status(400).json({ ok: false, error: err.message });
   }

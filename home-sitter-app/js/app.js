@@ -318,3 +318,61 @@ document.addEventListener("DOMContentLoaded", async function () {
   await restoreSession();
   initAppShell();
 });
+
+// js/app.js
+(function () {
+  function $all(sel) {
+    return Array.from(document.querySelectorAll(sel));
+  }
+
+  function setActiveNav(pageId) {
+    $all(".nav-link").forEach((btn) => {
+      const p = btn.getAttribute("data-page");
+      btn.classList.toggle("active", p === pageId);
+    });
+  }
+
+  window.showPage = function showPage(pageId) {
+    $all(".page").forEach((p) => p.classList.remove("active"));
+    const page = document.getElementById(pageId);
+    if (page) page.classList.add("active");
+
+    setActiveNav(pageId);
+
+    // init hooks
+    if (pageId === "profilePage" && window.initProfilePage) window.initProfilePage();
+    if (pageId === "bookingPage" && window.initBookingPage) window.initBookingPage();
+    if (pageId === "dashboardPage" && window.initDashboardPage) window.initDashboardPage();
+    if (pageId === "homePage" && window.initHomePage) window.initHomePage();
+    if (pageId === "sitterProfilePage" && window.initSitterProfilePage) window.initSitterProfilePage();
+    if (pageId === "settingsPage" && window.initSettingsPage) window.initSettingsPage();
+  };
+
+  function wireNav() {
+    $all(".nav-link").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-page");
+        if (page) window.showPage(page);
+      });
+    });
+
+    // Any element with data-page-jump="somePage"
+    $all("[data-page-jump]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const page = el.getAttribute("data-page-jump");
+        if (page) window.showPage(page);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    wireNav();
+
+    // Default page
+    const initial = document.querySelector(".page.active")?.id || "homePage";
+    window.showPage(initial);
+
+    // Ensure Stripe boot (safe even if blocked)
+    if (window.initStripe) window.initStripe();
+  });
+})();

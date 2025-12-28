@@ -1,446 +1,269 @@
 // js/pages/profile.js
-// Profile page wired to real backend (/profile, /profile/photo)
-
 (function () {
-  const TOKEN_KEY = "petcare_token";
+  const API_BASE =
+    window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
 
-  function getToken() {
+  function getAuthToken() {
+    return (
+      localStorage.getItem("petcare_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("auth_token") ||
+      ""
+    );
+  }
+
+  function setStoredUser(user) {
     try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch (_) {
-      return null;
-    }
+      localStorage.setItem("petcare_user", JSON.stringify(user));
+    } catch (_) {}
   }
 
-  function getApiBase() {
-    return window.API_BASE || window.PETCARE_API_BASE || "";
+  function niceRole(role) {
+    const r = String(role || "").toLowerCase();
+    if (r === "client") return "Client";
+    if (r === "sitter") return "Sitter";
+    if (r === "employee") return "Employee";
+    if (r === "admin") return "Admin";
+    return role || "User";
   }
 
-  function getCurrentUser() {
-    if (
-      window.PetCareState &&
-      typeof window.PetCareState.getCurrentUser === "function"
-    ) {
-      return window.PetCareState.getCurrentUser();
-    }
-    return {
-      id: null,
-      first_name: "",
-      last_name: "",
-      full_name: "Guest user",
-      name: "Guest user",
-      role: "guest",
-      email: "",
-      phone: ""
-    };
+  function avatarUrl(user) {
+    if (!user) return "";
+    if (user.avatar_url && user.avatar_url.startsWith("http")) return user.avatar_url;
+    if (user.avatar_url) return `${API_BASE}${user.avatar_url}`;
+    return "";
   }
 
-  function setCurrentUser(user) {
-    if (
-      window.PetCareState &&
-      typeof window.PetCareState.setCurrentUser === "function"
-    ) {
-      window.PetCareState.setCurrentUser(user);
-    } else {
-      if (!window.appState) window.appState = {};
-      window.appState.currentUser = user;
-    }
-
-    if (typeof window.updateHeaderUser === "function") {
-      window.updateHeaderUser();
-    }
-  }
-
-  function getInitialsFromParts(firstName, lastName, fallbackFull) {
-    const source =
-      (firstName && `${firstName} ${lastName || ""}`.trim()) ||
-      fallbackFull ||
-      "";
-    if (!source) return "🙂";
-    const parts = source.trim().split(/\s+/);
-    const first = parts[0]?.[0] || "";
-    const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-    return (first + last).toUpperCase();
-  }
-
-  function applyAvatarFromUser(avatarEl, user) {
-    if (!avatarEl || !user) return;
-
-    const url = user.avatar_url || user.photo_url || "";
-    const initialsEl = avatarEl.querySelector(".avatar-initials");
-
-    if (url) {
-      avatarEl.style.backgroundImage = `url('${url}')`;
-      avatarEl.classList.add("has-photo");
-      if (initialsEl) initialsEl.style.display = "none";
-    } else {
-      avatarEl.style.backgroundImage = "";
-      avatarEl.classList.remove("has-photo");
-      if (initialsEl) {
-        initialsEl.textContent = getInitialsFromParts(
-          user.first_name,
-          user.last_name,
-          user.full_name || user.name
-        );
-        initialsEl.style.display = "flex";
-      }
-    }
-  }
-
-  // ----- API helpers -----
-
-  async function fetchProfileFromApi() {
-    const token = getToken();
+  async function fetchProfile() {
+    const token = getAuthToken();
     if (!token) throw new Error("Not logged in.");
 
-    const res = await fetch(`${getApiBase()}/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const res = await fetch(`${API_BASE}/profile`, {
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.user) {
+    if (!res.ok || !data.ok) {
       throw new Error(data.error || "Failed to load profile.");
     }
-
-    let apiUser = data.user;
-    if (typeof window.PetCareMapApiUser === "function") {
-      apiUser = window.PetCareMapApiUser(apiUser);
-    }
-
-    setCurrentUser(apiUser);
-    return apiUser;
+    return data.user;
   }
 
-  async function saveProfileToApi(firstName, lastName, phone) {
-    const token = getToken();
-    if (!token) throw new Error("Not logged in.");
-
-    const fullName = `${firstName || ""} ${lastName || ""}`.trim();
-
-    const res = await fetch(`${getApiBase()}/profile`, {
+  async function saveProfile({ first_name, last_name, phone }) {
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        first_name: firstName,
-        last_name: lastName,
-        full_name: fullName,
-        phone
-      })
+      body: JSON.stringify({ first_name, last_name, phone })
     });
 
     const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data.user) {
-      throw new Error(data.error || "Server error");
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "Failed to save profile.");
     }
-
-    let apiUser = data.user;
-    if (typeof window.PetCareMapApiUser === "function") {
-      apiUser = window.PetCareMapApiUser(apiUser);
-    }
-
-    setCurrentUser(apiUser);
-    return apiUser;
+    return data.user;
   }
 
-  async function uploadPhoto(file) {
-    const token = getToken();
-    if (!token) throw new Error("Not logged in.");
-
+  async function uploadAvatar(file) {
+    const token = getAuthToken();
     const fd = new FormData();
     fd.append("photo", file);
 
-    const res = await fetch(`${getApiBase()}/profile/photo`, {
+    const res = await fetch(`${API_BASE}/profile/photo`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: fd
     });
 
     const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to upload profile photo.");
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "Failed to upload photo.");
     }
-
-    // Pull fresh user (with avatar_url) from backend
-    const updatedUser = await fetchProfileFromApi();
-    return { upload: data, user: updatedUser };
+    return data;
   }
 
-  // ----- Render + wiring -----
-
-  function renderProfilePage() {
-    const root = document.getElementById("profileRoot");
-    if (!root) return;
-
-    const user = getCurrentUser();
-
-    const firstName = user.first_name || "";
-    const lastName = user.last_name || "";
-    const fullName =
-      user.full_name ||
-      `${firstName} ${lastName}`.trim() ||
-      "Guest user";
-    const role = (user.role || "guest").toUpperCase();
-    const phone = user.phone || "";
-    const email = user.email || "";
+  function render(root, user) {
+    const url = avatarUrl(user);
 
     root.innerHTML = `
-      <div class="profile-layout">
-        <div class="section-card profile-main-card">
-          <div class="section-header">
-            <h1>Your profile</h1>
-            <p>
-              Update your name, photo, and contact info so sitters and clients
-              know who they’re working with.
-            </p>
+      <div class="section-card" style="display:flex; gap:16px; align-items:flex-start;">
+        <div style="width:96px;">
+          <div style="
+              width:96px;height:96px;border-radius:16px;
+              background:#f2f2f2;overflow:hidden;
+              display:flex;align-items:center;justify-content:center;
+              border:1px solid rgba(0,0,0,0.06);
+            ">
+            ${
+              url
+                ? `<img src="${url}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;" />`
+                : `<span class="text-muted" style="font-size:12px;">No photo</span>`
+            }
           </div>
 
-          <div class="profile-body">
-            <!-- LEFT: avatar / photo -->
-            <div class="profile-photo-column">
-              <div class="avatar-large" id="profileAvatar">
-                <span class="avatar-initials">
-                  ${getInitialsFromParts(firstName, lastName, fullName)}
-                </span>
-                <div class="avatar-camera-pill">
-                  <span>📷</span>
-                  <span>Change</span>
-                </div>
+          <label class="btn-small-outline" style="display:inline-block;margin-top:8px;cursor:pointer;">
+            Upload
+            <input id="profileAvatarInput" type="file" accept="image/*" style="display:none;" />
+          </label>
+          <div id="profileAvatarMsg" class="small text-muted" style="margin-top:6px;"></div>
+        </div>
+
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:18px;font-weight:700;">
+                ${(user.first_name || "Guest")} ${(user.last_name || "")}
               </div>
-              <p class="profile-photo-text">
-                Add a clear photo of yourself. This helps pet parents recognize you
-                at pick-ups and drop-offs.
-              </p>
-              <input
-                type="file"
-                accept="image/*"
-                id="profilePhotoInput"
-                hidden
-              />
+              <div class="small text-muted">
+                ${user.email || ""} • ${niceRole(user.role)}
+              </div>
             </div>
 
-            <!-- RIGHT: form -->
-            <div class="profile-form-column">
-              <form id="profileForm" class="auth-form">
-                <div class="profile-form-grid">
-                  <label>
-                    <span>First name</span>
-                    <input
-                      type="text"
-                      id="profileFirstNameInput"
-                      class="input"
-                      value="${firstName}"
-                    />
-                  </label>
-                  <label>
-                    <span>Last name</span>
-                    <input
-                      type="text"
-                      id="profileLastNameInput"
-                      class="input"
-                      value="${lastName}"
-                    />
-                  </label>
-                  <label>
-                    <span>Role</span>
-                    <input
-                      type="text"
-                      id="profileRoleInput"
-                      class="input"
-                      value="${role}"
-                      disabled
-                    />
-                  </label>
-                  <label>
-                    <span>Phone</span>
-                    <input
-                      type="tel"
-                      id="profilePhoneInput"
-                      class="input"
-                      value="${phone}"
-                      placeholder="000-000-0000"
-                    />
-                  </label>
-                  <label>
-                    <span>Email</span>
-                    <input
-                      type="email"
-                      id="profileEmailInput"
-                      class="input"
-                      value="${email}"
-                      placeholder="you@example.com"
-                      disabled
-                    />
-                  </label>
-                </div>
-
-                <div style="margin-top: 16px; display: flex; gap: 8px;">
-                  <button
-                    type="submit"
-                    class="btn-primary"
-                    id="profileSaveBtn"
-                  >
-                    Save changes
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-secondary"
-                    id="profileManageSettingsBtn"
-                    data-page-jump="settingsPage"
-                  >
-                    Manage settings
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-secondary"
-                    id="profileLogoutBtn"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </form>
-            </div>
+            <button id="profileSaveBtn" type="button" class="btn-primary">
+              Save changes
+            </button>
           </div>
 
-          <!-- SUMMARY -->
-          <div class="profile-summary-row">
-            <div>
-              <strong>Name:</strong>
-              <span id="profileSummaryName">${fullName}</span>
-            </div>
-            <div>
-              <strong>Role:</strong>
-              <span id="profileSummaryRole">${role}</span>
-            </div>
-            <div>
-              <strong>Phone:</strong>
-              <span id="profileSummaryPhone">${phone || "—"}</span>
-            </div>
+          <div style="margin-top:12px;" class="profile-form-grid">
+            <label>
+              <span>First name</span>
+              <input id="profileFirstName" class="input" value="${user.first_name || ""}" />
+            </label>
+
+            <label>
+              <span>Last name</span>
+              <input id="profileLastName" class="input" value="${user.last_name || ""}" />
+            </label>
+
+            <label>
+              <span>Phone</span>
+              <input id="profilePhone" class="input" value="${user.phone || ""}" placeholder="000-000-0000" />
+            </label>
+
+            <label>
+              <span>Role</span>
+              <input class="input" value="${niceRole(user.role)}" disabled />
+            </label>
+          </div>
+
+          <div id="profileMsg" class="small text-muted" style="margin-top:10px;"></div>
+
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button id="profileGoSettingsBtn" type="button" class="btn-secondary">
+              Manage settings
+            </button>
+            <button id="profileLogoutBtn2" type="button" class="btn-secondary">
+              Logout
+            </button>
           </div>
         </div>
       </div>
     `;
+  }
 
-    const avatar = root.querySelector("#profileAvatar");
-    const photoInput = root.querySelector("#profilePhotoInput");
-    const form = root.querySelector("#profileForm");
+  function wire(root) {
+    const msg = root.querySelector("#profileMsg");
+    const avatarMsg = root.querySelector("#profileAvatarMsg");
+
+    function setMsg(text) {
+      if (msg) msg.textContent = text || "";
+    }
+    function setAvatarMsg(text) {
+      if (avatarMsg) avatarMsg.textContent = text || "";
+    }
+
     const saveBtn = root.querySelector("#profileSaveBtn");
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async () => {
+        setMsg("");
+        try {
+          const first_name = root.querySelector("#profileFirstName")?.value || "";
+          const last_name = root.querySelector("#profileLastName")?.value || "";
+          const phone = root.querySelector("#profilePhone")?.value || "";
 
-    const firstNameInput = root.querySelector("#profileFirstNameInput");
-    const lastNameInput = root.querySelector("#profileLastNameInput");
-    const phoneInput = root.querySelector("#profilePhoneInput");
+          const updated = await saveProfile({ first_name, last_name, phone });
+          setStoredUser(updated);
 
-    const summaryName = root.querySelector("#profileSummaryName");
-    const summaryPhone = root.querySelector("#profileSummaryPhone");
+          // update top user pill if you have it
+          const pill = document.getElementById("userPill");
+          if (pill) pill.textContent = `${updated.first_name || "Guest"} ${updated.last_name || ""}`.trim();
 
-    applyAvatarFromUser(avatar, user);
-
-    function openPhotoPicker() {
-      if (photoInput) photoInput.click();
-    }
-
-    if (avatar) {
-      avatar.addEventListener("click", openPhotoPicker);
-    }
-    const cameraPill = root.querySelector(".avatar-camera-pill");
-    if (cameraPill) {
-      cameraPill.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openPhotoPicker();
+          setMsg("Saved ✅");
+        } catch (e) {
+          console.error(e);
+          setMsg(e.message || "Save failed.");
+        }
       });
     }
 
-    if (photoInput) {
-      photoInput.addEventListener("change", async function (e) {
-        const file = e.target.files && e.target.files[0];
+    const avatarInput = root.querySelector("#profileAvatarInput");
+    if (avatarInput) {
+      avatarInput.addEventListener("change", async () => {
+        setAvatarMsg("");
+        const file = avatarInput.files && avatarInput.files[0];
         if (!file) return;
 
-        // Instant preview
-        const reader = new FileReader();
-        reader.onload = function (ev) {
-          const dataUrl = ev.target.result;
-          avatar.style.backgroundImage = `url('${dataUrl}')`;
-          avatar.classList.add("has-photo");
-          const initialsEl = avatar.querySelector(".avatar-initials");
-          if (initialsEl) initialsEl.style.display = "none";
-        };
-        reader.readAsDataURL(file);
-
         try {
-          const { user: updatedUser } = await uploadPhoto(file);
-          applyAvatarFromUser(avatar, updatedUser);
-        } catch (err) {
-          console.error("Photo upload error:", err);
-          alert(err.message || "Failed to upload photo.");
+          await uploadAvatar(file);
+          setAvatarMsg("Uploaded ✅ Refreshing…");
+
+          // Reload profile view
+          window.initProfilePage && window.initProfilePage();
+        } catch (e) {
+          console.error(e);
+          setAvatarMsg(e.message || "Upload failed.");
         }
       });
     }
 
-    if (form) {
-      form.addEventListener("submit", async function (e) {
-        e.preventDefault();
-
-        const newFirst = (firstNameInput.value || "").trim();
-        const newLast = (lastNameInput.value || "").trim();
-        const newPhone = (phoneInput.value || "").trim();
-
-        saveBtn.disabled = true;
-        const originalText = saveBtn.textContent;
-        saveBtn.textContent = "Saving...";
-
-        try {
-          const updatedUser = await saveProfileToApi(newFirst, newLast, newPhone);
-
-          const updatedFull =
-            updatedUser.full_name ||
-            `${updatedUser.first_name || ""} ${updatedUser.last_name || ""}`.trim();
-
-          summaryName.textContent = updatedFull || "—";
-          summaryPhone.textContent = updatedUser.phone || "—";
-
-          saveBtn.textContent = "Saved";
-          setTimeout(() => {
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-          }, 1200);
-        } catch (err) {
-          console.error("Profile save error:", err);
-          alert(err.message || "Server error");
-          saveBtn.disabled = false;
-          saveBtn.textContent = originalText;
-        }
+    const settingsBtn = root.querySelector("#profileGoSettingsBtn");
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", () => {
+        if (window.showPage) window.showPage("settingsPage");
       });
     }
 
-    const profileLogoutBtn = root.querySelector("#profileLogoutBtn");
-    if (profileLogoutBtn) {
-      profileLogoutBtn.addEventListener("click", function () {
-        if (typeof window.doLogout === "function") {
-          window.doLogout();
-        }
+    const logoutBtn = root.querySelector("#profileLogoutBtn2");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => {
+        // keep compatible with your existing logout flow
+        localStorage.removeItem("petcare_token");
+        localStorage.removeItem("token");
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("petcare_user");
+        localStorage.removeItem("user");
+        if (window.showPage) window.showPage("homePage");
+        const pill = document.getElementById("userPill");
+        if (pill) pill.textContent = "Guest";
       });
     }
   }
 
-  // Expose for app.js
-  window.renderProfilePage = renderProfilePage;
+  window.initProfilePage = async function initProfilePage() {
+    const root = document.getElementById("profileRoot");
+    if (!root) return;
 
-  // When you navigate to Profile, sync from backend first
-  window.initProfilePage = async function () {
+    root.innerHTML = `<div class="text-muted">Loading profile…</div>`;
+
     try {
-      await fetchProfileFromApi();
-    } catch (err) {
-      console.warn("initProfilePage: could not fetch profile", err);
-      // If this fails (e.g., guest), we still render whatever we have
+      const user = await fetchProfile();
+      setStoredUser(user);
+      render(root, user);
+      wire(root);
+    } catch (e) {
+      console.error("initProfilePage error:", e);
+      root.innerHTML = `
+        <div class="section-card">
+          <h3>Could not load profile</h3>
+          <p class="text-muted">${e.message || "Unknown error"}</p>
+          <button class="btn-primary" type="button" id="profileRetryBtn">Retry</button>
+        </div>
+      `;
+      const retry = document.getElementById("profileRetryBtn");
+      if (retry) retry.addEventListener("click", () => window.initProfilePage());
     }
-    renderProfilePage();
   };
 })();
