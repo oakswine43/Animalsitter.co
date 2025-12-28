@@ -1,8 +1,7 @@
 // js/pages/booking.js
 // Handles the booking modal + booking confirmation flow
-// FIX: robust service_type normalization so it always becomes:
-// overnight | walk | dropin | daycare
-// Also: scopes DOM queries to the modal to avoid duplicate-id problems.
+// FIX: Always normalize service_type AND always (re)mount Stripe Card Element
+// when the modal opens (SPA navigation can recreate the modal DOM).
 
 (function () {
   window.PetCareBooking = window.PetCareBooking || { preview: null, booking: null };
@@ -18,7 +17,6 @@
   }
 
   function getAuthToken() {
-    // Support multiple token keys since your project evolved
     return (
       localStorage.getItem("token") ||
       localStorage.getItem("auth_token") ||
@@ -30,10 +28,7 @@
 
   async function apiFetch(path, opts = {}) {
     const token = getAuthToken();
-    const headers = Object.assign(
-      { "Content-Type": "application/json" },
-      opts.headers || {}
-    );
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const res = await fetch(`${API_BASE}${path}`, {
@@ -54,6 +49,7 @@
       err.data = data;
       throw err;
     }
+
     return data;
   }
 
@@ -63,7 +59,7 @@
   }
 
   // ---------------------------
-  // service_type normalization (THE FIX)
+  // service_type normalization
   // ---------------------------
   function normalizeServiceType(input) {
     const raw = (input ?? "").toString().trim();
@@ -71,13 +67,13 @@
 
     const lower = raw.toLowerCase().trim();
 
-    // Already-correct enum values
     if (["overnight", "walk", "dropin", "daycare"].includes(lower)) return lower;
 
-    // Common UI labels
-    // IMPORTANT: accept lots of variants so the UI can say whatever
     const map = [
-      { keys: ["overnight sitting", "overnight", "in-home sitting", "in home sitting", "sitting", "pet sitting"], value: "overnight" },
+      {
+        keys: ["overnight sitting", "overnight", "in-home sitting", "in home sitting", "sitting", "pet sitting"],
+        value: "overnight"
+      },
       { keys: ["walk", "walking", "dog walk", "dog walking", "neighborhood walks"], value: "walk" },
       { keys: ["dropin", "drop-in", "drop in", "drop-in visit", "drop in visit", "visit"], value: "dropin" },
       { keys: ["daycare", "doggy daycare", "dog daycare"], value: "daycare" }
@@ -87,7 +83,6 @@
       if (row.keys.some((k) => lower === k)) return row.value;
     }
 
-    // Keyword fallback (covers “Walking”, “Boarding”, etc.)
     if (lower.includes("walk")) return "walk";
     if (lower.includes("drop")) return "dropin";
     if (lower.includes("daycare")) return "daycare";
@@ -112,7 +107,7 @@
   }
 
   // ---------------------------
-  // Stripe (card element in modal)
+  // Stripe
   // ---------------------------
   let stripe = null;
   let elements = null;
@@ -122,7 +117,7 @@
     if (stripe && elements) return;
 
     if (!window.Stripe) {
-      console.warn("[Booking] Stripe.js not loaded.");
+      console.warn("[Booking] Stripe.js not loaded on page.");
       return;
     }
     if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes("REPLACE_ME")) {
@@ -134,7 +129,7 @@
     elements = stripe.elements();
   }
 
-  function mountCard() {
+  function mountCardAlways() {
     ensureStripe();
     if (!stripe || !elements) return;
 
@@ -142,21 +137,35 @@
     if (!modal) return;
 
     const mountPoint = $("#stripe-card-element", modal);
-    if (!mountPoint) return;
+    if (!mountPoint) {
+      console.warn("[Booking] Missing #stripe-card-element in modal.");
+      return;
+    }
 
-    if (cardEl) return; // already mounted
+    // If Stripe already mounted inside this container, do nothing
+    if (mountPoint.querySelector(".StripeElement")) return;
 
-    cardEl = elements.create("card", {
-      hidePostalCode: true
-    });
+    // SPA nav can recreate DOM; if cardEl exists but container is fresh, remount cleanly
+    if (cardEl) {
+      try {
+        cardEl.unmount();
+      } catch (_) {}
+      cardEl = null;
+    }
+
+    // Make sure container has a visible height (Stripe iframe needs space)
+    if (!mountPoint.style.minHeight) mountPoint.style.minHeight = "44px";
+
+    cardEl = elements.create("card", { hidePostalCode: true });
     cardEl.mount(mountPoint);
 
     const errBox = $("#card-errors", modal);
     if (errBox) errBox.textContent = "";
 
     cardEl.on("change", (event) => {
-      if (!errBox) return;
-      errBox.textContent = event.error ? event.error.message : "";
+      const errBox2 = $("#card-errors", modal);
+      if (!errBox2) return;
+      errBox2.textContent = event.error ? event.error.message : "";
     });
   }
 
@@ -166,8 +175,13 @@
   function openModal() {
     const modal = $("#bookingModal");
     if (!modal) return;
+
     modal.style.display = "block";
-    mountCard();
+
+    // Mount after it becomes visible (helps Stripe render correctly)
+    requestAnimationFrame(() => {
+      mountCardAlways();
+    });
   }
 
   function closeModal() {
@@ -212,14 +226,13 @@
     const clientEmail = ($("#bookingClientEmail")?.value || "").trim();
     const clientAddress = ($("#bookingClientAddress")?.value || "").trim();
 
-    // Create ISO datetimes if date + time exist
     let startISO = "";
     let endISO = "";
     if (date && start) startISO = new Date(`${date}T${start}`).toISOString();
     if (date && end) endISO = new Date(`${date}T${end}`).toISOString();
 
     return {
-      service_type: serviceVal, // we normalize later
+      service_type: serviceVal,
       date,
       start_time: startISO || start || "",
       end_time: endISO || end || "",
@@ -240,7 +253,6 @@
     const modal = $("#bookingModal");
     if (!modal) return;
 
-    // Sitter fields (scope to modal to avoid duplicate IDs)
     const sitterNameEl = $("#bookingSitterName", modal);
     const sitterSubtitleEl = $("#bookingSitterSubtitle", modal);
     const sitterBadgesEl = $("#bookingSitterBadges", modal);
@@ -257,16 +269,17 @@
     const clientNameEl = $("#bookingClientName", modal);
     const clientEmailEl = $("#bookingClientEmail", modal);
 
-    // Pet summary
     const petNamesEl = $("#bookingPetNames", modal);
     const petBreedEl = $("#bookingPetBreed", modal);
 
-    // Policies
     const policiesEl = $("#bookingPolicies", modal);
 
-    // Sitter rendering (best-effort)
     const sitter = preview?.sitter || {};
-    const sitterName = sitter.full_name || [sitter.first_name, sitter.last_name].filter(Boolean).join(" ").trim() || "Sitter";
+    const sitterName =
+      sitter.full_name ||
+      [sitter.first_name, sitter.last_name].filter(Boolean).join(" ").trim() ||
+      "Sitter";
+
     if (sitterNameEl) sitterNameEl.textContent = sitterName;
 
     const rating = sitter.rating ? `★ ${sitter.rating}` : "★ New";
@@ -283,14 +296,12 @@
       });
     }
 
-    // Service normalization
     const normalized = normalizeServiceType(preview?.service_type);
-    const finalServiceEnum = normalized || "overnight"; // safe fallback
+    const finalServiceEnum = normalized || "overnight";
     if (serviceNameEl) serviceNameEl.textContent = serviceLabelFromEnum(finalServiceEnum);
 
-    // Pricing (use preview total if provided, else default)
     const total = Number(preview?.price_total ?? preview?.total_price ?? 0) || 0;
-    const serviceFee = Number((total * 0.1).toFixed(2)); // simple display fee (frontend only)
+    const serviceFee = Number((total * 0.1).toFixed(2));
     const base = Number((total - serviceFee).toFixed(2));
 
     if (totalEl) totalEl.textContent = money(total);
@@ -300,7 +311,6 @@
     if (line2Price) line2Price.textContent = money(0);
     if (line3Price) line3Price.textContent = money(serviceFee);
 
-    // Client info
     const user = window.PetCareState?.user || null;
     const fullName = user?.full_name || user?.name || "Guest";
     const email = user?.email || preview?.clientEmail || "you@example.com";
@@ -308,11 +318,9 @@
     if (clientNameEl) clientNameEl.textContent = fullName;
     if (clientEmailEl) clientEmailEl.textContent = email;
 
-    // Pet info
     if (petNamesEl) petNamesEl.textContent = preview?.pets || "Your dog(s) – demo";
     if (petBreedEl) petBreedEl.textContent = preview?.breed || "Breed / size – demo";
 
-    // Policies
     if (policiesEl) {
       const items = preview?.policies || [
         "Cancellation: Free cancellation up to 24 hours before start. 50% after that.",
@@ -320,14 +328,12 @@
         "Aggressive dog policy: Not able to accept dogs with a history of biting people.",
         "Extra fees: Holiday bookings +$10/night. Last-minute bookings (<24h) +$5."
       ];
-      policiesEl.innerHTML = items
-        .map((t) => `<div style="margin-bottom:6px;">• ${t}</div>`)
-        .join("");
+      policiesEl.innerHTML = items.map((t) => `<div style="margin-bottom:6px;">• ${t}</div>`).join("");
     }
   }
 
   // ---------------------------
-  // Confirm + Pay flow
+  // Confirm + Pay
   // ---------------------------
   async function confirmBookingFromModal() {
     try {
@@ -337,10 +343,8 @@
       const preview = window.PetCareBooking?.preview || {};
       if (!preview) throw new Error("No booking preview found.");
 
-      // Normalize service_type reliably
       const normalizedService = normalizeServiceType(preview.service_type);
       if (!normalizedService) {
-        // Don’t hard-fail like before — just give a useful error
         throw new Error(
           `Invalid service_type: "${preview.service_type}". Please choose: overnight, walk, dropin, or daycare.`
         );
@@ -351,14 +355,15 @@
         throw new Error("Invalid total price. Please try again.");
       }
 
-      // Stripe must be configured
-      ensureStripe();
+      // IMPORTANT: ensure card is mounted (again) before confirming payment
+      mountCardAlways();
+
       if (!stripe || !cardEl) {
-        throw new Error("Stripe card form is not ready. Refresh and try again.");
+        throw new Error("Payment form is not ready. Please refresh and try again.");
       }
 
-      // 1) Create payment intent on backend
       const amountCents = Math.round(total * 100);
+
       const intent = await apiFetch("/stripe/create-payment-intent", {
         method: "POST",
         body: {
@@ -371,7 +376,6 @@
       const clientSecret = intent?.clientSecret;
       if (!clientSecret) throw new Error("Missing Stripe client secret.");
 
-      // 2) Confirm card payment in Stripe
       const billingName =
         window.PetCareState?.user?.full_name ||
         window.PetCareState?.user?.name ||
@@ -400,18 +404,8 @@
         throw new Error("Payment did not complete. Please try again.");
       }
 
-      // 3) Create booking in DB
-      // NOTE: your backend currently requires client_id and sitter_id
-      // We support either the logged-in user ID or preview fields.
-      const clientId =
-        window.PetCareState?.user?.id ||
-        preview.client_id ||
-        preview.clientId;
-
-      const sitterId =
-        preview.sitter_id ||
-        preview.sitterId ||
-        preview?.sitter?.id;
+      const clientId = window.PetCareState?.user?.id || preview.client_id || preview.clientId;
+      const sitterId = preview.sitter_id || preview.sitterId || preview?.sitter?.id;
 
       if (!clientId || !sitterId) {
         throw new Error("Missing client_id or sitter_id. Make sure you are logged in and selected a sitter.");
@@ -437,12 +431,10 @@
       window.PetCareBooking.booking = created;
       closeModal();
 
-      // Optionally jump to confirmation page if your app.js supports it
       if (window.PetCareApp?.navigate) {
         window.PetCareApp.navigate("bookingConfirmPage");
       }
 
-      // If you have a confirmation renderer, let it run
       if (window.PetCareBooking?.renderConfirmation) {
         window.PetCareBooking.renderConfirmation(created);
       }
@@ -455,50 +447,38 @@
   }
 
   // ---------------------------
-  // Wire up events
+  // Events
   // ---------------------------
   function bindEvents() {
     const modal = $("#bookingModal");
     if (modal) {
-      // close
       $("#bookingModalClose", modal)?.addEventListener("click", closeModal);
       $("#bookingModalCancelBtn", modal)?.addEventListener("click", closeModal);
 
-      // edit
       $("#bookingModalEditBtn", modal)?.addEventListener("click", () => {
-        // Just close modal so user can edit the booking page form
         closeModal();
       });
 
-      // confirm
       $("#bookingModalConfirmBtn", modal)?.addEventListener("click", confirmBookingFromModal);
 
-      // backdrop click closes
       $(".booking-modal-backdrop", modal)?.addEventListener("click", closeModal);
     }
 
-    // Booking page form -> open modal
     const bookingForm = $("#bookingPageForm");
     if (bookingForm) {
       bookingForm.addEventListener("submit", (e) => {
         e.preventDefault();
 
-        // Build preview from the form + whatever sitterProfile.js put in PetCareBooking.preview
         const existing = window.PetCareBooking?.preview || {};
         const fromForm = readBookingFormPreview();
 
-        // IMPORTANT: always store normalized enum or original (we normalize later too)
-        const merged = {
-          ...existing,
-          ...fromForm
-        };
+        const merged = { ...existing, ...fromForm };
 
-        // Normalize right now so the modal shows the correct service
+        // normalize for display + backend
         const normalized = normalizeServiceType(merged.service_type);
         merged.service_type = normalized || merged.service_type;
 
-        // If you calculate price elsewhere, keep it.
-        // If not present, add a small demo price so Stripe can run.
+        // keep your computed price if you have it; otherwise allow a demo default
         if (!merged.price_total && !merged.total_price) merged.price_total = 20;
 
         window.PetCareBooking.preview = merged;
@@ -509,7 +489,7 @@
     }
   }
 
-  // Public helpers in case other pages call them
+  // Public API
   window.PetCareBooking.open = function (preview) {
     if (preview) window.PetCareBooking.preview = preview;
     renderModalFromPreview(window.PetCareBooking.preview || {});
@@ -518,7 +498,6 @@
 
   window.PetCareBooking.close = closeModal;
 
-  // Init
   document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
   });
