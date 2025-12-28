@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AnimalSitter</title>
-    <link rel="stylesheet" href="styles.css" />
+
+    <!-- ✅ FIX: your CSS is in /css -->
+    <link rel="stylesheet" href="css/styles.css" />
   </head>
 
   <body>
-    <!-- =========================
-         AUTH SECTION
-    ========================== -->
-    <section id="authSection" style="display:none;">
+    <!-- AUTH SECTION -->
+    <section id="authSection" style="display: none">
       <div class="auth-shell">
         <div class="auth-card">
           <div class="auth-tabs">
@@ -35,13 +35,13 @@
                   required
                 />
               </label>
-              <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
+              <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px">
                 Log in
               </button>
             </form>
           </div>
 
-          <div id="signupPagePanel" class="auth-panel" style="display:none;">
+          <div id="signupPagePanel" class="auth-panel" style="display: none">
             <form id="signupRealForm" class="auth-form">
               <label>
                 <span>Full name</span>
@@ -68,22 +68,19 @@
                   <option value="sitter">Sitter</option>
                 </select>
               </label>
-              <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">
+              <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px">
                 Create account
               </button>
             </form>
           </div>
 
-          <div id="authPageError" class="auth-error" style="display:none;"></div>
+          <div id="authPageError" class="auth-error" style="display: none"></div>
         </div>
       </div>
     </section>
 
-    <!-- =========================
-         APP SECTION
-    ========================== -->
-    <section id="appSection" style="display:none;">
-      <!-- TOP BAR -->
+    <!-- APP SECTION -->
+    <section id="appSection" style="display: none">
       <header class="topbar">
         <div class="topbar-left">
           <div class="logo">
@@ -106,57 +103,25 @@
         </div>
       </header>
 
-      <!-- PAGES -->
       <main class="page-shell">
-        <!-- HOME PAGE -->
-        <section id="homePage" class="page active">
-          <div id="homeRoot"></div>
-        </section>
+        <section id="homePage" class="page active"><div id="homeRoot"></div></section>
+        <section id="dashboardPage" class="page"><div id="dashboardRoot"></div></section>
+        <section id="swipePage" class="page"><div id="swipeRoot"></div></section>
+        <section id="dogsPage" class="page"><div id="dogsRoot"></div></section>
+        <section id="messagesPage" class="page"><div id="messagesRoot"></div></section>
+        <section id="settingsPage" class="page"><div id="settingsRoot"></div></section>
+        <section id="sitterProfilePage" class="page"><div id="sitterProfileRoot"></div></section>
 
-        <!-- DASHBOARD PAGE -->
-        <section id="dashboardPage" class="page">
-          <div id="dashboardRoot"></div>
-        </section>
-
-        <!-- SWIPE PAGE -->
-        <section id="swipePage" class="page">
-          <div id="swipeRoot"></div>
-        </section>
-
-        <!-- DOGS PAGE -->
-        <section id="dogsPage" class="page">
-          <div id="dogsRoot"></div>
-        </section>
-
-        <!-- MESSAGES PAGE -->
-        <section id="messagesPage" class="page">
-          <div id="messagesRoot"></div>
-        </section>
-
-        <!-- SETTINGS PAGE -->
-        <section id="settingsPage" class="page">
-          <div id="settingsRoot"></div>
-        </section>
-
-        <!-- SITTER PROFILE PAGE -->
-        <section id="sitterProfilePage" class="page">
-          <div id="sitterProfileRoot"></div>
-        </section>
-
-        <!-- PROFILE PAGE -->
         <section id="profilePage" class="page">
           <div class="section-card profile-card">
             <h1>Your profile</h1>
             <p class="page-subtitle">
-              Update your name, photo, and contact info so sitters and clients know who they’re
-              working with.
+              Update your name, photo, and contact info so sitters and clients know who they’re working with.
             </p>
           </div>
-
           <div id="profileRoot"></div>
         </section>
 
-        <!-- BOOKING PAGE -->
         <section id="bookingPage" class="page">
           <div class="section-card">
             <div style="display:flex; align-items:center; justify-content:space-between;">
@@ -180,10 +145,7 @@
                   <div
                     id="bookingSitterAvatar"
                     class="avatar-circle"
-                    style="
-                      width:56px;height:56px;border-radius:999px;background:#eee;
-                      background-size:cover;background-position:center;
-                    "
+                    style="width:56px;height:56px;border-radius:999px;background:#eee;background-size:cover;background-position:center;"
                   ></div>
                   <div>
                     <div id="bookingSitterName" style="font-weight:700;">Sitter name</div>
@@ -212,30 +174,12 @@
                           <option value="daycare">Doggy daycare</option>
                         </select>
                       </label>
-
-                      <label>
-                        <span>Date</span>
-                        <input type="date" id="bookingDate" class="input" />
-                      </label>
-
-                      <label>
-                        <span>Start time</span>
-                        <input type="time" id="bookingStart" class="input" />
-                      </label>
-
-                      <label>
-                        <span>End time</span>
-                        <input type="time" id="bookingEnd" class="input" />
-                      </label>
-
+                      <label><span>Date</span><input type="date" id="bookingDate" class="input" /></label>
+                      <label><span>Start time</span><input type="time" id="bookingStart" class="input" /></label>
+                      <label><span>End time</span><input type="time" id="bookingEnd" class="input" /></label>
                       <label>
                         <span>Location</span>
-                        <input
-                          type="text"
-                          id="bookingLocation"
-                          class="input"
-                          placeholder="Your home, sitter’s home, etc."
-                        />
+                        <input type="text" id="bookingLocation" class="input" placeholder="Your home, sitter’s home, etc." />
                       </label>
                     </div>
                   </div>
@@ -245,106 +189,44 @@
                     <div class="profile-form-grid">
                       <label>
                         <span>Pets</span>
-                        <input
-                          type="text"
-                          id="bookingPets"
-                          class="input"
-                          placeholder="e.g. Milo (2 y/o lab), Daisy (5 y/o beagle)"
-                        />
+                        <input type="text" id="bookingPets" class="input" placeholder="e.g. Milo (2 y/o lab), Daisy (5 y/o beagle)" />
                       </label>
-
                       <label>
                         <span>Breed / size</span>
-                        <input
-                          type="text"
-                          id="bookingBreed"
-                          class="input"
-                          placeholder="Lab mix, 65 lb"
-                        />
+                        <input type="text" id="bookingBreed" class="input" placeholder="Lab mix, 65 lb" />
                       </label>
                     </div>
-
                     <label style="display:block; margin-top:8px;">
                       <span>Notes for your sitter</span>
-                      <textarea
-                        id="bookingPetNotes"
-                        class="input"
-                        rows="3"
-                        placeholder="Feeding, walks, quirks, meds, bedtime routine."
-                      ></textarea>
+                      <textarea id="bookingPetNotes" class="input" rows="3" placeholder="Feeding, walks, quirks, meds, bedtime routine."></textarea>
                     </label>
                   </div>
 
                   <div class="section-card">
                     <h3>Your info</h3>
                     <div class="profile-form-grid">
-                      <label>
-                        <span>Phone</span>
-                        <input
-                          type="tel"
-                          id="bookingClientPhone"
-                          class="input"
-                          placeholder="000-000-0000"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Email</span>
-                        <input
-                          type="email"
-                          id="bookingClientEmail"
-                          class="input"
-                          placeholder="you@example.com"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Address</span>
-                        <input
-                          type="text"
-                          id="bookingClientAddress"
-                          class="input"
-                          placeholder="Street, city, state"
-                        />
-                      </label>
+                      <label><span>Phone</span><input type="tel" id="bookingClientPhone" class="input" placeholder="000-000-0000" /></label>
+                      <label><span>Email</span><input type="email" id="bookingClientEmail" class="input" placeholder="you@example.com" /></label>
+                      <label><span>Address</span><input type="text" id="bookingClientAddress" class="input" placeholder="Street, city, state" /></label>
                     </div>
                   </div>
 
-                  <!-- ✅ NEW: PAYMENT ON BOOKING PAGE (not just the modal) -->
                   <div class="section-card">
                     <h3>Payment</h3>
-                    <p class="small text-muted">
-                      Enter your card details below (Stripe test mode).
-                    </p>
-
+                    <p class="small text-muted">Enter your card details below (Stripe test mode).</p>
                     <div id="stripe-card-element-page" class="stripe-card-element"></div>
                     <div id="card-errors-page" class="card-errors small text-muted"></div>
-
                     <p class="small text-muted" style="margin-top:8px;">
                       Tip: You can also click “Request booking” to review everything in the confirmation modal.
                     </p>
                   </div>
 
                   <div class="section-card">
-                    <!-- keep original button -->
                     <button type="submit" class="btn-primary">Request booking</button>
-
-                    <!-- ✅ NEW: pay directly from booking page -->
-                    <button
-                      type="button"
-                      id="bookingPayNowBtn"
-                      class="btn-primary"
-                      style="margin-left:8px;"
-                    >
+                    <button type="button" id="bookingPayNowBtn" class="btn-primary" style="margin-left:8px;">
                       Confirm &amp; Pay
                     </button>
-
-                    <button
-                      type="button"
-                      class="btn-secondary"
-                      data-page-jump="sitterProfilePage"
-                      style="margin-left:8px;"
-                    >
+                    <button type="button" class="btn-secondary" data-page-jump="sitterProfilePage" style="margin-left:8px;">
                       Back to sitter
                     </button>
                   </div>
@@ -369,101 +251,15 @@
           </div>
         </section>
 
-        <!-- BOOKING CONFIRM PAGE -->
-        <section id="bookingConfirmPage" class="page">
-          <div id="bookingConfirmRoot"></div>
-        </section>
+        <section id="bookingConfirmPage" class="page"><div id="bookingConfirmRoot"></div></section>
       </main>
     </section>
 
-    <!-- BOOKING MODAL -->
-    <div id="bookingModal" class="modal" style="display:none;">
-      <div class="modal-backdrop"></div>
-      <div class="modal-card booking-modal-card">
-        <div class="booking-modal-header">
-          <div>
-            <div class="booking-modal-title">Confirm booking</div>
-            <div class="booking-modal-subtitle">
-              Review details and confirm payment.
-            </div>
-          </div>
-          <button class="modal-close" id="bookingModalCloseBtn" type="button">✕</button>
-        </div>
-
-        <div class="booking-modal-body">
-          <div class="booking-modal-summary">
-            <div class="summary-row">
-              <div class="summary-label">Service</div>
-              <div class="summary-value" id="bookingSummaryService">Overnight sitting</div>
-            </div>
-            <div class="summary-row">
-              <div class="summary-label">Date</div>
-              <div class="summary-value" id="bookingSummaryDate">—</div>
-            </div>
-            <div class="summary-row">
-              <div class="summary-label">Time</div>
-              <div class="summary-value" id="bookingSummaryTime">—</div>
-            </div>
-            <div class="summary-row">
-              <div class="summary-label">Location</div>
-              <div class="summary-value" id="bookingSummaryLocation">—</div>
-            </div>
-            <div class="summary-row">
-              <div class="summary-label">Price</div>
-              <div class="summary-value" id="bookingSummaryPrice">$0.00</div>
-            </div>
-          </div>
-
-          <div class="booking-modal-details">
-            <div class="section-card">
-              <h3 class="small-heading">Your info</h3>
-              <p class="small">
-                <strong id="bookingClientName">Your name</strong><br />
-                <span id="bookingClientEmail">you@example.com</span>
-              </p>
-            </div>
-
-            <div class="section-card">
-              <h3 class="small-heading">Your pet</h3>
-              <p class="small">
-                <strong id="bookingPetNames">Your dog(s) – demo</strong><br />
-                <span id="bookingPetBreed">Breed / size – demo</span><br />
-                <span id="bookingPetFeeding">Feeding: Not set (demo)</span><br />
-                <span id="bookingPetBehavior">Behavior: Not set (demo)</span><br />
-                <span id="bookingPetMedication">Medication: Not set (demo)</span><br />
-                <span id="bookingPetWalks">Walk schedule: Not set (demo)</span>
-              </p>
-            </div>
-
-            <div class="section-card">
-              <h3 class="small-heading">Sitter policies</h3>
-              <div id="bookingPolicies" class="small text-muted"></div>
-            </div>
-
-            <div class="section-card">
-              <h3 class="small-heading">Payment</h3>
-              <p class="small text-muted">Enter your card details. This runs in Stripe test mode.</p>
-              <div id="stripe-card-element" class="stripe-card-element"></div>
-              <div id="card-errors" class="card-errors small text-muted"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="booking-modal-footer">
-          <button id="bookingModalCancelBtn" type="button" class="btn-secondary">Cancel</button>
-          <button id="bookingModalEditBtn" type="button" class="btn-secondary">Edit details</button>
-          <button id="bookingModalConfirmBtn" type="button" class="btn-primary">
-            Confirm &amp; Pay
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stripe.js -->
+    <!-- Stripe library -->
     <script src="https://js.stripe.com/v3/"></script>
 
-    <!-- ✅ FIXED: Your Stripe helpers (was js/stripe.js, but that path 404s in production) -->
-    <script src="stripe.js" defer></script>
+    <!-- ✅ FIX: helpers must be in /js -->
+    <script src="js/stripe.js" defer></script>
 
     <!-- Core app scripts -->
     <script src="js/state.js" defer></script>
