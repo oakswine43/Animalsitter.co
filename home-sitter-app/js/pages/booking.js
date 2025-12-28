@@ -89,12 +89,11 @@
     return d.toISOString();
   }
 
-  // ---------- PAYMENT UI HELPERS ----------
-
+  // Only inject a payment block if your page DOESN'T already have one.
   function ensureBookingPaymentBlock() {
-    // Your index.html ALREADY has the booking payment section with:
-    // #stripe-card-element-page and #card-errors-page
-    // So we do NOT inject anything here unless that div is missing.
+    // Your index.html already includes:
+    //   <div id="stripe-card-element-page"></div>
+    // So do nothing if that exists.
     if ($("stripe-card-element-page")) return;
 
     const form = $("bookingPageForm");
@@ -130,13 +129,13 @@
   function mountStripeOnBookingPage() {
     if (!window.StripeHelpers) return;
 
-    // ✅ FIRST choice: use your real booking page mount point from index.html
+    // ✅ Mount into the real booking-page mount point from index.html
     if ($("stripe-card-element-page")) {
       window.StripeHelpers.mountCard("stripe-card-element-page");
       return;
     }
 
-    // Fallback: inject our own and mount there
+    // Fallback: inject and mount
     ensureBookingPaymentBlock();
     if ($("bookingStripeCardMount")) {
       window.StripeHelpers.mountCard("bookingStripeCardMount");
@@ -146,19 +145,19 @@
   function setBookingError(msg) {
     const message = msg || "";
 
-    // ✅ booking page error area in index.html
+    // booking page’s real error element (index.html)
     const pageErr = $("card-errors-page");
     if (pageErr) pageErr.textContent = message;
 
     // injected fallback error
-    const injectedErr = $("bookingCardErrors");
-    if (injectedErr) injectedErr.textContent = message;
+    const fallbackErr = $("bookingCardErrors");
+    if (fallbackErr) fallbackErr.textContent = message;
 
-    // modal/legacy ids
-    const legacyErr =
+    // modal/legacy
+    const legacy =
       document.getElementById("card-errors") ||
       document.getElementById("bookingCardErrorsModal");
-    if (legacyErr) legacyErr.textContent = message;
+    if (legacy) legacy.textContent = message;
   }
 
   async function fetchJson(url, opts) {
@@ -251,7 +250,6 @@
     if (e) e.preventDefault();
     setBookingError("");
 
-    // Ensure stripe is ready + mounted
     if (window.initStripe) window.initStripe();
     mountStripeOnBookingPage();
 
@@ -276,7 +274,6 @@
       return;
     }
 
-    // Prevent double-click charges
     const payBtn = $("bookingPayNowBtn");
     if (payBtn) payBtn.disabled = true;
 
@@ -289,9 +286,7 @@
       );
 
       // 2) Confirm payment
-      const paymentIntent = await window.StripeHelpers.confirmCardPayment(
-        pi.clientSecret
-      );
+      const paymentIntent = await window.StripeHelpers.confirmCardPayment(pi.clientSecret);
 
       // 3) Create booking in DB (include payment_intent_id)
       payload.payment_intent_id = paymentIntent?.id || pi.paymentIntentId || null;
@@ -311,7 +306,6 @@
 
       window.PetCareBooking.booking = data;
 
-      // go to confirm page
       if (window.showPage) window.showPage("bookingConfirmPage");
       if (typeof window.setActivePage === "function") window.setActivePage("bookingConfirmPage");
 
@@ -344,7 +338,6 @@
     const form = $("bookingPageForm");
     if (form && !form.__wiredBooking) {
       form.__wiredBooking = true;
-
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         setBookingError("");
@@ -353,30 +346,22 @@
       });
     }
 
-    // ✅ This is the EXACT button id in your index.html
+    // ✅ This is your real button ID from index.html
     const payBtn = $("bookingPayNowBtn");
     if (payBtn && !payBtn.__wiredPay) {
       payBtn.__wiredPay = true;
       payBtn.addEventListener("click", handleConfirmAndPay);
     }
-
-    // fallback by text (in case UI changes)
-    const allButtons = Array.from(document.querySelectorAll("button"));
-    const fallbackConfirm = allButtons.find((b) =>
-      (b.textContent || "").trim().toLowerCase() === "confirm & pay"
-    );
-    if (fallbackConfirm && !fallbackConfirm.__wiredPay) {
-      fallbackConfirm.__wiredPay = true;
-      fallbackConfirm.addEventListener("click", handleConfirmAndPay);
-    }
   }
 
+  // Public init called by app router when page opens
   window.initBookingPage = function initBookingPage() {
     if (window.initStripe) window.initStripe();
     mountStripeOnBookingPage();
     wireButtons();
   };
 
+  // Mount on first load too
   document.addEventListener("DOMContentLoaded", function () {
     if ($("bookingPage")) {
       if (window.initStripe) window.initStripe();

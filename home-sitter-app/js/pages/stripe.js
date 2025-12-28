@@ -1,7 +1,8 @@
 // js/stripe.js
 (function () {
   const PUBLISHABLE =
-    window.STRIPE_PUBLISHABLE_KEY || "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ";
+    window.STRIPE_PUBLISHABLE_KEY ||
+    "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ";
 
   const API_BASE =
     window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
@@ -17,6 +18,7 @@
   function setCardError(msg) {
     const el =
       document.getElementById("card-errors") ||
+      document.getElementById("card-errors-page") || // ✅ booking page
       document.getElementById("bookingCardErrors") ||
       document.getElementById("bookingCardErrorsModal");
     if (el) el.textContent = msg || "";
@@ -70,12 +72,10 @@
       StripeState.mountedTo = null;
     }
 
-    // If already mounted to this container, do nothing
     if (StripeState.mountedTo === containerId) {
       return { ok: true };
     }
 
-    // Clear container and mount
     container.innerHTML = "";
     StripeState.card.mount(`#${containerId}`);
     StripeState.mountedTo = containerId;
@@ -93,9 +93,7 @@
 
   async function createPaymentIntent(amountCents, description) {
     const stripe = ensureStripeInstance();
-    if (!stripe) {
-      throw new Error("Stripe is blocked or not loaded.");
-    }
+    if (!stripe) throw new Error("Stripe is blocked or not loaded.");
 
     const amount = Number(amountCents);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -122,12 +120,8 @@
 
   async function confirmCardPayment(clientSecret) {
     const stripe = ensureStripeInstance();
-    if (!stripe) {
-      throw new Error("Stripe is blocked or not loaded.");
-    }
-    if (!StripeState.card) {
-      throw new Error("Card element is not mounted.");
-    }
+    if (!stripe) throw new Error("Stripe is blocked or not loaded.");
+    if (!StripeState.card) throw new Error("Card element is not mounted.");
 
     const result = await stripe.confirmCardPayment(clientSecret, {
       payment_method: { card: StripeState.card }
@@ -140,9 +134,7 @@
     return result.paymentIntent;
   }
 
-  // Public API
   window.initStripe = function initStripe() {
-    // Don’t force mount here; booking.js will mount when it renders payment blocks.
     ensureStripeInstance();
     return StripeState.isReady;
   };
@@ -152,6 +144,6 @@
     unmountCard,
     createPaymentIntent,
     confirmCardPayment,
-    isStripeBlocked: isStripeBlocked
+    isStripeBlocked
   };
 })();
