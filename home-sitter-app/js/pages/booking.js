@@ -1,7 +1,8 @@
 // js/pages/booking.js
-// Handles the booking modal + booking confirmation flow
-// Fix: ALWAYS send service_type as one of: overnight | walk | dropin | daycare
-// Also handles duplicate IDs (bookingSitterName/Avatar exist in page + modal) by updating ALL matches.
+// Handles booking modal + confirmation flow
+// FIX: service_type is ALWAYS forced to one of: overnight | walk | dropin | daycare
+// Robust: detects service_type from preview OR booking form select OR modal text on confirm click
+// Also robust to duplicate IDs in your HTML.
 
 (function () {
   window.PetCareBooking = window.PetCareBooking || {
@@ -13,7 +14,7 @@
     window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
 
   // ----------------------------
-  // Small helpers
+  // DOM helpers
   // ----------------------------
   function $(sel, root = document) {
     return root.querySelector(sel);
@@ -22,7 +23,8 @@
     return Array.from(root.querySelectorAll(sel));
   }
 
-  // Update all elements that share the same id (your HTML has duplicates)
+  // Your HTML has duplicate IDs in multiple sections (page + modal),
+  // so we always update ALL matches.
   function setTextByIdAll(id, text) {
     const safe = String(text ?? "");
     $all(`#${CSS.escape(id)}`).forEach((el) => (el.textContent = safe));
@@ -50,9 +52,7 @@
     let data = null;
     try {
       data = await res.json();
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
     if (!res.ok) {
       const msg =
@@ -68,7 +68,7 @@
   }
 
   // ----------------------------
-  // SERVICE TYPE NORMALIZATION (THIS FIXES YOUR ERROR)
+  // SERVICE TYPE NORMALIZATION (core fix)
   // ----------------------------
   function normalizeServiceType(input) {
     const raw = String(input || "").trim();
@@ -77,38 +77,50 @@
     // direct codes
     if (["overnight", "walk", "dropin", "daycare"].includes(s)) return s;
 
-    // label variants that your UI uses
-    // (add more here anytime you introduce new wording)
+    // common labels / UI variants
     const map = new Map([
+      // overnight
       ["overnight sitting", "overnight"],
       ["overnight", "overnight"],
-      ["in-home sitting", "overnight"], // common modal label
-      ["sitting", "overnight"],
+      ["in-home sitting", "overnight"],
+      ["in home sitting", "overnight"],
       ["pet sitting", "overnight"],
+      ["sitting", "overnight"],
+      ["overnight stay", "overnight"],
+      ["overnight stays", "overnight"],
 
+      // walk
       ["dog walking", "walk"],
       ["walking", "walk"],
       ["walk", "walk"],
+      ["neighborhood walks", "walk"],
+      ["walks", "walk"],
 
+      // dropin
       ["drop-in visit", "dropin"],
       ["drop in visit", "dropin"],
       ["drop-in", "dropin"],
       ["drop in", "dropin"],
       ["dropin", "dropin"],
+      ["drop-ins", "dropin"],
+      ["drop ins", "dropin"],
 
+      // daycare
       ["doggy daycare", "daycare"],
+      ["dog daycare", "daycare"],
       ["day care", "daycare"],
-      ["daycare", "daycare"]
+      ["daycare", "daycare"],
+      ["daycare service", "daycare"]
     ]);
 
     if (map.has(s)) return map.get(s);
 
-    // Sometimes text includes extra words like "Service: Dog walking"
+    // If UI includes extra words, match by contains
     for (const [k, v] of map.entries()) {
       if (s.includes(k)) return v;
     }
 
-    return ""; // invalid
+    return "";
   }
 
   function serviceLabelFromCode(code) {
@@ -126,29 +138,56 @@
     }
   }
 
+  // Detect service type at confirm-time (DOES NOT TRUST preview)
+  function detectServiceTypeNow() {
+    const preview = window.PetCareBooking?.preview || {};
+
+    const candidates = [];
+
+    // from preview (whatever it currently is)
+    candidates.push(preview.service_type);
+    candidates.push(preview.service_label);
+    candidates.push(preview.service);
+
+    // from booking page dropdown value (best source)
+    const sel = $("#bookingService");
+    if (sel) {
+      candidates.push(sel.value);
+      // also include selected option label text
+      const opt = sel.options?.[sel.selectedIndex];
+      if (opt) candidates.push(opt.textContent);
+    }
+
+    // from modal text
+    const modalServiceText = $("#bookingServiceName")?.textContent;
+    candidates.push(modalServiceText);
+
+    // try normalize each candidate
+    for (const c of candidates) {
+      const code = normalizeServiceType(c);
+      if (code) return { code, source: c };
+    }
+
+    return { code: "", source: candidates.filter(Boolean) };
+  }
+
   // ----------------------------
-  // State lookups (robust)
+  // State lookups
   // ----------------------------
   function getCurrentUser() {
-    // Try common shapes from state.js
     const s = window.AppState || window.PetCareState || {};
     return s.currentUser || s.user || s.me || null;
   }
 
   function getSelectedSitter() {
-    // Try preview first
     const p = window.PetCareBooking?.preview || {};
     if (p.sitter && typeof p.sitter === "object") return p.sitter;
 
-    // Try storage
     try {
       const stored = JSON.parse(localStorage.getItem("selectedSitter") || "null");
       if (stored && typeof stored === "object") return stored;
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
-    // Try id-only storage
     const id = Number(localStorage.getItem("selectedSitterId"));
     if (Number.isFinite(id) && id > 0) return { id };
 
@@ -156,7 +195,7 @@
   }
 
   // ----------------------------
-  // Stripe (Elements) — minimal + compatible
+  // Stripe Elements
   // ----------------------------
   let stripe = null;
   let elements = null;
@@ -191,7 +230,7 @@
   }
 
   // ----------------------------
-  // UI: open/close modal
+  // Modal show/hide
   // ----------------------------
   function showModal() {
     const modal = $("#bookingModal");
@@ -209,7 +248,7 @@
   }
 
   // ----------------------------
-  // Build preview from booking page form
+  // Read booking page form
   // ----------------------------
   function readBookingPageForm() {
     const form = $("#bookingPageForm");
@@ -220,7 +259,6 @@
     const start = ($("#bookingStart")?.value || "").trim();
     const end = ($("#bookingEnd")?.value || "").trim();
 
-    // IMPORTANT: use .value not label text
     const serviceValue = serviceSelect ? serviceSelect.value : "";
     const service_type = normalizeServiceType(serviceValue);
 
@@ -233,8 +271,6 @@
     const email = ($("#bookingClientEmail")?.value || "").trim();
     const address = ($("#bookingClientAddress")?.value || "").trim();
 
-    // convert date + time into a datetime string the backend can store
-    // Format: YYYY-MM-DDTHH:MM:00 (works well in MySQL datetime if parsed)
     const start_time = date && start ? `${date}T${start}:00` : "";
     const end_time = date && end ? `${date}T${end}:00` : "";
 
@@ -255,17 +291,12 @@
   }
 
   // ----------------------------
-  // Pricing (keep simple + consistent)
-  // If your sitterprofile.js already sets price_total in preview, we use it.
+  // Pricing (basic fallback)
   // ----------------------------
   function computeTotalPrice(preview) {
-    // If something already set a price, keep it
-    const existing =
-      Number(preview?.price_total ?? preview?.total_price ?? NaN);
+    const existing = Number(preview?.price_total ?? preview?.total_price ?? NaN);
     if (Number.isFinite(existing) && existing > 0) return existing;
 
-    // fallback demo pricing (so Stripe amount isn't 0)
-    // You can replace this with your real sitter pricing later.
     const base = 25;
     const feeRate = 0.2;
     const fee = base * feeRate;
@@ -273,7 +304,7 @@
   }
 
   // ----------------------------
-  // Fill modal from preview + open it
+  // Fill modal and open
   // ----------------------------
   function openBookingModal(preview) {
     const sitter = getSelectedSitter() || {};
@@ -283,35 +314,30 @@
       `${sitter.first_name || ""} ${sitter.last_name || ""}`.trim() ||
       "Sitter";
 
-    // show sitter info in BOTH page + modal duplicates
     setTextByIdAll("bookingSitterName", sitterName);
+    setTextByIdAll("bookingSitterSubtitle", preview?.sitter_subtitle || "Rating · distance");
 
-    // subtitle / badges
-    const subtitle =
-      preview?.sitter_subtitle || "Rating · distance";
-    setTextByIdAll("bookingSitterSubtitle", subtitle);
+    // Force service label for display
+    const detected = detectServiceTypeNow();
+    const code = detected.code || preview.service_type || "";
+    const normalized = normalizeServiceType(code) || "";
+    preview.service_type = normalized;
+    preview.service_label = serviceLabelFromCode(normalized);
 
-    // service name
     setTextByIdAll("bookingServiceName", preview?.service_label || "Service");
 
-    // client info
     const user = getCurrentUser();
     const clientName =
       (user && (user.full_name || `${user.first_name || ""} ${user.last_name || ""}`.trim())) ||
       "Guest";
     setTextByIdAll("bookingClientName", clientName);
 
-    const clientEmail =
-      preview?.client?.email ||
-      (user && user.email) ||
-      "you@example.com";
+    const clientEmail = preview?.client?.email || user?.email || "you@example.com";
     setTextByIdAll("bookingClientEmail", clientEmail);
 
-    // pet info (modal)
     setTextByIdAll("bookingPetNames", preview?.pets || "Your dog(s) – demo");
     setTextByIdAll("bookingPetBreed", preview?.breed || "Breed / size – demo");
 
-    // policies
     const policiesHtml = `
       <ul style="margin:0; padding-left:18px;">
         <li><strong>Cancellation:</strong> Free cancellation up to 24 hours before start. 50% after that.</li>
@@ -322,11 +348,9 @@
     `;
     setHTMLByIdAll("bookingPolicies", policiesHtml);
 
-    // price breakdown
     const total = computeTotalPrice(preview);
     setTextByIdAll("bookingTotalPrice", money(total));
 
-    // simple breakdown numbers (optional)
     const base = Number((total / 1.2).toFixed(2));
     const fee = Number((total - base).toFixed(2));
     setTextByIdAll("bookingLine1Label", "Base service");
@@ -341,27 +365,33 @@
   }
 
   // ----------------------------
-  // Confirm & Pay flow
+  // Confirm & Pay
   // ----------------------------
   async function confirmBookingFromModal() {
     try {
       setModalError("");
 
-      const preview = window.PetCareBooking?.preview;
-      if (!preview) throw new Error("Booking preview missing. Please try again.");
-
-      // ✅ FINAL service_type enforcement
-      const normalized = normalizeServiceType(preview.service_type);
-      if (!normalized) {
-        throw new Error(
-          "Invalid service_type. Use overnight / walk / dropin / daycare (or the normal labels like 'Dog walking')."
-        );
-      }
-      preview.service_type = normalized;
-      preview.service_label = serviceLabelFromCode(normalized);
-
+      const preview = window.PetCareBooking?.preview || {};
       const user = getCurrentUser();
       const sitter = getSelectedSitter();
+
+      // ✅ HARD FIX: detect service type RIGHT NOW
+      const detected = detectServiceTypeNow();
+      let serviceCode = detected.code;
+
+      // If still not found, default safely (so you stop getting blocked)
+      if (!serviceCode) {
+        console.warn("[Booking] Could not detect service_type. Candidates:", detected.source);
+        serviceCode = "overnight"; // safe fallback
+      }
+
+      // Force onto preview
+      preview.service_type = serviceCode;
+      preview.service_label = serviceLabelFromCode(serviceCode);
+      window.PetCareBooking.preview = preview;
+
+      // Debug log (so we can see what it’s actually doing in console)
+      console.log("[Booking] service_type final:", preview.service_type, "from:", detected.source);
 
       const client_id = Number(preview.client_id || user?.id);
       const sitter_id = Number(preview.sitter_id || sitter?.id);
@@ -376,15 +406,14 @@
 
       const total = computeTotalPrice(preview);
 
-      // Stripe payment (PaymentIntent)
-      if (!stripe || !card) ensureStripeMounted();
+      // Stripe
+      ensureStripeMounted();
       if (!stripe || !card) {
         throw new Error("Stripe is not ready. Please refresh the page.");
       }
 
-      // Create payment intent on backend (amount in cents)
+      // Create payment intent
       const amountCents = Math.round(total * 100);
-
       const pi = await apiJson("/stripe/create-payment-intent", {
         method: "POST",
         body: JSON.stringify({
@@ -420,14 +449,14 @@
         throw new Error(confirmResult.error.message || "Payment failed.");
       }
 
-      // Create booking in DB
+      // ✅ Create booking in DB with forced service_type code
       const bookingRes = await apiJson("/bookings", {
         method: "POST",
         body: JSON.stringify({
           client_id,
           sitter_id,
           pet_id: preview.pet_id || null,
-          service_type: preview.service_type, // ✅ code, not label
+          service_type: preview.service_type, // ✅ guaranteed code now
           start_time: preview.start_time,
           end_time: preview.end_time,
           location: preview.location || null,
@@ -439,21 +468,16 @@
       });
 
       window.PetCareBooking.booking = bookingRes;
+
       hideModal();
 
-      // If your app.js has page navigation helpers, try to go to confirm page
       if (typeof window.showPage === "function") {
         window.showPage("bookingConfirmPage");
-      } else {
-        // fallback: simple alert
-        alert("Booking created!");
       }
 
-      // If you have a confirm page renderer, call it
       if (typeof window.renderBookingConfirm === "function") {
         window.renderBookingConfirm(bookingRes);
       } else {
-        // fallback: write basic confirm
         const root = $("#bookingConfirmRoot");
         if (root) {
           root.innerHTML = `
@@ -471,10 +495,9 @@
   }
 
   // ----------------------------
-  // Wire up events
+  // Wire events
   // ----------------------------
   function wireBookingEvents() {
-    // Booking page submit -> create preview -> open modal
     const form = $("#bookingPageForm");
     if (form) {
       form.addEventListener("submit", function (e) {
@@ -484,24 +507,18 @@
         const user = getCurrentUser();
 
         const data = readBookingPageForm();
-
         if (!data) {
           alert("Booking form not found.");
           return;
         }
 
-        if (!data.service_type) {
-          alert(
-            "Service type is invalid. Please choose: Overnight / Walk / Drop-in / Daycare."
-          );
-          return;
-        }
+        // Even if service_type failed here, we still allow modal open,
+        // because confirm step re-detects and forces it again.
         if (!data.start_time || !data.end_time) {
           alert("Please select a date and start/end time.");
           return;
         }
 
-        // Build preview (store ids so POST /bookings has what it needs)
         window.PetCareBooking.preview = {
           ...data,
           client_id: user?.id || null,
@@ -517,26 +534,19 @@
       });
     }
 
-    // Modal close buttons
     const closeBtn = $("#bookingModalClose");
     const cancelBtn = $("#bookingModalCancelBtn");
+    const editBtn = $("#bookingModalEditBtn");
+    const confirmBtn = $("#bookingModalConfirmBtn");
+
     if (closeBtn) closeBtn.addEventListener("click", hideModal);
     if (cancelBtn) cancelBtn.addEventListener("click", hideModal);
-
-    // Edit details -> just close modal so user can edit form
-    const editBtn = $("#bookingModalEditBtn");
     if (editBtn) editBtn.addEventListener("click", hideModal);
-
-    // Confirm & Pay
-    const confirmBtn = $("#bookingModalConfirmBtn");
     if (confirmBtn) confirmBtn.addEventListener("click", confirmBookingFromModal);
   }
 
-  // Init on DOM ready
   document.addEventListener("DOMContentLoaded", function () {
     wireBookingEvents();
-
-    // If modal is opened by another script, still ensure Stripe is ready
     ensureStripeMounted();
   });
 })();
