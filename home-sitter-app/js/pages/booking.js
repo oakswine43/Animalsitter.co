@@ -1,8 +1,8 @@
 // js/pages/booking.js
 // Booking page + confirmation modal + Stripe payment
-// FIX: Booking page payment section existed but Stripe Card input sometimes didn't render.
-// Causes: Stripe script blocked/not ready yet, SPA re-render removes iframe, container height = 0.
-// Solution: Inject page payment UI, force visible container sizing, and RETRY mounting until Stripe is ready.
+// FIX: Stripe Element was being unmounted/replaced in SPA updates, causing:
+// "We could not retrieve data from the specified Element... still mounted."
+// Solution: create each Stripe Element ONCE, mount/unmount safely, never overwrite mount DOM.
 
 (function () {
   window.PetCareBooking = window.PetCareBooking || { preview: null, booking: null };
@@ -10,8 +10,20 @@
   const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
   const STRIPE_PUBLISHABLE_KEY = window.STRIPE_PUBLISHABLE_KEY || "pk_test_REPLACE_ME";
 
+  // -----------------------
+  // Small helpers
+  // -----------------------
   function $(sel, root = document) {
     return root.querySelector(sel);
+  }
+
+  function isVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    // offsetParent is null when display:none or not in layout (except fixed)
+    if (el.offsetParent === null && style.position !== "fixed") return false;
+    return true;
   }
 
   function getAuthToken() {
@@ -47,7 +59,6 @@
       err.data = data;
       throw err;
     }
-
     return data;
   }
 
@@ -61,7 +72,7 @@
     const lower = raw.toLowerCase().trim();
     if (["overnight", "walk", "dropin", "daycare"].includes(lower)) return lower;
 
-    // Accept friendly labels too:
+    // Friendly labels (UI)
     if (lower.includes("walk")) return "walk";
     if (lower.includes("drop")) return "dropin";
     if (lower.includes("daycare")) return "daycare";
@@ -71,158 +82,214 @@
   }
 
   // ---------------------------
-  // Stripe (two mount points)
+  // Stripe (safe mount/unmount)
   // ---------------------------
   let stripe = null;
   let elements = null;
 
-  let cardElPage = null;
-  let cardElModal = null;
+  let cardPage = null;
+  let cardModal = null;
 
-  function stripeConfigValid() {
-    return (
-      !!window.Stripe &&
-      !!STRIPE_PUBLISHABLE_KEY &&
-      !String(STRIPE_PUBLISHABLE_KEY).includes("REPLACE_ME")
-    );
+  let mountedPageSelector = null;
+  let mountedModalSelector = null;
+
+  let mountingPage = false;
+  let mountingModal = false;
+
+  function stripeReady() {
+    return !!window.Stripe && !!STRIPE_PUBLISHABLE_KEY && !String(STRIPE_PUBLISHABLE_KEY).includes("REPLACE_ME");
   }
 
   function ensureStripe() {
     if (stripe && elements) return true;
-
-    if (!window.Stripe) return false;
-    if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes("REPLACE_ME")) return false;
+    if (!stripeReady()) return false;
 
     stripe = window.Stripe(STRIPE_PUBLISHABLE_KEY);
     elements = stripe.elements();
     return true;
   }
 
-  function setError(sel, msg) {
-    const el = $(sel);
-    if (el) el.textContent = msg || "";
-  }
-
   function applyCardContainerStyles(el) {
     if (!el) return;
-    // Force visible box even before Stripe mounts
-    el.style.minHeight = el.style.minHeight || "44px";
-    el.style.border = el.style.border || "1px solid rgba(0,0,0,0.15)";
-    el.style.borderRadius = el.style.borderRadius || "12px";
-    el.style.padding = el.style.padding || "12px";
-    el.style.background = el.style.background || "#fff";
+    el.style.minHeight = "48px";
+    el.style.border = "1px solid rgba(0,0,0,0.15)";
+    el.style.borderRadius = "12px";
+    el.style.padding = "12px";
+    el.style.background = "#fff";
   }
 
-  function mountCardIfNeeded(mountSelector, errorSelector, which) {
-    const mountPoint = $(mountSelector);
-    if (!mountPoint) return false;
+  function setText(sel, txt) {
+    const el = $(sel);
+    if (!el) return;
+    el.textContent = txt || "";
+  }
 
-    applyCardContainerStyles(mountPoint);
+  function hasStripeIframe(mountEl) {
+    if (!mountEl) return false;
+    return !!mountEl.querySelector("iframe");
+  }
 
-    // Already mounted?
-    if (mountPoint.querySelector(".StripeElement")) return true;
-
+  // Create each element ONCE
+  function ensureCardInstances() {
     if (!ensureStripe()) return false;
 
-    const card = elements.create("card", { hidePostalCode: true });
-    card.mount(mountPoint);
+    if (!cardPage) {
+      cardPage = elements.create("card", { hidePostalCode: true });
+      cardPage.on("change", (e) => {
+        const msg = e && e.error ? e.error.message : "";
+        setText("#card-errors-page", msg);
+      });
+    }
 
-    const errBox = $(errorSelector);
-    if (errBox) errBox.textContent = "";
-
-    card.on("change", (event) => {
-      const e = $(errorSelector);
-      if (!e) return;
-      e.textContent = event.error ? event.error.message : "";
-    });
-
-    if (which === "page") cardElPage = card;
-    if (which === "modal") cardElModal = card;
+    if (!cardModal) {
+      cardModal = elements.create("card", { hidePostalCode: true });
+      cardModal.on("change", (e) => {
+        const msg = e && e.error ? e.error.message : "";
+        setText("#bookingModal #card-errors", msg);
+      });
+    }
 
     return true;
   }
 
-  // Retry-mount helper (important for SPA + slow/blocked Stripe)
-  function retryMount({ mountSelector, errorSelector, which, label }) {
-    const mountPoint = $(mountSelector);
-    if (mountPoint) applyCardContainerStyles(mountPoint);
+  // Mount/unmount safely (PAGE)
+  function mountPageCard() {
+    const bookingPage = $("#bookingPage");
+    const mountEl = $("#stripe-card-element-page");
 
+    if (!bookingPage || !mountEl) return false;
+    if (!bookingPage.classList.contains("active") || !isVisible(mountEl)) return false;
+
+    applyCardContainerStyles(mountEl);
+
+    if (!ensureCardInstances()) return false;
+    if (mountingPage) return false;
+
+    // If already mounted here and iframe exists, done.
+    if (mountedPageSelector === "#stripe-card-element-page" && hasStripeIframe(mountEl)) return true;
+
+    mountingPage = true;
+    try {
+      // If it was mounted elsewhere previously, unmount first
+      try {
+        if (mountedPageSelector && cardPage) cardPage.unmount();
+      } catch (_) {}
+
+      // Clear old iframe remnants (DON'T replace whole container, just empty)
+      mountEl.innerHTML = "";
+      cardPage.mount(mountEl);
+
+      mountedPageSelector = "#stripe-card-element-page";
+      setText("#card-errors-page", "");
+      return true;
+    } catch (err) {
+      console.error("[Booking] Page card mount failed:", err);
+      setText(
+        "#card-errors-page",
+        "Stripe card form didn’t load. If you’re using Brave/Adblock, allow js.stripe.com then refresh."
+      );
+      return false;
+    } finally {
+      mountingPage = false;
+    }
+  }
+
+  // Mount/unmount safely (MODAL)
+  function mountModalCard() {
+    const modal = $("#bookingModal");
+    const mountEl = $("#bookingModal #stripe-card-element");
+
+    if (!modal || !mountEl) return false;
+    if (modal.style.display === "none" || !isVisible(mountEl)) return false;
+
+    applyCardContainerStyles(mountEl);
+
+    if (!ensureCardInstances()) return false;
+    if (mountingModal) return false;
+
+    if (mountedModalSelector === "#bookingModal #stripe-card-element" && hasStripeIframe(mountEl)) return true;
+
+    mountingModal = true;
+    try {
+      try {
+        if (mountedModalSelector && cardModal) cardModal.unmount();
+      } catch (_) {}
+
+      mountEl.innerHTML = "";
+      cardModal.mount(mountEl);
+
+      mountedModalSelector = "#bookingModal #stripe-card-element";
+      setText("#bookingModal #card-errors", "");
+      return true;
+    } catch (err) {
+      console.error("[Booking] Modal card mount failed:", err);
+      setText(
+        "#bookingModal #card-errors",
+        "Stripe card form didn’t load. If you’re using Brave/Adblock, allow js.stripe.com then refresh."
+      );
+      return false;
+    } finally {
+      mountingModal = false;
+    }
+  }
+
+  // Retry mount (without destroying DOM)
+  function retryMount(which) {
     let tries = 0;
-    const maxTries = 40; // 40 * 250ms = 10s
-
-    const timer = setInterval(() => {
+    const max = 40; // 10s
+    const tick = () => {
       tries++;
 
-      const mp = $(mountSelector);
-      if (!mp) {
-        clearInterval(timer);
+      if (!stripeReady()) {
+        if (tries < max) return setTimeout(tick, 250);
+        // Stripe not present
+        if (which === "page") {
+          setText(
+            "#card-errors-page",
+            "Stripe didn’t load. If Brave Shields is on, allow js.stripe.com then refresh."
+          );
+        } else {
+          setText(
+            "#bookingModal #card-errors",
+            "Stripe didn’t load. If Brave Shields is on, allow js.stripe.com then refresh."
+          );
+        }
         return;
       }
 
-      // If it got mounted, stop retrying
-      if (mp.querySelector(".StripeElement")) {
-        clearInterval(timer);
-        return;
-      }
+      const ok = which === "page" ? mountPageCard() : mountModalCard();
+      const mountEl = which === "page" ? $("#stripe-card-element-page") : $("#bookingModal #stripe-card-element");
 
-      // If Stripe is ready, try mounting
-      if (stripeConfigValid()) {
-        try {
-          const ok = mountCardIfNeeded(mountSelector, errorSelector, which);
-          if (ok && mp.querySelector(".StripeElement")) {
-            clearInterval(timer);
-            return;
-          }
-        } catch (e) {
-          console.error(`[Booking] ${label} Stripe mount error:`, e);
-        }
-      }
+      if (ok && hasStripeIframe(mountEl)) return; // success
 
-      // Give up and show a helpful message
-      if (tries >= maxTries) {
-        clearInterval(timer);
+      if (tries < max) return setTimeout(tick, 250);
 
-        // If still not mounted, likely blocked by Brave shields/extensions
-        if (!mp.querySelector(".StripeElement")) {
-          applyCardContainerStyles(mp);
-          mp.innerHTML = `
-            <div style="font-size:13px; color:#111;">
-              <strong>Stripe card form didn’t load.</strong><br/>
-              This is usually caused by an ad-blocker / Brave Shields blocking Stripe, or Stripe not loading.
-              <div style="margin-top:8px; color:#444;">
-                Try: disable Brave Shields for this site (or allow scripts from <em>js.stripe.com</em>), then refresh.
-              </div>
-            </div>
-          `;
-        }
+      // final message (no DOM overwrite)
+      if (which === "page") {
+        setText(
+          "#card-errors-page",
+          "Stripe card form didn’t mount. Try disabling Brave Shields/Adblock for this site and refresh."
+        );
+      } else {
+        setText(
+          "#bookingModal #card-errors",
+          "Stripe card form didn’t mount. Try disabling Brave Shields/Adblock for this site and refresh."
+        );
       }
-    }, 250);
+    };
+
+    tick();
   }
 
   // -------------------------------------------------------
-  // Inject booking-page Payment UI if missing
+  // Ensure booking-page Payment UI exists
   // -------------------------------------------------------
   function ensureBookingPagePaymentUI() {
     const form = $("#bookingPageForm");
     if (!form) return;
 
-    // Already exists?
-    if ($("#stripe-card-element-page") && $("#bookingPayNowBtn")) {
-      retryMount({
-        mountSelector: "#stripe-card-element-page",
-        errorSelector: "#card-errors-page",
-        which: "page",
-        label: "Page"
-      });
-      return;
-    }
-
-    const cards = Array.from(form.querySelectorAll(".section-card"));
-    const actionsCard =
-      cards.find((c) => c.querySelector("button[type='submit']")) || cards[cards.length - 1];
-
-    // Payment card
-    if (!$("#stripe-card-element-page")) {
+    // Payment card missing? add it.
+    if (!$("#bookingPagePaymentCard")) {
       const payCard = document.createElement("div");
       payCard.className = "section-card";
       payCard.id = "bookingPagePaymentCard";
@@ -236,17 +303,24 @@
         </div>
       `;
 
+      // Insert before the final actions card (the one containing submit)
+      const cards = Array.from(form.querySelectorAll(".section-card"));
+      const actionsCard =
+        cards.find((c) => c.querySelector("button[type='submit']")) || cards[cards.length - 1];
+
       if (actionsCard && actionsCard.parentNode) {
         actionsCard.parentNode.insertBefore(payCard, actionsCard);
       } else {
         form.appendChild(payCard);
       }
-
-      applyCardContainerStyles($("#stripe-card-element-page"));
     }
 
-    // Ensure Confirm & Pay exists
+    // Ensure Confirm & Pay button exists on page
     if (!$("#bookingPayNowBtn")) {
+      const cards = Array.from(form.querySelectorAll(".section-card"));
+      const actionsCard =
+        cards.find((c) => c.querySelector("button[type='submit']")) || cards[cards.length - 1];
+
       if (actionsCard) {
         const submitBtn = actionsCard.querySelector("button[type='submit']");
         const payBtn = document.createElement("button");
@@ -261,13 +335,9 @@
       }
     }
 
-    // Try mounting (with retries)
-    retryMount({
-      mountSelector: "#stripe-card-element-page",
-      errorSelector: "#card-errors-page",
-      which: "page",
-      label: "Page"
-    });
+    // Style mount box and mount Stripe
+    applyCardContainerStyles($("#stripe-card-element-page"));
+    retryMount("page");
   }
 
   // ---------------------------
@@ -277,14 +347,8 @@
     const modal = $("#bookingModal");
     if (!modal) return;
     modal.style.display = "block";
-
-    // Retry mount inside modal too
-    retryMount({
-      mountSelector: "#bookingModal #stripe-card-element",
-      errorSelector: "#bookingModal #card-errors",
-      which: "modal",
-      label: "Modal"
-    });
+    applyCardContainerStyles($("#bookingModal #stripe-card-element"));
+    retryMount("modal");
   }
 
   function closeModal() {
@@ -335,25 +399,23 @@
   // ---------------------------
   async function payAndCreateBooking(source) {
     try {
-      if (source === "page") setError("#card-errors-page", "");
-      if (source === "modal") setError("#bookingModal #card-errors", "");
+      if (source === "page") setText("#card-errors-page", "");
+      if (source === "modal") setText("#bookingModal #card-errors", "");
 
-      // Ensure Stripe UI is mounted BEFORE we attempt payment
+      // Make sure Stripe and elements exist
+      if (!ensureCardInstances()) {
+        throw new Error("Stripe is not available. Allow js.stripe.com (Brave/Adblock), then refresh.");
+      }
+
+      // Ensure the Element is mounted and visible right now
       if (source === "page") {
-        ensureBookingPagePaymentUI();
-        retryMount({
-          mountSelector: "#stripe-card-element-page",
-          errorSelector: "#card-errors-page",
-          which: "page",
-          label: "Page"
-        });
+        mountPageCard();
+        const el = $("#stripe-card-element-page");
+        if (!hasStripeIframe(el)) throw new Error("Card form isn’t mounted. Refresh and try again.");
       } else {
-        retryMount({
-          mountSelector: "#bookingModal #stripe-card-element",
-          errorSelector: "#bookingModal #card-errors",
-          which: "modal",
-          label: "Modal"
-        });
+        mountModalCard();
+        const el = $("#bookingModal #stripe-card-element");
+        if (!hasStripeIframe(el)) throw new Error("Card form isn’t mounted. Refresh and try again.");
       }
 
       const previewExisting = window.PetCareBooking?.preview || {};
@@ -366,24 +428,11 @@
       }
       preview.service_type = normalized;
 
+      // default demo price if not set
       if (!preview.price_total && !preview.total_price) preview.price_total = 20;
 
       const total = Number(preview.price_total ?? preview.total_price ?? 0);
       if (!Number.isFinite(total) || total <= 0) throw new Error("Invalid price_total.");
-
-      // Make sure Stripe objects exist
-      if (!ensureStripe()) {
-        throw new Error(
-          "Stripe is not available. If you’re using Brave, disable Shields for this site and refresh."
-        );
-      }
-
-      const cardToUse = source === "page" ? cardElPage : cardElModal;
-      if (!cardToUse) {
-        throw new Error(
-          "Card input didn’t load. Disable ad-block/Brave Shields for this site, then refresh and try again."
-        );
-      }
 
       // 1) Create payment intent
       const amountCents = Math.round(total * 100);
@@ -410,6 +459,8 @@
         "you@example.com";
 
       // 2) Confirm payment
+      const cardToUse = source === "page" ? cardPage : cardModal;
+
       const confirmResult = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardToUse,
@@ -460,8 +511,9 @@
     } catch (err) {
       console.error("Booking payment error:", err);
 
-      if (source === "page") setError("#card-errors-page", err.message || "Something went wrong.");
-      if (source === "modal") setError("#bookingModal #card-errors", err.message || "Something went wrong.");
+      if (source === "page") setText("#card-errors-page", err.message || "Something went wrong.");
+      if (source === "modal") setText("#bookingModal #card-errors", err.message || "Something went wrong.");
+
       throw err;
     }
   }
@@ -472,24 +524,26 @@
   function bindEvents() {
     ensureBookingPagePaymentUI();
 
-    // Re-check when booking page becomes active (SPA navigation)
+    // Watch SPA navigation: when booking page becomes active, remount
     const appSection = $("#appSection");
     if (appSection) {
       const mo = new MutationObserver(() => {
         const bookingPage = $("#bookingPage");
         if (bookingPage && bookingPage.classList.contains("active")) {
           ensureBookingPagePaymentUI();
+          mountPageCard();
         }
       });
       mo.observe(appSection, { subtree: true, attributes: true, attributeFilter: ["class", "style"] });
     }
 
-    // Modal buttons
+    // Modal close controls
     $("#bookingModalClose")?.addEventListener("click", closeModal);
     $("#bookingModalCancelBtn")?.addEventListener("click", closeModal);
     $("#bookingModalEditBtn")?.addEventListener("click", closeModal);
     $(".booking-modal-backdrop")?.addEventListener("click", closeModal);
 
+    // Modal pay
     $("#bookingModalConfirmBtn")?.addEventListener("click", async () => {
       setBtnLoading("#bookingModalConfirmBtn", true, "Confirm & Pay");
       try {
@@ -499,7 +553,7 @@
       }
     });
 
-    // Request booking -> opens modal (still supported)
+    // Request booking -> open modal
     $("#bookingPageForm")?.addEventListener("submit", (e) => {
       e.preventDefault();
       const merged = { ...(window.PetCareBooking.preview || {}), ...readBookingFormPreview() };
@@ -509,7 +563,7 @@
       openModal();
     });
 
-    // Booking page Confirm & Pay
+    // Page Confirm & Pay
     document.addEventListener("click", async (e) => {
       const t = e.target;
       if (!t) return;
