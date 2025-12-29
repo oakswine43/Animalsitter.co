@@ -1,20 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AnimalSitter – Book Trusted Local Pet Sitters & Walkers</title>
+  <title>AnimalSitter</title>
 
-  <script>
-    (function () {
-      var prefix = location.pathname.indexOf('/home-sitter-app/') !== -1 ? '' : 'home-sitter-app/';
-      window.__ASSET_PREFIX = prefix;
-      document.write('<link rel="stylesheet" href="' + prefix + 'css/styles.css">');
-    })();
-  </script>
-  <noscript><link rel="stylesheet" href="home-sitter-app/css/styles.css"></noscript>
-
-  <!-- Backend base URL for live API on Railway + Stripe publishable key -->
+  <!-- Backend base URL (Railway) -->
   <script>
     window.API_BASE = "https://animalsitterco-production.up.railway.app";
 
@@ -22,632 +13,143 @@
     window.STRIPE_PUBLISHABLE_KEY =
       "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ";
   </script>
+
+  <style>
+    /* Tiny loader so it's not blank while scripts load */
+    .boot-screen {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      padding: 24px;
+      color: #111;
+    }
+    .boot-pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f2f2f2;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .boot-muted { color:#666; font-size: 13px; margin-top: 8px; }
+  </style>
 </head>
 
 <body>
-  <div class="app-root">
-    <!-- HEADER -->
-    <header class="app-header">
-      <div class="app-header-inner">
-        <div class="brand" data-page-jump="homePage" style="cursor:pointer;">
-          <img id="siteLogo" src="" alt="AnimalSitter logo" class="brand-logo" />
-          <span>AnimalSitter</span>
-        </div>
-
-        <nav class="main-nav">
-          <button class="nav-link active" data-page="homePage">Home</button>
-          <button class="nav-link" data-page="dashboardPage">Dashboard</button>
-          <button class="nav-link" data-page="swipePage">Swipe</button>
-          <button class="nav-link" data-page="dogsPage">Pets</button>
-          <button class="nav-link" data-page="messagesPage">Messages</button>
-          <button class="nav-link" data-page="profilePage">Profile</button>
-        </nav>
-
-        <div class="header-right">
-          <button class="user-pill" id="userPill" type="button">Guest</button>
-
-          <button
-            type="button"
-            id="openAuthBtn"
-            data-page-jump="authPage"
-            class="btn-small-outline"
-          >
-            Login / Sign up
-          </button>
-
-          <button id="logoutBtn" type="button" class="btn-small">Logout</button>
-        </div>
-      </div>
-
-      <script>
-        document.addEventListener('DOMContentLoaded', function () {
-          var img = document.getElementById('siteLogo');
-          if (img && !img.getAttribute('src')) {
-            img.src = (window.__ASSET_PREFIX || '') + 'img/petcare-logo.png';
-          }
-        });
-      </script>
-    </header>
-
-    <!-- MAIN -->
-    <main class="app-main">
-      <div class="app-main-inner">
-        <section id="appSection" style="display:block;">
-
-          <!-- ================== HOME PAGE ================== -->
-          <section id="homePage" class="page active">
-            <div class="home-hero">
-              <div class="home-hero-bg" aria-hidden="true"></div>
-              <div class="home-hero-inner">
-                <div class="home-hero-grid">
-                  <div>
-                    <h1 class="home-title">AnimalSitter</h1>
-                    <p class="home-tagline">
-                      A clean, modern booking experience for pet parents and sitters. Browse sitters, message them, then book with Stripe test payments.
-                    </p>
-                    <div class="home-badges">
-                      <span class="badge">Secure payments</span>
-                      <span class="badge">Verified sitters</span>
-                      <span class="badge">Message first</span>
-                    </div>
-                    <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-                      <button type="button" class="btn-secondary" onclick="window.showPage && window.showPage('swipePage')">Browse sitters</button>
-                      <button type="button" class="btn-primary" onclick="window.openAuthModal && window.openAuthModal()">Log in / Sign up</button>
-                    </div>
-                  </div>
-
-                  <div class="home-search-card section-card">
-                    <h3 style="margin:0 0 10px 0;">Find a sitter</h3>
-                    <div class="form-grid">
-                      <div class="form-field">
-                        <label for="homeCity">City</label>
-                        <input id="homeCity" type="text" placeholder="Johnson City, TN" />
-                      </div>
-                      <div class="form-field">
-                        <label for="homeService">Service</label>
-                        <select id="homeService">
-                          <option value="">Any</option>
-                          <option value="walk">Walks</option>
-                          <option value="dropin">Drop-ins</option>
-                          <option value="daycare">Daycare</option>
-                          <option value="overnight">Overnight</option>
-                        </select>
-                      </div>
-                      <div class="form-field">
-                        <label for="homeStart">Start</label>
-                        <input id="homeStart" type="date" />
-                      </div>
-                      <div class="form-field">
-                        <label for="homeEnd">End</label>
-                        <input id="homeEnd" type="date" />
-                      </div>
-                    </div>
-                    <button
-                      id="homeSearchBtn"
-                      type="button"
-                      class="btn-primary btn-block"
-                      onclick="window.showPage && window.showPage('swipePage')"
-                    >
-                      Search sitters
-                    </button>
-                    <p class="small text-muted" style="margin-top:8px;">
-                      Tip: Use <strong>Swipe</strong> to browse sitter cards. Search filters are UI-only for now.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="page-header" style="margin-top:18px;">
-              <h2>Top sitters near you</h2>
-              <p class="page-subtitle">Click a sitter to open their full profile.</p>
-            </div>
-
-            <div class="sitters-layout">
-              <div class="section-card">
-                <div class="small text-muted" style="margin-bottom:8px;">Tip: Browse sitters from the Swipe page.</div>
-                <div>
-                  <button type="button" class="btn-secondary" onclick="window.showPage && window.showPage('swipePage')">Open Swipe</button>
-                </div>
-              </div>
-
-              <div class="section-card map-card">
-                <div class="map-header">Map</div>
-                <div class="map-placeholder" aria-label="Map preview">
-                  <div class="map-note">Map preview (demo)</div>
-                  <div class="small text-muted" style="margin-top:6px;">We can add real Google Maps later.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="page-header">
-              <h2>Pup gallery</h2>
-              <p class="page-subtitle">Latest posts from the community.</p>
-            </div>
-
-            <div class="section-card">
-              <div id="homeGalleryGrid" class="gallery-grid"></div>
-            </div>
-
-            <div class="section-card" style="margin-top:16px;">
-              <h3 style="margin-top:0;">Your AnimalSitter dashboard</h3>
-              <p class="text-muted">See your upcoming bookings, messages, and pet details all in one place.</p>
-              <button type="button" class="btn-primary" onclick="window.showPage && window.showPage('dashboardPage')">Go to Dashboard</button>
-            </div>
-          </section>
-
-          <!-- DASHBOARD PAGE -->
-          <section id="dashboardPage" class="page">
-            <div class="page-header">
-              <h1>Your AnimalSitter dashboard</h1>
-              <p class="page-subtitle">
-                See your upcoming bookings, messages, and pet details all in one place.
-              </p>
-            </div>
-            <div id="dashboardRoot" class="section-card">
-              <p class="text-muted">
-                You are logged in as guest. Your personalized dashboard will appear here.
-              </p>
-            </div>
-          </section>
-
-          <!-- DOGS / PETS PAGE -->
-          <section id="dogsPage" class="page">
-            <div class="page-header">
-              <h1>Your pets</h1>
-              <p class="page-subtitle">
-                Add profiles for each pet so sitters know their routines, quirks, and special needs.
-              </p>
-            </div>
-            <div class="section-card">
-              <p class="text-muted">
-                Soon you’ll be able to save feeding instructions, vet info, medications, and more for every pet.
-              </p>
-            </div>
-          </section>
-
-          <!-- SWIPE PAGE -->
-          <section id="swipePage" class="page">
-            <div class="page-header">
-              <h1>Swipe Sitter</h1>
-              <p class="page-subtitle">
-                Explore sitter cards with photos, services, prices, and reviews—then swipe to match.
-              </p>
-            </div>
-            <div class="section-card">
-              <div id="swipeRoot">
-                <p class="text-muted">
-                  Swipe experience coming soon. For now, browse sitters from the home page or dashboard.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <!-- MESSAGES PAGE -->
-          <section id="messagesPage" class="page">
-            <div class="page-header">
-              <h1>Messages</h1>
-              <p class="page-subtitle">
-                Chat with sitters before and after you book to share details and get updates.
-              </p>
-            </div>
-            <div class="section-card">
-              <p class="text-muted">
-                Messaging will live here once you’ve booked or favorited sitters.
-              </p>
-            </div>
-          </section>
-
-          <!-- SETTINGS PAGE -->
-          <section id="settingsPage" class="page">
-            <div class="settings-page-bar">
-              <div class="settings-app-label">AnimalSitter</div>
-              <div class="settings-user-label" id="settingsUserLabel">Customer: Guest</div>
-            </div>
-
-            <div class="page-header">
-              <h1>Settings</h1>
-              <p class="page-subtitle">
-                Manage your AnimalSitter account, security, and notifications in one place.
-              </p>
-            </div>
-
-            <div class="settings-layout">
-              <aside id="settingsSidebar" class="settings-sidebar section-card"></aside>
-              <section id="settingsMainCard" class="settings-main section-card">
-                <div class="settings-main-header">
-                  <h2 id="settingsMainTitle">Password &amp; Security</h2>
-                  <p id="settingsMainSubtitle" class="text-muted small">
-                    Select an item on the left to view and update its settings.
-                  </p>
-                </div>
-                <div id="settingsMainBody"></div>
-              </section>
-            </div>
-          </section>
-
-          <!-- SITTER PROFILE PAGE -->
-          <section id="sitterProfilePage" class="page">
-            <div id="sitterProfileRoot" class="section-card">
-              <p class="text-muted">Sitter profile details will appear here.</p>
-            </div>
-          </section>
-
-          <!-- BOOKING PAGE -->
-          <section id="bookingPage" class="page">
-            <div class="page-header">
-              <button class="btn-small" data-page-jump="sitterProfilePage">← Back to profile</button>
-              <h1 style="margin-top:8px;">Book this sitter</h1>
-              <p class="page-subtitle">
-                Share your pet’s routine, schedule, and any special instructions so your sitter can give great care.
-              </p>
-            </div>
-
-            <div class="dashboard-layout">
-              <div class="dashboard-card">
-                <div class="booking-sitter-summary section-card">
-                  <div class="booking-sitter-main">
-                    <div id="bookingSitterAvatar" class="avatar-circle"></div>
-                    <div>
-                      <div id="bookingSitterName" class="card-title">Sitter name</div>
-                      <div class="card-subtitle">
-                        <span id="bookingSitterRating">★ New</span>
-                        <span> · </span>
-                        <span id="bookingSitterDistance">Nearby</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
-                  <div class="section-card">
-                    <h3>Booking details</h3>
-                    <div class="profile-form-grid">
-                      <label>
-                        <span>Service</span>
-                        <select id="bookingService" class="input">
-                          <option value="overnight">Overnight sitting</option>
-                          <option value="dropin">Drop-in visit</option>
-                          <option value="walk">Dog walking</option>
-                          <option value="daycare">Doggy daycare</option>
-                        </select>
-                      </label>
-
-                      <label>
-                        <span>Date</span>
-                        <input type="date" id="bookingDate" class="input" />
-                      </label>
-
-                      <label>
-                        <span>Start time</span>
-                        <input type="time" id="bookingStart" class="input" />
-                      </label>
-
-                      <label>
-                        <span>End time</span>
-                        <input type="time" id="bookingEnd" class="input" />
-                      </label>
-
-                      <label>
-                        <span>Location</span>
-                        <input type="text" id="bookingLocation" class="input"
-                          placeholder="Your home, sitter’s home, etc." />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="section-card">
-                    <h3>Pet details</h3>
-                    <div class="profile-form-grid">
-                      <label>
-                        <span>Pets</span>
-                        <input type="text" id="bookingPets" class="input"
-                          placeholder="e.g., Milo (2 y/o lab), Daisy (5 y/o beagle)" />
-                      </label>
-
-                      <label>
-                        <span>Breed / size</span>
-                        <input type="text" id="bookingBreed" class="input"
-                          placeholder="Lab mix, 65 lb" />
-                      </label>
-                    </div>
-
-                    <label style="display:block; margin-top:8px;">
-                      <span>Notes for your sitter</span>
-                      <textarea id="bookingPetNotes" class="input" rows="3"
-                        placeholder="Feeding, walks, quirks, meds, bedtime routine..."></textarea>
-                    </label>
-                  </div>
-
-                  <div class="section-card">
-                    <h3>Your info</h3>
-                    <div class="profile-form-grid">
-                      <label>
-                        <span>Phone</span>
-                        <input type="tel" id="bookingClientPhone" class="input"
-                          placeholder="000-000-0000" />
-                      </label>
-
-                      <label>
-                        <span>Email</span>
-                        <input type="email" id="bookingClientEmail" class="input"
-                          placeholder="you@example.com" />
-                      </label>
-
-                      <label>
-                        <span>Address</span>
-                        <input type="text" id="bookingClientAddress" class="input"
-                          placeholder="Street, city, state" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- ✅ PAYMENT ON BOOKING PAGE -->
-                  <div class="section-card">
-                    <h3>Payment</h3>
-                    <p class="small text-muted">
-                      Enter your card details below (Stripe test mode).
-                    </p>
-
-                    <div id="stripe-card-element-page" class="stripe-card-element"></div>
-                    <div id="card-errors-page" class="card-errors small text-muted"></div>
-
-                    <p class="small text-muted" style="margin-top:8px;">
-                      Tip: You can also click “Request booking” to review everything in the confirmation modal.
-                    </p>
-                  </div>
-
-                  <div class="section-card">
-                    <button type="submit" class="btn-primary">Request booking</button>
-
-                    <button
-                      type="button"
-                      id="bookingPayNowBtn"
-                      class="btn-primary"
-                      style="margin-left:8px;"
-                    >
-                      Confirm &amp; Pay
-                    </button>
-
-                    <button type="button" class="btn-secondary" data-page-jump="sitterProfilePage"
-                      style="margin-left:8px;">
-                      Back to sitter
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div class="dashboard-card">
-                <div class="section-card">
-                  <h3>Before your booking starts</h3>
-                  <p class="text-muted" style="font-size:13px;">
-                    These are the same items you’ll see again on the confirmation page.
-                  </p>
-                  <ul style="font-size:13px; padding-left:18px; margin-top:4px;">
-                    <li>Add feeding &amp; walk instructions</li>
-                    <li>Share any meds or special needs</li>
-                    <li>Add emergency contact info</li>
-                    <li>Explain how your sitter gets in (door code, key, etc.)</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- BOOKING CONFIRM PAGE -->
-          <section id="bookingConfirmPage" class="page">
-            <div id="bookingConfirmRoot" class="section-card"></div>
-          </section>
-
-          <!-- AUTH PAGE -->
-          <section id="authPage" class="page">
-            <div class="section-card auth-page-card">
-              <h1>Login or create your AnimalSitter account</h1>
-              <p class="page-subtitle">
-                Book trusted pet care or start earning as a sitter—all from one simple account.
-              </p>
-
-              <div class="auth-tabs">
-                <button type="button" class="auth-tab active" data-auth-tab="loginPagePanel">Log in</button>
-                <button type="button" class="auth-tab" data-auth-tab="signupPagePanel">Sign up</button>
-              </div>
-
-              <div id="loginPagePanel" class="auth-panel">
-                <form id="loginPageForm" class="auth-form">
-                  <label>
-                    <span>Email</span>
-                    <input type="email" id="loginPageEmail" name="email" class="input" required />
-                  </label>
-                  <label>
-                    <span>Password</span>
-                    <input type="password" id="loginPagePassword" name="password" class="input" required />
-                  </label>
-                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Log in</button>
-                </form>
-              </div>
-
-              <div id="signupPagePanel" class="auth-panel" style="display:none;">
-                <form id="signupRealForm" class="auth-form">
-                  <label>
-                    <span>Full name</span>
-                    <input type="text" id="realSignupName" name="full_name" class="input" required />
-                  </label>
-                  <label>
-                    <span>Email</span>
-                    <input type="email" id="realSignupEmail" name="email" class="input" required />
-                  </label>
-                  <label>
-                    <span>Password</span>
-                    <input type="password" id="realSignupPassword" name="password" class="input" required />
-                  </label>
-                  <label>
-                    <span>Account type</span>
-                    <select id="realSignupRole" name="role" class="input" required>
-                      <option value="client" selected>Client / Pet Parent</option>
-                      <option value="sitter">Sitter</option>
-                    </select>
-                  </label>
-                  <button type="submit" class="btn-primary" style="width:100%; margin-top:8px;">Create account</button>
-                </form>
-              </div>
-
-              <div id="authPageError" class="auth-error" style="display:none;"></div>
-            </div>
-          </section>
-
-          <!-- PROFILE PAGE -->
-          <section id="profilePage" class="page">
-            <div class="section-card profile-card">
-              <h1>Your profile</h1>
-              <p class="page-subtitle">
-                Update your name, photo, and contact info so sitters and clients know who they’re working with.
-              </p>
-
-              <div id="profileRoot"></div>
-
-              <div class="profile-actions">
-                <button type="button" class="btn-secondary" data-page-jump="settingsPage">Manage settings</button>
-                <button type="button" class="btn-secondary" id="profileLogoutBtn">Logout</button>
-              </div>
-            </div>
-          </section>
-
-        </section>
-
-        <!-- FOOTER -->
-        <footer class="site-footer">
-          <!-- (unchanged footer content) -->
-        </footer>
-      </div>
-    </main>
+  <div id="bootScreen" class="boot-screen">
+    <h2 style="margin:0;">Loading AnimalSitter…</h2>
+    <div class="boot-pill">Booting assets</div>
+    <div class="boot-muted" id="bootNote">Detecting site path…</div>
   </div>
 
-  <!-- ===================== BOOKING MODAL ===================== -->
-  <div id="bookingModal" class="booking-modal" style="display:none;">
-    <div class="booking-modal-backdrop"></div>
-
-    <div class="booking-modal-card section-card">
-      <div class="booking-modal-header">
-        <div>
-          <h2>Confirm your booking</h2>
-          <p class="small text-muted">Review the sitter, service, and total price before you confirm.</p>
-        </div>
-        <button id="bookingModalClose" class="icon-btn" type="button">✕</button>
-      </div>
-
-      <div class="booking-modal-main">
-        <div class="booking-modal-sitter">
-          <div id="bookingSitterAvatar" class="avatar-circle"></div>
-          <div>
-            <div id="bookingSitterName" class="card-title">Sitter name</div>
-            <div id="bookingSitterSubtitle" class="card-subtitle small">Rating · distance</div>
-            <div id="bookingSitterBadges" class="chip-row small"></div>
-          </div>
-        </div>
-
-        <div class="booking-modal-service section-card">
-          <div class="booking-service-header">
-            <div>
-              <div class="small text-muted">Service</div>
-              <div id="bookingServiceName" class="card-title">In-Home Sitting</div>
-            </div>
-            <div class="booking-price-total">
-              <div class="small text-muted">Total</div>
-              <div id="bookingTotalPrice" class="stat-value">$0.00</div>
-            </div>
-          </div>
-
-          <div class="booking-price-breakdown">
-            <div class="booking-line">
-              <span id="bookingLine1Label">Base service</span>
-              <span id="bookingLine1Price">$0.00</span>
-            </div>
-            <div class="booking-line">
-              <span id="bookingLine2Label">Extra dog</span>
-              <span id="bookingLine2Price">$0.00</span>
-            </div>
-            <div class="booking-line">
-              <span>Service fee</span>
-              <span id="bookingLine3Price">$0.00</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="booking-modal-details">
-        <div class="section-card">
-          <h3 class="small-heading">Your info</h3>
-          <p class="small">
-            <strong id="bookingClientName">Your name</strong><br />
-            <span id="bookingClientEmail">you@example.com</span>
-          </p>
-        </div>
-
-        <div class="section-card">
-          <h3 class="small-heading">Your pet</h3>
-          <p class="small">
-            <strong id="bookingPetNames">Your dog(s) – demo</strong><br />
-            <span id="bookingPetBreed">Breed / size – demo</span><br />
-            <span id="bookingPetFeeding">Feeding: Not set (demo)</span><br />
-            <span id="bookingPetBehavior">Behavior: Not set (demo)</span><br />
-            <span id="bookingPetMedication">Medication: Not set (demo)</span><br />
-            <span id="bookingPetWalks">Walk schedule: Not set (demo)</span>
-          </p>
-        </div>
-
-        <div class="section-card">
-          <h3 class="small-heading">Sitter policies</h3>
-          <div id="bookingPolicies" class="small text-muted"></div>
-        </div>
-
-        <div class="section-card">
-          <h3 class="small-heading">Payment</h3>
-          <p class="small text-muted">Enter your card details. This runs in Stripe test mode.</p>
-          <div id="stripe-card-element" class="stripe-card-element"></div>
-          <div id="card-errors" class="card-errors small text-muted"></div>
-        </div>
-      </div>
-
-      <div class="booking-modal-footer">
-        <button id="bookingModalCancelBtn" type="button" class="btn-secondary">Cancel</button>
-        <button id="bookingModalEditBtn" type="button" class="btn-secondary">Edit details</button>
-        <button id="bookingModalConfirmBtn" type="button" class="btn-primary">Confirm &amp; Pay</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stripe CDN (required for Stripe.js helpers) -->
+  <!-- Stripe CDN MUST be loaded (StripeHelpers depends on window.Stripe) -->
   <script src="https://js.stripe.com/v3/"></script>
 
   <script>
     (function () {
-      var prefix = (location.pathname.indexOf('/home-sitter-app/') !== -1) ? '' : 'home-sitter-app/';
-      window.__ASSET_PREFIX = prefix;
+      const bootNote = document.getElementById("bootNote");
 
-      function w(rel) {
-        document.write('<script src="' + prefix + rel + '" defer><\/script>');
+      function setNote(t) {
+        if (bootNote) bootNote.textContent = t;
       }
 
-      // Core
-      w('js/auth.js');
-      w('js/state.js');
-      w('js/stripe.js');
-      w('js/app.js');
+      async function exists(url) {
+        try {
+          const res = await fetch(url, { method: "GET", cache: "no-store" });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      }
 
-      // Pages
-      w('js/pages/authpage.js');
-      w('js/pages/authPage.v2.js');
-      w('js/pages/home.js');
-      w('js/pages/dashboard.js');
-      w('js/pages/swipe.js');
-      w('js/pages/dogs.js');
-      w('js/pages/messages.js');
-      w('js/pages/profile.js');
-      w('js/pages/settings.js');
-      w('js/pages/changePassword.js');
-      w('js/pages/sitterprofile.js');
-      w('js/pages/booking.js');
-      w('js/pages/profilrshared.js');
+      async function detectPrefix() {
+        // Try root first
+        if (await exists("js/app.js")) return "";
+        // Then try /home-sitter-app/
+        if (await exists("home-sitter-app/js/app.js")) return "home-sitter-app/";
+        // Fallback: try current directory (relative)
+        return "";
+      }
+
+      function loadCSS(href) {
+        return new Promise((resolve, reject) => {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = href;
+          link.onload = () => resolve(true);
+          link.onerror = () => reject(new Error("CSS failed: " + href));
+          document.head.appendChild(link);
+        });
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = src;
+          s.defer = true;
+          s.onload = () => resolve(true);
+          s.onerror = () => reject(new Error("Script failed: " + src));
+          document.body.appendChild(s);
+        });
+      }
+
+      async function boot() {
+        setNote("Detecting where your assets are hosted…");
+
+        const prefix = await detectPrefix();
+        window.__ASSET_PREFIX = prefix;
+
+        setNote("Using asset prefix: " + (prefix ? "/" + prefix : "/"));
+
+        // Load CSS
+        try {
+          await loadCSS(prefix + "css/styles.css");
+        } catch (e) {
+          // If CSS fails here, we still continue so you can see console errors
+          console.error(e);
+          setNote("CSS failed to load. Check Network tab for styles.css (404).");
+        }
+
+        // Load your app scripts in the order your app expects
+        const core = [
+          "js/auth.js",
+          "js/state.js",
+          "js/stripe.js",
+          "js/app.js"
+        ];
+
+        const pages = [
+          "js/pages/authpage.js",
+          "js/pages/authPage.v2.js",
+          "js/pages/home.js",
+          "js/pages/dashboard.js",
+          "js/pages/swipe.js",
+          "js/pages/dogs.js",
+          "js/pages/messages.js",
+          "js/pages/profile.js",
+          "js/pages/settings.js",
+          "js/pages/changePassword.js",
+          "js/pages/sitterprofile.js",
+          "js/pages/booking.js",
+          "js/pages/profilrshared.js"
+        ];
+
+        try {
+          setNote("Loading core scripts…");
+          for (const f of core) await loadScript(prefix + f);
+
+          setNote("Loading page scripts…");
+          for (const f of pages) await loadScript(prefix + f);
+        } catch (e) {
+          console.error(e);
+          setNote("A JS file failed to load. Open DevTools → Network and find the 404.");
+          return;
+        }
+
+        // Hide boot screen once app is loaded
+        const bootScreen = document.getElementById("bootScreen");
+        if (bootScreen) bootScreen.style.display = "none";
+      }
+
+      boot();
     })();
   </script>
 </body>
