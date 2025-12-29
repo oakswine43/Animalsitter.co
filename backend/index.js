@@ -43,8 +43,36 @@ app.locals.stripe = stripe;
 // =====================
 // Core middleware
 // =====================
-app.use(cors());
+
+// ✅ CORS (must be explicit origin when credentials are used)
+const allowedOrigins = [
+  "https://animalsitter.co",
+  "https://www.animalsitter.co",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
+];
+
+app.use(
+  cors({
+    origin: function (origin, cb) {
+      // allow non-browser tools (no origin) + allow listed origins
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error("CORS blocked for origin: " + origin));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"]
+  })
+);
+
+// make OPTIONS preflight always succeed
+app.options("*", cors());
+
 app.use(express.json());
+
 
 // Simple request logger
 app.use((req, res, next) => {
