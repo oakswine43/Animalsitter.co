@@ -122,13 +122,21 @@ button:not(.btn-primary):not(.btn-secondary):not(.btn-small):not(.btn-small-outl
 
 /* Simple page fade */
 
+/* Simple page fade (fail-safe: never blank if JS doesn't mark .active) */
+
 .page {
-  display: none;
+  display: block;              /* show by default */
   animation: fadeIn 0.18s ease-out;
 }
+
+.page:not(.active) {
+  display: none;               /* hide non-active pages when JS sets active */
+}
+
 .page.active {
   display: block;
 }
+
 
 @keyframes fadeIn {
   from {
