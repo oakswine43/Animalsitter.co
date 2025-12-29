@@ -744,8 +744,7 @@ window.PetCareState = (function () {
 
     try {
       const resp = await fetch(`${API_BASE}/api/sitters`, {
-        credentials: "include"
-      });
+              });
       if (!resp.ok) {
         throw new Error("HTTP " + resp.status);
       }
@@ -849,8 +848,7 @@ window.PetCareState = (function () {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
-        },
-        credentials: "include"
+        }
       });
 
       if (!resp.ok) {

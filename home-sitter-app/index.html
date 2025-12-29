@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AnimalSitter</title>
 
-    <!-- ✅ FIX: your CSS is in /css -->
-    <link rel="stylesheet" href="css/styles.css" />
+    <!-- Main styles -->
+    <link rel="stylesheet" href="styles.css" />
   </head>
 
   <body>
-    <!-- AUTH SECTION -->
-    <section id="authSection" style="display: none">
+    <!-- =========================
+         AUTH SECTION
+    ========================== -->
+    <section id="authSection" style="display:none;">
       <div class="auth-shell">
         <div class="auth-card">
           <div class="auth-tabs">
@@ -23,259 +25,174 @@
             <form id="loginRealForm" class="auth-form">
               <label>
                 <span>Email</span>
-                <input type="email" id="realLoginEmail" name="email" class="input" required />
+                <input type="email" id="realLoginEmail" class="input" required />
               </label>
               <label>
                 <span>Password</span>
-                <input
-                  type="password"
-                  id="realLoginPassword"
-                  name="password"
-                  class="input"
-                  required
-                />
+                <input type="password" id="realLoginPassword" class="input" required />
               </label>
-              <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px">
+              <button type="submit" class="btn-primary" style="width:100%; margin-top:10px;">
                 Log in
               </button>
             </form>
           </div>
 
-          <div id="signupPagePanel" class="auth-panel" style="display: none">
+          <div id="signupPagePanel" class="auth-panel" style="display:none;">
             <form id="signupRealForm" class="auth-form">
               <label>
                 <span>Full name</span>
-                <input type="text" id="realSignupName" name="full_name" class="input" required />
+                <input type="text" id="realSignupName" class="input" required />
               </label>
               <label>
                 <span>Email</span>
-                <input type="email" id="realSignupEmail" name="email" class="input" required />
+                <input type="email" id="realSignupEmail" class="input" required />
               </label>
               <label>
                 <span>Password</span>
-                <input
-                  type="password"
-                  id="realSignupPassword"
-                  name="password"
-                  class="input"
-                  required
-                />
+                <input type="password" id="realSignupPassword" class="input" required />
               </label>
               <label>
                 <span>Account type</span>
-                <select id="realSignupRole" name="role" class="input" required>
-                  <option value="client" selected>Client / Pet Parent</option>
+                <select id="realSignupRole" class="input" required>
+                  <option value="client">Client / Pet Parent</option>
                   <option value="sitter">Sitter</option>
                 </select>
               </label>
-              <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px">
+              <button type="submit" class="btn-primary" style="width:100%; margin-top:10px;">
                 Create account
               </button>
             </form>
           </div>
 
-          <div id="authPageError" class="auth-error" style="display: none"></div>
+          <div id="authPageError" class="auth-error" style="display:none;"></div>
         </div>
       </div>
     </section>
 
-    <!-- APP SECTION -->
-    <section id="appSection" style="display: none">
+    <!-- =========================
+         APP SECTION
+    ========================== -->
+    <section id="appSection" style="display:none;">
+      <!-- TOP BAR -->
       <header class="topbar">
         <div class="topbar-left">
           <div class="logo">
             <span class="logo-mark">🐾</span>
             <span class="logo-text">AnimalSitter</span>
           </div>
+
           <nav class="nav">
-            <button class="nav-link active" data-page="homePage" type="button">Home</button>
-            <button class="nav-link" data-page="dashboardPage" type="button">Dashboard</button>
-            <button class="nav-link" data-page="swipePage" type="button">Swipe</button>
-            <button class="nav-link" data-page="dogsPage" type="button">Pets</button>
-            <button class="nav-link" data-page="messagesPage" type="button">Messages</button>
-            <button class="nav-link" data-page="profilePage" type="button">Profile</button>
+            <button class="nav-link active" data-page="homePage">Home</button>
+            <button class="nav-link" data-page="dashboardPage">Dashboard</button>
+            <button class="nav-link" data-page="swipePage">Swipe</button>
+            <button class="nav-link" data-page="dogsPage">Pets</button>
+            <button class="nav-link" data-page="messagesPage">Messages</button>
+            <button class="nav-link" data-page="profilePage">Profile</button>
           </nav>
         </div>
 
         <div class="topbar-right">
           <div id="headerUserPill" class="user-pill">Guest</div>
-          <button class="btn-small" id="logoutBtn" type="button">Logout</button>
+          <button id="logoutBtn" class="btn-small">Logout</button>
         </div>
       </header>
 
+      <!-- =========================
+           PAGES
+      ========================== -->
       <main class="page-shell">
-        <section id="homePage" class="page active"><div id="homeRoot"></div></section>
-        <section id="dashboardPage" class="page"><div id="dashboardRoot"></div></section>
-        <section id="swipePage" class="page"><div id="swipeRoot"></div></section>
-        <section id="dogsPage" class="page"><div id="dogsRoot"></div></section>
-        <section id="messagesPage" class="page"><div id="messagesRoot"></div></section>
-        <section id="settingsPage" class="page"><div id="settingsRoot"></div></section>
-        <section id="sitterProfilePage" class="page"><div id="sitterProfileRoot"></div></section>
 
+        <!-- HOME -->
+        <section id="homePage" class="page active">
+          <div class="section-card">
+            <h1>Welcome to AnimalSitter</h1>
+            <p class="text-muted">
+              Find trusted sitters, message them, and book with secure payment.
+            </p>
+
+            <div style="margin-top:15px;">
+              <button class="btn-primary" data-page-jump="swipePage">Browse sitters</button>
+              <button class="btn-secondary" data-page-jump="authPage">Log in / Sign up</button>
+            </div>
+          </div>
+
+          <div class="section-card" style="margin-top:15px;">
+            <h2>Featured sitters</h2>
+            <div id="homeSitterGrid"></div>
+          </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section id="dashboardPage" class="page">
+          <div class="section-card">
+            <h1>Dashboard</h1>
+            <p class="text-muted">
+              Your personalized dashboard will appear here based on your role.
+            </p>
+            <div id="dashboardRoot"></div>
+          </div>
+        </section>
+
+        <!-- SWIPE -->
+        <section id="swipePage" class="page">
+          <div id="swipeRoot"></div>
+        </section>
+
+        <!-- PETS -->
+        <section id="dogsPage" class="page">
+          <div id="dogsRoot"></div>
+        </section>
+
+        <!-- MESSAGES -->
+        <section id="messagesPage" class="page">
+          <div id="messagesRoot"></div>
+        </section>
+
+        <!-- PROFILE -->
         <section id="profilePage" class="page">
-          <div class="section-card profile-card">
+          <div class="section-card">
             <h1>Your profile</h1>
-            <p class="page-subtitle">
-              Update your name, photo, and contact info so sitters and clients know who they’re working with.
+            <p class="text-muted">
+              Update your info, photo, and preferences.
             </p>
           </div>
           <div id="profileRoot"></div>
         </section>
 
+        <!-- BOOKING -->
         <section id="bookingPage" class="page">
-          <div class="section-card">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <div>
-                <h1 style="margin:0;">Book sitter</h1>
-                <p class="text-muted" style="margin:6px 0 0;">
-                  Review details, add your info, then confirm payment.
-                </p>
-              </div>
-              <button class="btn-secondary" type="button" data-page-jump="sitterProfilePage">
-                Back to sitter
-              </button>
-            </div>
-          </div>
-
-          <div class="dashboard-layout" style="margin-top:10px;">
-            <div class="dashboard-card">
-              <div class="section-card">
-                <h3 style="margin:0;">Sitter</h3>
-                <div style="display:flex; gap:12px; margin-top:10px; align-items:center;">
-                  <div
-                    id="bookingSitterAvatar"
-                    class="avatar-circle"
-                    style="width:56px;height:56px;border-radius:999px;background:#eee;background-size:cover;background-position:center;"
-                  ></div>
-                  <div>
-                    <div id="bookingSitterName" style="font-weight:700;">Sitter name</div>
-                    <div class="text-muted" style="font-size:13px;">
-                      <span id="bookingSitterCity">City</span>
-                      <span> · </span>
-                      <span id="bookingSitterDistance">Nearby</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="section-card">
-                <h3>Booking</h3>
-
-                <form id="bookingPageForm" class="auth-form" style="margin-top:8px;">
-                  <div class="section-card">
-                    <h3>Booking details</h3>
-                    <div class="profile-form-grid">
-                      <label>
-                        <span>Service</span>
-                        <select id="bookingService" class="input">
-                          <option value="overnight">Overnight sitting</option>
-                          <option value="dropin">Drop-in visit</option>
-                          <option value="walk">Dog walking</option>
-                          <option value="daycare">Doggy daycare</option>
-                        </select>
-                      </label>
-                      <label><span>Date</span><input type="date" id="bookingDate" class="input" /></label>
-                      <label><span>Start time</span><input type="time" id="bookingStart" class="input" /></label>
-                      <label><span>End time</span><input type="time" id="bookingEnd" class="input" /></label>
-                      <label>
-                        <span>Location</span>
-                        <input type="text" id="bookingLocation" class="input" placeholder="Your home, sitter’s home, etc." />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="section-card">
-                    <h3>Pet details</h3>
-                    <div class="profile-form-grid">
-                      <label>
-                        <span>Pets</span>
-                        <input type="text" id="bookingPets" class="input" placeholder="e.g. Milo (2 y/o lab), Daisy (5 y/o beagle)" />
-                      </label>
-                      <label>
-                        <span>Breed / size</span>
-                        <input type="text" id="bookingBreed" class="input" placeholder="Lab mix, 65 lb" />
-                      </label>
-                    </div>
-                    <label style="display:block; margin-top:8px;">
-                      <span>Notes for your sitter</span>
-                      <textarea id="bookingPetNotes" class="input" rows="3" placeholder="Feeding, walks, quirks, meds, bedtime routine."></textarea>
-                    </label>
-                  </div>
-
-                  <div class="section-card">
-                    <h3>Your info</h3>
-                    <div class="profile-form-grid">
-                      <label><span>Phone</span><input type="tel" id="bookingClientPhone" class="input" placeholder="000-000-0000" /></label>
-                      <label><span>Email</span><input type="email" id="bookingClientEmail" class="input" placeholder="you@example.com" /></label>
-                      <label><span>Address</span><input type="text" id="bookingClientAddress" class="input" placeholder="Street, city, state" /></label>
-                    </div>
-                  </div>
-
-                  <div class="section-card">
-                    <h3>Payment</h3>
-                    <p class="small text-muted">Enter your card details below (Stripe test mode).</p>
-                    <div id="stripe-card-element-page" class="stripe-card-element"></div>
-                    <div id="card-errors-page" class="card-errors small text-muted"></div>
-                    <p class="small text-muted" style="margin-top:8px;">
-                      Tip: You can also click “Request booking” to review everything in the confirmation modal.
-                    </p>
-                  </div>
-
-                  <div class="section-card">
-                    <button type="submit" class="btn-primary">Request booking</button>
-                    <button type="button" id="bookingPayNowBtn" class="btn-primary" style="margin-left:8px;">
-                      Confirm &amp; Pay
-                    </button>
-                    <button type="button" class="btn-secondary" data-page-jump="sitterProfilePage" style="margin-left:8px;">
-                      Back to sitter
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div class="dashboard-card">
-              <div class="section-card">
-                <h3>Before your booking starts</h3>
-                <p class="text-muted" style="font-size:13px;">
-                  These are the same items you’ll see again on the confirmation page.
-                </p>
-                <ul style="font-size:13px; padding-left:18px; margin-top:4px;">
-                  <li>Add feeding &amp; walk instructions</li>
-                  <li>Share any meds or special needs</li>
-                  <li>Add emergency contact info</li>
-                  <li>Explain how your sitter gets in (door code, key, etc.)</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          <div id="bookingRoot"></div>
         </section>
 
-        <section id="bookingConfirmPage" class="page"><div id="bookingConfirmRoot"></div></section>
+        <!-- BOOKING CONFIRM -->
+        <section id="bookingConfirmPage" class="page">
+          <div id="bookingConfirmRoot"></div>
+        </section>
+
       </main>
     </section>
 
-    <!-- Stripe library -->
+    <!-- =========================
+         SCRIPTS
+    ========================== -->
+
+    <!-- Stripe -->
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="stripe.js" defer></script>
 
-    <!-- ✅ FIX: helpers must be in /js -->
-    <script src="js/stripe.js" defer></script>
+    <!-- Core -->
+    <script src="state.js" defer></script>
+    <script src="app.js" defer></script>
 
-    <!-- Core app scripts -->
-    <script src="js/state.js" defer></script>
-    <script src="js/app.js" defer></script>
-
-    <!-- Page scripts -->
-    <script src="js/pages/home.js" defer></script>
-    <script src="js/pages/dashboard.js" defer></script>
-    <script src="js/pages/swipe.js" defer></script>
-    <script src="js/pages/dogs.js" defer></script>
-    <script src="js/pages/messages.js" defer></script>
-    <script src="js/pages/settings.js" defer></script>
-    <script src="js/pages/sitterprofile.js" defer></script>
-    <script src="js/pages/authpage.js" defer></script>
-    <script src="js/pages/profile.js" defer></script>
-    <script src="js/pages/booking.js" defer></script>
+    <!-- Pages -->
+    <script src="home.js" defer></script>
+    <script src="dashboard.js" defer></script>
+    <script src="swipe.js" defer></script>
+    <script src="dogs.js" defer></script>
+    <script src="messages.js" defer></script>
+    <script src="profile.js" defer></script>
+    <script src="booking.js" defer></script>
+    <script src="authpage.js" defer></script>
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {

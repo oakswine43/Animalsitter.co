@@ -2,6 +2,8 @@
 // Handles the Home page Pup Gallery: load posts, likes, comments
 
 (function () {
+  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
+
   const gridId = "homeGalleryGrid";
 
   function getCurrentUserName() {
@@ -244,8 +246,57 @@
     }
   }
 
+function renderFeaturedSitters() {
+  const grid = document.getElementById("homeSitterGrid");
+  if (!grid) return;
+
+  const sitters =
+    (window.PetCareState && typeof window.PetCareState.getSitters === "function"
+      ? window.PetCareState.getSitters()
+      : []) || [];
+
+  const list = Array.isArray(sitters) ? sitters.slice(0, 6) : [];
+  if (!list.length) {
+    grid.innerHTML = `<p class="text-muted">No sitters loaded yet.</p>`;
+    return;
+  }
+
+  grid.innerHTML = "";
+  list.forEach((s) => {
+    const card = document.createElement("div");
+    card.className = "mini-card";
+    const avatar = s.avatar || s.avatar_url || "";
+    const name = s.name || "Sitter";
+    const city = s.city || "";
+    const rating = s.rating != null ? String(s.rating) : "5.0";
+    const distance = s.distance || "";
+
+    card.innerHTML = `
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div class="mini-avatar" style="${avatar ? `background-image:url('${avatar}')` : ""}"></div>
+        <div style="flex:1;">
+          <div style="font-weight:700; line-height:1.2;">${name}</div>
+          <div class="small text-muted">${city} ${distance ? `• ${distance}` : ""}</div>
+          <div class="small">★ ${rating}</div>
+        </div>
+        <button type="button" class="btn-small">View</button>
+      </div>
+    `;
+
+    card.querySelector("button")?.addEventListener("click", () => {
+      try {
+        if (window.PetCareState?.ui) window.PetCareState.ui.selectedSitterId = s.id;
+      } catch (_) {}
+      if (typeof window.setActivePage === "function") window.setActivePage("swipePage");
+    });
+
+    grid.appendChild(card);
+  });
+}
+
   // Expose init for app.js
   window.initHomePage = function () {
+    renderFeaturedSitters();
     loadPupGallery();
   };
 })();
