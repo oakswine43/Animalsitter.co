@@ -31,6 +31,77 @@ button {
   font-family: inherit;
 }
 
+/* =========================================================
+   FALLBACK STYLING (helps when elements render without class names)
+   ======================================================= */
+
+/* Make raw/default HTML inputs not look like 1999 */
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #111827;
+  box-shadow: 0 0 0 1px #111827;
+}
+
+button {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+/* If a button has no class, give it a soft default */
+button:not(.btn-primary):not(.btn-secondary):not(.btn-small):not(.btn-small-outline) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+button:not(.btn-primary):not(.btn-secondary):not(.btn-small):not(.btn-small-outline):hover {
+  background: #e5e7eb;
+}
+
+/* Stripe Elements mount + default look */
+.stripe-card-element {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+
+/* Stripe adds its own iframe, these classes exist on the wrapper */
+.StripeElement {
+  width: 100%;
+}
+
+.StripeElement--focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 1px #111827;
+}
+
+.StripeElement--invalid {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px #ef4444;
+}
+
+.card-errors {
+  color: #b91c1c;
+}
+
 /* Main app wrapper */
 
 .app-root {
@@ -269,6 +340,12 @@ button {
 .btn-primary:active {
   transform: translateY(0);
   box-shadow: 0 10px 18px rgba(15, 23, 42, 0.22);
+}
+
+/* Optional: if you use btn-lg in HTML */
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 15px;
 }
 
 .btn-secondary {
@@ -934,6 +1011,14 @@ button {
   gap: 12px;
 }
 
+/* Booking page helpers */
+#bookingPaymentSection .stripe-card-element {
+  margin-top: 10px;
+}
+#bookingPaymentSection h3 {
+  margin-top: 0;
+}
+
 /* SETTINGS LAYOUT */
 .settings-grid {
   display: grid;
@@ -1318,6 +1403,7 @@ button {
     align-items: flex-start;
   }
 }
+
 /* ===========================
    Profile page
    =========================== */
@@ -1432,6 +1518,7 @@ button {
 .profile-summary-row strong {
   font-weight: 600;
 }
+
 /* =========================================================
    FRONT PAGE (Snowpak-inspired layout)
    ======================================================= */
