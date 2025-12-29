@@ -2,9 +2,101 @@
 // Handles the Home page Pup Gallery: load posts, likes, comments
 
 (function () {
-  const API_BASE = window.API_BASE || window.PETCARE_API_BASE || "http://localhost:4000";
-
   const gridId = "homeGalleryGrid";
+  const resultsListId = "homeResultsList";
+
+  function safeText(v) {
+    return String(v == null ? "" : v);
+  }
+
+  function pickServiceLabel(s) {
+    const services = s.services || s.service_types || s.service_type || [];
+    const arr = Array.isArray(services) ? services : [services].filter(Boolean);
+    if (!arr.length) return "Walks • Drop-ins • Overnight";
+    return arr
+      .map((x) => safeText(x).replace(/_/g, " "))
+      .slice(0, 3)
+      .join(" • ");
+  }
+
+  function renderSitterCard(s) {
+    const card = document.createElement("div");
+    card.className = "frontpage-sitter-card";
+
+    const name = s.name || s.full_name || "Sitter";
+    const city = s.city || s.location || "Nearby";
+    const rating = s.rating != null ? s.rating : "New";
+    const price = s.price || s.rate || null;
+    const avatar = s.avatar_url || s.photo_url || s.avatar || "";
+
+    card.innerHTML = `
+      <div class="fp-sitter-row">
+        <div class="fp-sitter-avatar" style="${avatar ? `background-image:url('${avatar}')` : ""}"></div>
+        <div style="flex:1;">
+          <div class="fp-sitter-name">${safeText(name)}</div>
+          <div class="fp-sitter-meta">${safeText(city)} • ★ ${safeText(rating)}</div>
+          <div class="fp-sitter-services">${pickServiceLabel(s)}</div>
+        </div>
+        <div class="fp-sitter-right">
+          <div class="fp-sitter-price">${price ? `$${safeText(price)}` : ""}</div>
+          <button type="button" class="btn-small">View</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector("button")?.addEventListener("click", () => {
+      try {
+        if (window.PetCareState?.ui) window.PetCareState.ui.selectedSitterId = s.id;
+        window.PetCareBooking = window.PetCareBooking || {};
+        window.PetCareBooking.preview = s;
+      } catch (_) {}
+
+      if (typeof window.setActivePage === "function") window.setActivePage("sitterProfilePage");
+      if (typeof window.showPage === "function") window.showPage("sitterProfilePage");
+    });
+
+    return card;
+  }
+
+  function renderHomeResults() {
+    const list = document.getElementById(resultsListId);
+    if (!list) return;
+
+    const sitters =
+      (window.PetCareState && typeof window.PetCareState.getSitters === "function"
+        ? window.PetCareState.getSitters()
+        : []) || [];
+
+    const arr = Array.isArray(sitters) ? sitters : [];
+    if (!arr.length) {
+      list.innerHTML = `<div class="text-muted">No sitters loaded yet.</div>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    arr.slice(0, 10).forEach((s) => list.appendChild(renderSitterCard(s)));
+  }
+
+  async function tryRefreshSitters() {
+    try {
+      if (window.PetCareState?.refreshSittersFromApi) {
+        await window.PetCareState.refreshSittersFromApi();
+      }
+    } catch (e) {
+      console.warn("Home: refreshSittersFromApi failed", e);
+    }
+  }
+
+  function wireHomeSearch() {
+    const btn = document.getElementById("homeSearchBtn");
+    if (!btn || btn.__wired) return;
+    btn.__wired = true;
+
+    btn.addEventListener("click", async () => {
+      if (typeof window.setActivePage === "function") window.setActivePage("swipePage");
+      if (typeof window.showPage === "function") window.showPage("swipePage");
+    });
+  }
 
   function getCurrentUserName() {
     try {
@@ -33,17 +125,14 @@
     const bodyDiv = document.createElement("div");
     bodyDiv.className = "gallery-item-body";
 
-    // Meta line: "Posted by Chris & Milo"
     const meta = document.createElement("div");
     meta.className = "gallery-item-meta";
     meta.textContent = `Posted by ${post.author_name}`;
 
-    // Caption
     const caption = document.createElement("div");
     caption.className = "gallery-item-caption";
     caption.textContent = post.caption || "";
 
-    // Footer with likes + quick stats
     const footer = document.createElement("div");
     footer.className = "gallery-item-footer";
 
@@ -60,7 +149,6 @@
     footer.appendChild(likeSpan);
     footer.appendChild(subtle);
 
-    // Comments list
     const commentsBox = document.createElement("div");
     commentsBox.className = "gallery-comments-box";
 
@@ -86,7 +174,6 @@
       commentsBox.appendChild(list);
     }
 
-    // Add-comment form
     const form = document.createElement("form");
     form.className = "gallery-comment-form";
 
@@ -105,7 +192,6 @@
 
     commentsBox.appendChild(form);
 
-    // Put together
     bodyDiv.appendChild(meta);
     bodyDiv.appendChild(caption);
     bodyDiv.appendChild(footer);
@@ -114,7 +200,6 @@
     wrapper.appendChild(imgDiv);
     wrapper.appendChild(bodyDiv);
 
-    // Wire up like click
     likeSpan.addEventListener("click", async () => {
       try {
         const res = await fetch(`${API_BASE}/gallery/posts/${post.id}/like`, {
@@ -123,7 +208,6 @@
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("Like response for post", post.id, data);
 
         if (!res.ok || !data.ok) {
           alert("Failed to like this post.");
@@ -138,7 +222,6 @@
       }
     });
 
-    // Wire up comment form submit
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = input.value.trim();
@@ -154,14 +237,12 @@
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("Comment response for post", post.id, data);
 
         if (!res.ok || !data.ok) {
           alert("Failed to post comment.");
           return;
         }
 
-        // Append new comment to the list
         const c = data.comment;
         let list = commentsBox.querySelector(".gallery-comments-list");
         if (!list) {
@@ -183,9 +264,8 @@
         row.appendChild(t);
         list.appendChild(row);
 
-        // Update likes/comments label
         const newCount = list.querySelectorAll(".gallery-comment-row").length;
-        const currentLikesText = likeSpan.textContent.split("•")[0].trim(); // "❤️ 3"
+        const currentLikesText = likeSpan.textContent.split("•")[0].trim();
         likeSpan.textContent = `${currentLikesText} • 💬 ${newCount}`;
 
         input.value = "";
@@ -205,98 +285,31 @@
     grid.innerHTML = `<p class="text-muted">Loading pup gallery…</p>`;
 
     try {
-      console.log("Loading gallery from:", `${API_BASE}/gallery/posts`);
       const res = await fetch(`${API_BASE}/gallery/posts`);
-
-      // If HTTP error
       if (!res.ok) {
-        let extra = "";
-        try {
-          const errData = await res.json();
-          console.log("Gallery error payload:", errData);
-          if (errData && errData.error) extra = ` (${errData.error})`;
-        } catch (_) {}
-
-        grid.innerHTML = `<p class="text-error">Failed to load pup gallery.${extra}</p>`;
+        grid.innerHTML = `<p class="text-error">Failed to load pup gallery.</p>`;
         return;
       }
 
-      const data = await res.json().catch(() => null);
-      console.log("Gallery data:", data);
-
-      if (!data || !Array.isArray(data.posts)) {
-        grid.innerHTML = `<p class="text-error">Failed to load pup gallery (bad response shape).</p>`;
-        return;
-      }
-
-      const posts = data.posts;
+      const data = await res.json().catch(() => ({}));
+      const posts = data.posts || [];
       if (!posts.length) {
-        grid.innerHTML = `<p class="text-muted">No pup posts yet. Be the first to share!</p>`;
+        grid.innerHTML = `<p class="text-muted">No pup posts yet.</p>`;
         return;
       }
 
       grid.innerHTML = "";
-      posts.forEach((post) => {
-        const card = renderPostCard(post);
-        grid.appendChild(card);
-      });
+      posts.forEach((p) => grid.appendChild(renderPostCard(p)));
     } catch (err) {
-      console.error("HOME_GALLERY_FETCH_ERROR:", err);
+      console.error("GALLERY_CLIENT_ERROR:", err);
       grid.innerHTML = `<p class="text-error">Failed to load pup gallery (network error).</p>`;
     }
   }
 
-function renderFeaturedSitters() {
-  const grid = document.getElementById("homeSitterGrid");
-  if (!grid) return;
-
-  const sitters =
-    (window.PetCareState && typeof window.PetCareState.getSitters === "function"
-      ? window.PetCareState.getSitters()
-      : []) || [];
-
-  const list = Array.isArray(sitters) ? sitters.slice(0, 6) : [];
-  if (!list.length) {
-    grid.innerHTML = `<p class="text-muted">No sitters loaded yet.</p>`;
-    return;
-  }
-
-  grid.innerHTML = "";
-  list.forEach((s) => {
-    const card = document.createElement("div");
-    card.className = "mini-card";
-    const avatar = s.avatar || s.avatar_url || "";
-    const name = s.name || "Sitter";
-    const city = s.city || "";
-    const rating = s.rating != null ? String(s.rating) : "5.0";
-    const distance = s.distance || "";
-
-    card.innerHTML = `
-      <div style="display:flex; gap:12px; align-items:center;">
-        <div class="mini-avatar" style="${avatar ? `background-image:url('${avatar}')` : ""}"></div>
-        <div style="flex:1;">
-          <div style="font-weight:700; line-height:1.2;">${name}</div>
-          <div class="small text-muted">${city} ${distance ? `• ${distance}` : ""}</div>
-          <div class="small">★ ${rating}</div>
-        </div>
-        <button type="button" class="btn-small">View</button>
-      </div>
-    `;
-
-    card.querySelector("button")?.addEventListener("click", () => {
-      try {
-        if (window.PetCareState?.ui) window.PetCareState.ui.selectedSitterId = s.id;
-      } catch (_) {}
-      if (typeof window.setActivePage === "function") window.setActivePage("swipePage");
-    });
-
-    grid.appendChild(card);
-  });
-}
-
-  // Expose init for app.js
-  window.initHomePage = function () {
-    renderFeaturedSitters();
+  window.initHomePage = async function () {
+    wireHomeSearch();
+    await tryRefreshSitters();
+    renderHomeResults();
     loadPupGallery();
   };
 })();
