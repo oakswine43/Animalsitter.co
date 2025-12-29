@@ -1,156 +1,318 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AnimalSitter</title>
+  <title>AnimalSitter – Book Trusted Local Pet Sitters & Walkers</title>
+  <link rel="stylesheet" href="css/styles.css" />
 
-  <!-- Backend base URL (Railway) -->
+  <!-- Backend base URL for live API on Railway + Stripe publishable key -->
   <script>
     window.API_BASE = "https://animalsitterco-production.up.railway.app";
-
-    // Stripe TEST publishable key (safe to be public)
-    window.STRIPE_PUBLISHABLE_KEY =
-      "pk_test_51QdBreC0JXa2ACwIkINq3urLuWl6mb2VdoSNFQOnyDQL1PcJt8cV2JhyGGVVaue8IZidNC7Vup0ofEOZDsNRRA9P00oN3W3WPQ";
+    window.STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_ME";
   </script>
-
-  <style>
-    /* Tiny loader so it's not blank while scripts load */
-    .boot-screen {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      padding: 24px;
-      color: #111;
-    }
-    .boot-pill {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #f2f2f2;
-      font-size: 12px;
-      margin-top: 10px;
-    }
-    .boot-muted { color:#666; font-size: 13px; margin-top: 8px; }
-  </style>
 </head>
-
 <body>
-  <div id="bootScreen" class="boot-screen">
-    <h2 style="margin:0;">Loading AnimalSitter…</h2>
-    <div class="boot-pill">Booting assets</div>
-    <div class="boot-muted" id="bootNote">Detecting site path…</div>
+  <div class="app-root">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-header-inner">
+        <div class="brand" onclick="window.showPage && window.showPage('homePage')">
+          <img class="brand-logo" src="img/petcare-logo.png" alt="AnimalSitter logo" />
+          <span>AnimalSitter</span>
+        </div>
+
+        <nav class="main-nav">
+          <button class="nav-link active" data-page="homePage">Home</button>
+          <button class="nav-link" data-page="dashboardPage">Dashboard</button>
+          <button class="nav-link" data-page="swipePage">Swipe</button>
+          <button class="nav-link" data-page="petsPage">Pets</button>
+          <button class="nav-link" data-page="messagesPage">Messages</button>
+          <button class="nav-link" data-page="profilePage">Profile</button>
+        </nav>
+
+        <div class="header-right">
+          <span class="user-pill" id="userPill">Guest</span>
+          <button class="btn-small-outline" id="loginBtn">Log in / Sign up</button>
+          <button class="btn-small" id="logoutBtn" style="display:none;">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="app-main">
+      <div class="app-main-inner">
+
+        <!-- HOME -->
+        <section id="homePage" class="page active">
+  <div class="page-header">
+    <div class="eyebrow">AnimalSitter</div>
+    <h1>Book trusted pet care in minutes</h1>
+    <p class="page-subtitle">Browse sitters, message them, then book with secure Stripe test payments.</p>
   </div>
 
-  <!-- Stripe CDN MUST be loaded (StripeHelpers depends on window.Stripe) -->
-  <script src="https://js.stripe.com/v3/"></script>
+  <!-- Snowpak-inspired hero -->
+  <div class="frontpage-hero">
+    <div class="frontpage-hero-bg" aria-hidden="true"></div>
+
+    <div class="frontpage-hero-content">
+      <!-- Left: search card -->
+      <div class="frontpage-search-card">
+        <div class="frontpage-search-title">Find a sitter</div>
+        <div class="frontpage-search-subtitle">Pick a service, city, and dates — then browse.</div>
+
+        <div class="frontpage-search-grid">
+          <div class="fp-field">
+            <span>City</span>
+            <input id="homeSearchCity" class="input" placeholder="Johnson City, TN" />
+          </div>
+          <div class="fp-field">
+            <span>Service</span>
+            <select id="homeSearchService" class="input">
+              <option value="">Any</option>
+              <option value="walk">Dog walking</option>
+              <option value="dropin">Drop-in</option>
+              <option value="daycare">Daycare</option>
+              <option value="overnight">Overnight</option>
+            </select>
+          </div>
+          <div class="fp-field">
+            <span>Start</span>
+            <input id="homeSearchStart" class="input" type="date" />
+          </div>
+          <div class="fp-field">
+            <span>End</span>
+            <input id="homeSearchEnd" class="input" type="date" />
+          </div>
+        </div>
+
+        <button id="homeSearchBtn" type="button" class="btn-primary fp-search-btn">Search sitters</button>
+
+        <div class="fp-trust-row">
+          <div class="fp-trust-pill">Verified sitters</div>
+          <div class="fp-trust-pill">Secure payments</div>
+          <div class="fp-trust-pill">Message first</div>
+        </div>
+      </div>
+
+      <!-- Right: marketing copy -->
+      <div class="frontpage-hero-right">
+        <h2 class="frontpage-hero-h1">Reliable care for pets — and peace of mind for you.</h2>
+        <p class="frontpage-hero-p">
+          Browse sitter profiles, filter by service, and book confidently. Payments are handled with Stripe (test mode),
+          and you can message a sitter before you confirm.
+        </p>
+
+        <div class="frontpage-hero-cta">
+          <button type="button" class="btn-small" onclick="window.showPage && window.showPage('swipePage')">Browse sitters</button>
+          <button type="button" class="btn-small-outline" onclick="window.showPage && window.showPage('authPage')">Log in / Sign up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results + map -->
+  <div class="frontpage-body">
+    <div class="frontpage-results">
+      <div class="frontpage-results-header">
+        <div>
+          <div class="card-title">Top sitters near you</div>
+          <div class="card-subtitle">Tap a sitter to view their profile and book.</div>
+        </div>
+        <button type="button" class="btn-secondary" onclick="window.showPage && window.showPage('swipePage')">Open Swipe</button>
+      </div>
+
+      <div class="frontpage-list" id="homeTopSittersList">
+        <!-- demo cards (JS can replace these later) -->
+        <div class="frontpage-sitter-card">
+          <div class="fp-sitter-row">
+            <div class="fp-sitter-avatar" style="background-image:url('https://images.pexels.com/photos/4588012/pexels-photo-4588012.jpeg?auto=compress&cs=tinysrgb&w=300');"></div>
+            <div style="flex:1;">
+              <div class="fp-sitter-name">Alex • 5★</div>
+              <div class="fp-sitter-meta">Downtown • 2 miles</div>
+              <div class="fp-sitter-services">Walks • Drop-ins • Overnight</div>
+            </div>
+            <div class="fp-sitter-right">
+              <div class="fp-sitter-price">$15–$40</div>
+              <button type="button" class="btn-small" onclick="window.showPage && window.showPage('swipePage')">View</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="frontpage-sitter-card">
+          <div class="fp-sitter-row">
+            <div class="fp-sitter-avatar" style="background-image:url('https://images.pexels.com/photos/4588013/pexels-photo-4588013.jpeg?auto=compress&cs=tinysrgb&w=300');"></div>
+            <div style="flex:1;">
+              <div class="fp-sitter-name">Sam • 4.9★</div>
+              <div class="fp-sitter-meta">Near campus • 3 miles</div>
+              <div class="fp-sitter-services">Drop-ins • Daycare</div>
+            </div>
+            <div class="fp-sitter-right">
+              <div class="fp-sitter-price">$20–$35</div>
+              <button type="button" class="btn-small" onclick="window.showPage && window.showPage('swipePage')">View</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="frontpage-sitter-card">
+          <div class="fp-sitter-row">
+            <div class="fp-sitter-avatar" style="background-image:url('https://images.pexels.com/photos/4588014/pexels-photo-4588014.jpeg?auto=compress&cs=tinysrgb&w=300');"></div>
+            <div style="flex:1;">
+              <div class="fp-sitter-name">Jordan • 4.8★</div>
+              <div class="fp-sitter-meta">Northside • 5 miles</div>
+              <div class="fp-sitter-services">Walks • Overnight</div>
+            </div>
+            <div class="fp-sitter-right">
+              <div class="fp-sitter-price">$15–$40</div>
+              <button type="button" class="btn-small" onclick="window.showPage && window.showPage('swipePage')">View</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frontpage-map">
+      <div class="frontpage-map-header">
+        <div>
+          <div class="card-title">Map</div>
+          <div class="card-subtitle">Demo preview — we can add Google Maps later.</div>
+        </div>
+        <span class="small text-muted">Pins are demo-only</span>
+      </div>
+
+      <div class="frontpage-map-canvas">
+        <div class="frontpage-map-placeholder">
+          <div class="frontpage-map-dot" aria-hidden="true"></div>
+          <div class="map-placeholder-text">Map preview</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pup gallery (home.js fills this) -->
+  <div class="section" style="margin-top:18px;">
+    <div class="section-header">
+      <h2>Pup gallery</h2>
+      <p>Latest posts from the community.</p>
+    </div>
+    <div id="homeGalleryGrid" class="gallery-grid"></div>
+  </div>
+
+  <!-- CTA -->
+  <div class="ready-cta">
+    <div class="ready-cta-inner">
+      <div>
+        <h2>Ready to book?</h2>
+        <p>Create an account, message a sitter, then confirm your booking with Stripe test payments.</p>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-small-outline" onclick="window.showPage && window.showPage('authPage')">Log in / Sign up</button>
+        <button type="button" class="btn-small" onclick="window.showPage && window.showPage('dashboardPage')">Go to Dashboard</button>
+      </div>
+    </div>
+  </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <section id="dashboardPage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Dashboard</div>
+            <h1>Your dashboard</h1>
+            <p class="page-subtitle">Upcoming bookings, quick actions, and account status.</p>
+          </div>
+
+          <div class="section-card">
+            <h3 style="margin-top:0;">Dashboard</h3>
+            <p class="text-muted" id="dashboardHint">Your personalized dashboard will appear here.</p>
+          </div>
+        </section>
+
+        <!-- SWIPE -->
+        <section id="swipePage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Swipe</div>
+            <h1>Browse sitters</h1>
+            <p class="page-subtitle">Swipe through sitter cards and tap to view details.</p>
+          </div>
+          <div class="section-card" id="swipeRoot"></div>
+        </section>
+
+        <!-- PETS -->
+        <section id="petsPage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Pets</div>
+            <h1>Your pets</h1>
+            <p class="page-subtitle">Add pet profiles so sitters know routines, quirks, and special needs.</p>
+          </div>
+          <div class="section-card" id="petsRoot"></div>
+        </section>
+
+        <!-- MESSAGES -->
+        <section id="messagesPage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Messages</div>
+            <h1>Messages</h1>
+            <p class="page-subtitle">Chat with sitters and clients.</p>
+          </div>
+          <div class="section-card" id="messagesRoot"></div>
+        </section>
+
+        <!-- PROFILE -->
+        <section id="profilePage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Profile</div>
+            <h1>Your profile</h1>
+            <p class="page-subtitle">Update your info, security, and preferences.</p>
+          </div>
+          <div class="section-card" id="profileRoot"></div>
+        </section>
+
+        <!-- AUTH -->
+        <section id="authPage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Account</div>
+            <h1>Log in / Sign up</h1>
+            <p class="page-subtitle">Access your dashboard and start booking.</p>
+          </div>
+          <div class="section-card auth-page-card" id="authRoot"></div>
+        </section>
+
+        <!-- BOOKING -->
+        <section id="bookingPage" class="page">
+          <div class="page-header">
+            <div class="eyebrow">Booking</div>
+            <h1>Book sitter</h1>
+            <p class="page-subtitle">Review details, add your info, then confirm payment.</p>
+          </div>
+          <div class="section-card" id="bookingRoot"></div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Core scripts -->
+  <script src="js/state.js" defer></script>
+  <script src="js/app.js" defer></script>
+
+  <!-- Page scripts -->
+  <script src="js/pages/home.js" defer></script>
+  <script src="js/pages/dashboard.js" defer></script>
+  <script src="js/pages/swipe.js" defer></script>
+  <script src="js/pages/dogs.js" defer></script>
+  <script src="js/pages/messages.js" defer></script>
+  <script src="js/pages/settings.js" defer></script>
+  <script src="js/pages/changePassword.js" defer></script>
+  <script src="js/pages/profilrshared.js" defer></script>
+  <script src="js/pages/sitterprofile.js" defer></script>
+  <script src="js/pages/authpage.js" defer></script>
+  <script src="js/pages/profile.js" defer></script>
+  <script src="js/pages/booking.js" defer></script>
 
   <script>
-    (function () {
-      const bootNote = document.getElementById("bootNote");
-
-      function setNote(t) {
-        if (bootNote) bootNote.textContent = t;
-      }
-
-      async function exists(url) {
-        try {
-          const res = await fetch(url, { method: "GET", cache: "no-store" });
-          return res.ok;
-        } catch {
-          return false;
-        }
-      }
-
-      async function detectPrefix() {
-        // Try root first
-        if (await exists("js/app.js")) return "";
-        // Then try /home-sitter-app/
-        if (await exists("home-sitter-app/js/app.js")) return "home-sitter-app/";
-        // Fallback: try current directory (relative)
-        return "";
-      }
-
-      function loadCSS(href) {
-        return new Promise((resolve, reject) => {
-          const link = document.createElement("link");
-          link.rel = "stylesheet";
-          link.href = href;
-          link.onload = () => resolve(true);
-          link.onerror = () => reject(new Error("CSS failed: " + href));
-          document.head.appendChild(link);
-        });
-      }
-
-      function loadScript(src) {
-        return new Promise((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = src;
-          s.defer = true;
-          s.onload = () => resolve(true);
-          s.onerror = () => reject(new Error("Script failed: " + src));
-          document.body.appendChild(s);
-        });
-      }
-
-      async function boot() {
-        setNote("Detecting where your assets are hosted…");
-
-        const prefix = await detectPrefix();
-        window.__ASSET_PREFIX = prefix;
-
-        setNote("Using asset prefix: " + (prefix ? "/" + prefix : "/"));
-
-        // Load CSS
-        try {
-          await loadCSS(prefix + "css/styles.css");
-        } catch (e) {
-          // If CSS fails here, we still continue so you can see console errors
-          console.error(e);
-          setNote("CSS failed to load. Check Network tab for styles.css (404).");
-        }
-
-        // Load your app scripts in the order your app expects
-        const core = [
-          "js/auth.js",
-          "js/state.js",
-          "js/stripe.js",
-          "js/app.js"
-        ];
-
-        const pages = [
-          "js/pages/authpage.js",
-          "js/pages/authPage.v2.js",
-          "js/pages/home.js",
-          "js/pages/dashboard.js",
-          "js/pages/swipe.js",
-          "js/pages/dogs.js",
-          "js/pages/messages.js",
-          "js/pages/profile.js",
-          "js/pages/settings.js",
-          "js/pages/changePassword.js",
-          "js/pages/sitterprofile.js",
-          "js/pages/booking.js",
-          "js/pages/profilrshared.js"
-        ];
-
-        try {
-          setNote("Loading core scripts…");
-          for (const f of core) await loadScript(prefix + f);
-
-          setNote("Loading page scripts…");
-          for (const f of pages) await loadScript(prefix + f);
-        } catch (e) {
-          console.error(e);
-          setNote("A JS file failed to load. Open DevTools → Network and find the 404.");
-          return;
-        }
-
-        // Hide boot screen once app is loaded
-        const bootScreen = document.getElementById("bootScreen");
-        if (bootScreen) bootScreen.style.display = "none";
-      }
-
-      boot();
-    })();
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.initStripe) window.initStripe();
+    });
   </script>
 </body>
 </html>
